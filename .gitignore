@@ -1,0 +1,35 @@
+# Secrets — never commit API credentials
+secrets.json
+
+# Flutter build output
+/.dart_tool/
+/.flutter-plugins
+/.flutter-plugins-dependencies
+/build/
+*.iml
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*~
+
+# Mac
+.DS_Store
+
+# Android
+android/.gradle/
+android/app/src/main/assets/
+android/local.properties
+android/*.jks
+android/key.properties
+
+# iOS
+ios/Flutter/Generated.xcconfig
+ios/Flutter/ephemeral/
+ios/Flutter/ephemeral2/
+ios/Runner/GeneratedPluginRegistrant.*
+*.xcworkspace/
+
+# Coverage
+coverage/
