@@ -47,7 +47,7 @@ class WorkPeriodSetting {
 
   /// Check whether a given date falls within this work period's range.
   bool isActiveOn(DateTime date) {
-    final check = DateTime(date.year, date.month, date.monthDay);
+    final check = DateTime(date.year, date.month, date.day);
     final start = DateTime.parse(startDate);
     final end = DateTime.parse(endDate);
     return check.isAfter(start.subtract(const Duration(days: 1))) &&

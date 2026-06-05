@@ -137,12 +137,12 @@ class TimeLog {
     if (endTime == null) return '— working —';
     final mins = overtimeMinutes;
     if (mins == 0) return '✓ Exactly on target';
-    if (mins > 0) return '+${mins} min overtime';
-    return '${mins} min early';
+    if (mins > 0) return '+$mins min overtime';
+    return '$mins min early';
   }
 
   @override
   String toString() =>
       'TimeLog($date, $startTime${endTime != null ? ' → $endTime' : ''}, '
-      'overtime: ${overtimeLabel})';
+      'overtime: $overtimeLabel)';
 }
