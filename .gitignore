@@ -34,3 +34,5 @@ ios/Runner/GeneratedPluginRegistrant.*
 
 # Coverage
 coverage/
+
+secrets.json
