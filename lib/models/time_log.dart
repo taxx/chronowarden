@@ -5,8 +5,8 @@
 ///     [expectedMinutes] and [overheadMinutes].
 ///   • *Afternoon Logger* — compute [overtimeMinutes] once [endTime] is set.
 class TimeLog {
-  final String id;
-  final String userId;
+  final String? id;
+  final String? userId;
   final String date; // "YYYY-MM-DD"
   final String startTime; // "HH:MM:SS"
   final String? endTime;  // "HH:MM:SS" — null while the day is active
@@ -14,11 +14,11 @@ class TimeLog {
   final int expectedMinutes;
   final int overtimeMinutes;
   final String? note;
-  final String createdAt;
+  final String? createdAt;
 
   const TimeLog({
-    required this.id,
-    required this.userId,
+    this.id,
+    this.userId,
     required this.date,
     required this.startTime,
     this.endTime,
@@ -26,7 +26,7 @@ class TimeLog {
     required this.expectedMinutes,
     required this.overtimeMinutes,
     this.note,
-    required this.createdAt,
+    this.createdAt,
   });
 
   // ------------------------------------------------------------------
@@ -35,8 +35,8 @@ class TimeLog {
 
   factory TimeLog.fromJson(Map<String, dynamic> json) {
     return TimeLog(
-      id: json['id'] as String,
-      userId: json['user_id'] as String,
+      id: json['id'] as String?,
+      userId: json['user_id'] as String?,
       date: json['date'] as String,
       startTime: json['start_time'] as String,
       endTime: json['end_time'] as String?,
@@ -44,7 +44,7 @@ class TimeLog {
       expectedMinutes: json['expected_minutes'] as int,
       overtimeMinutes: json['overtime_minutes'] as int,
       note: json['note'] as String?,
-      createdAt: json['created_at'] as String,
+      createdAt: json['created_at'] as String?,
     );
   }
 
@@ -70,16 +70,16 @@ class TimeLog {
   /// Combine [date] + [startTime] into a single local [DateTime].
   /// Anchored to a neutral epoch so DST boundaries cannot corrupt the
   /// wall-clock arithmetic we rely on for leave-time projection.
-  DateTime get _dayStart => _combineDateAndTime(date, startTime);
+  DateTime get _dayStart => combineDateAndTime(date, startTime);
 
   /// Combine [date] + [endTime] into a single local [DateTime] (if set).
   DateTime? get _dayEnd => endTime == null
       ? null
-      : _combineDateAndTime(date, endTime!);
+      : combineDateAndTime(date, endTime!);
 
   /// Merge a date string ("YYYY-MM-DD") and a time string ("HH:MM:SS")
   /// into a single [DateTime] in the local timezone.
-  static DateTime _combineDateAndTime(String dateStr, String timeStr) {
+  static DateTime combineDateAndTime(String dateStr, String timeStr) {
     final parts = timeStr.split(':');
     final hour = int.parse(parts[0]);
     final minute = int.parse(parts[1]);
@@ -93,6 +93,22 @@ class TimeLog {
       minute,
       second,
     );
+  }
+
+  /// Convenience: same as [calculateLeaveTime] but derived from the stored
+  /// [date] + [startTime] fields (no external [dayStart] argument needed).
+  DateTime get leaveTime {
+    final start = combineDateAndTime(date, startTime);
+    return start.add(Duration(minutes: expectedMinutes + overheadMinutes));
+  }
+
+  /// Elapsed minutes from start → now (or end if closed).
+  Duration get elapsed {
+    final start = combineDateAndTime(date, startTime);
+    final end = endTime != null
+        ? combineDateAndTime(date, endTime!)
+        : DateTime.now();
+    return end.difference(start);
   }
 
   // ------------------------------------------------------------------
@@ -139,6 +155,33 @@ class TimeLog {
     if (mins == 0) return '✓ Exactly on target';
     if (mins > 0) return '+$mins min overtime';
     return '$mins min early';
+  }
+
+  /// Returns a copy of this log with the given fields replaced.
+  TimeLog copyWith({
+    String? id,
+    String? userId,
+    String? date,
+    String? startTime,
+    String? endTime,
+    int? overheadMinutes,
+    int? expectedMinutes,
+    int? overtimeMinutes,
+    String? note,
+    String? createdAt,
+  }) {
+    return TimeLog(
+      id: id ?? this.id,
+      userId: userId ?? this.userId,
+      date: date ?? this.date,
+      startTime: startTime ?? this.startTime,
+      endTime: endTime ?? this.endTime,
+      overheadMinutes: overheadMinutes ?? this.overheadMinutes,
+      expectedMinutes: expectedMinutes ?? this.expectedMinutes,
+      overtimeMinutes: overtimeMinutes ?? this.overtimeMinutes,
+      note: note ?? this.note,
+      createdAt: createdAt ?? this.createdAt,
+    );
   }
 
   @override

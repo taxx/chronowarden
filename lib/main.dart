@@ -1,53 +1,38 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import 'app_state.dart';
+import 'screens/home_screen.dart';
+
 // Compile-time injection via --dart-define-from-file=secrets.json
-// (String.fromEnvironment is const-only; empty at runtime if not passed).
 const supabaseUrl = String.fromEnvironment('SUPABASE_URL');
 const supabaseAnonKey = String.fromEnvironment('SUPABASE_ANON_KEY');
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  if (supabaseUrl.isEmpty || supabaseAnonKey.isEmpty) {
-    runApp(const MissingConfigApp());
-    return;
+  if (supabaseUrl.isNotEmpty && supabaseAnonKey.isNotEmpty) {
+    await Supabase.initialize(url: supabaseUrl, publishableKey: supabaseAnonKey);
   }
-
-  await Supabase.initialize(url: supabaseUrl, publishableKey: supabaseAnonKey);
 
   runApp(const ChronoWardenApp());
 }
 
-// Shown when secrets are missing — tells the user exactly what to do.
-class MissingConfigApp extends StatelessWidget {
-  const MissingConfigApp({super.key});
+class ChronoWardenApp extends StatefulWidget {
+  const ChronoWardenApp({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      debugShowCheckedModeBanner: false,
-      home: Scaffold(
-        body: Center(
-          child: Padding(
-            padding: const EdgeInsets.all(24.0),
-            child: Text(
-              'Supabase credentials not found.\n\n'
-              'Copy secrets.json.template → secrets.json, fill in your '
-              'SUPABASE_URL and SUPABASE_ANON_KEY, then run:\n\n'
-              'flutter run --dart-define-from-file=secrets.json',
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.bodyLarge,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
+  State<ChronoWardenApp> createState() => _ChronoWardenAppState();
 }
 
-class ChronoWardenApp extends StatelessWidget {
-  const ChronoWardenApp({super.key});
+class _ChronoWardenAppState extends State<ChronoWardenApp> {
+  final _state = AppState();
+
+  @override
+  void initState() {
+    super.initState();
+    _state.refresh();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -58,8 +43,37 @@ class ChronoWardenApp extends StatelessWidget {
         colorSchemeSeed: const Color(0xFF1E3A5F),
         useMaterial3: true,
       ),
-      home: const Scaffold(
-        body: Center(child: Text('ChronoWarden')),
+      home: ListenableBuilder(
+        listenable: _state,
+        builder: (context, _) {
+          if (supabaseUrl.isEmpty) {
+            return const _NoConfigScreen();
+          }
+          return const HomeScreen();
+        },
+      ),
+    );
+  }
+}
+
+class _NoConfigScreen extends StatelessWidget {
+  const _NoConfigScreen();
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Text(
+            'Supabase credentials not found.\n\n'
+            'Copy secrets.json.template → secrets.json, fill in your '
+            'SUPABASE_URL and SUPABASE_ANON_KEY, then run:\n\n'
+            'flutter run --dart-define-from-file=secrets.json',
+            textAlign: TextAlign.center,
+            style: Theme.of(context).textTheme.bodyLarge,
+          ),
+        ),
       ),
     );
   }
