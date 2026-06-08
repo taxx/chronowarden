@@ -13,9 +13,14 @@ class AppState extends ChangeNotifier {
   static final AppState _instance = AppState._();
   factory AppState() => _instance;
 
-  final _logs = TimeLogService();
-  final _periods = WorkPeriodService();
-  final _presets = TravelPresetService();
+  // Lazily initialised — only accessed after Supabase is ready.
+  TimeLogService? _logs;
+  WorkPeriodService? _periods;
+  TravelPresetService? _presets;
+
+  TimeLogService get logs => _logs ??= TimeLogService();
+  WorkPeriodService get periods => _periods ??= WorkPeriodService();
+  TravelPresetService get presets => _presets ??= TravelPresetService();
 
   // -- cached data ---------------------------------------------------
   TimeLog? _todayLog;
@@ -40,44 +45,48 @@ class AppState extends ChangeNotifier {
 
   // -- loading -------------------------------------------------------
   Future<void> refresh() async {
-    await Future.wait([
-      _loadToday(),
-      _loadAll(),
-      _loadPeriods(),
-      _loadPresets(),
-      _loadBalance(),
-    ]);
+    try {
+      await Future.wait([
+        _loadToday(),
+        _loadAll(),
+        _loadPeriods(),
+        _loadPresets(),
+        _loadBalance(),
+      ]);
+    } catch (_) {
+      // Supabase not connected — keep empty state.
+    }
     notifyListeners();
   }
 
-  Future<void> _loadToday() async => _todayLog = await _logs.today();
-  Future<void> _loadAll() async => _allLogs = await _logs.all();
-  Future<void> _loadPeriods() async => _periodsList = await _periods.all();
-  Future<void> _loadPresets() async => _presetsList = await _presets.all();
-  Future<void> _loadBalance() async => _timeBankMinutes = await _logs.totalOvertime();
+  Future<void> _loadToday() async => _todayLog = await logs.today();
+  Future<void> _loadAll() async => _allLogs = await logs.all();
+  Future<void> _loadPeriods() async => _periodsList = await periods.all();
+  Future<void> _loadPresets() async => _presetsList = await presets.all();
+  Future<void> _loadBalance() async => _timeBankMinutes = await logs.totalOvertime();
 
   // -- work-period CRUD ----------------------------------------------
   Future<void> addWorkPeriod(WorkPeriodSetting p) async {
-    await _periods.insert(p);
+    await periods.insert(p);
     await _loadPeriods();
     notifyListeners();
   }
 
   Future<void> deleteWorkPeriod(String id) async {
-    await _periods.delete(id);
+    await periods.delete(id);
     await _loadPeriods();
     notifyListeners();
   }
 
   // -- travel-preset CRUD --------------------------------------------
   Future<void> addTravelPreset(TravelPreset p) async {
-    await _presets.insert(p);
+    await presets.insert(p);
     await _loadPresets();
     notifyListeners();
   }
 
   Future<void> deleteTravelPreset(String id) async {
-    await _presets.delete(id);
+    await presets.delete(id);
     await _loadPresets();
     notifyListeners();
   }
@@ -89,7 +98,7 @@ class AppState extends ChangeNotifier {
     required int overheadMinutes,
   }) async {
     final date = _dateStr(DateTime.now());
-    final existing = await _logs.activeToday();
+    final existing = await logs.activeToday();
     if (existing != null) return existing;
 
     final newLog = TimeLog(
@@ -99,7 +108,7 @@ class AppState extends ChangeNotifier {
       overheadMinutes: overheadMinutes,
       overtimeMinutes: 0,
     );
-    final saved = await _logs.insert(newLog);
+    final saved = await logs.insert(newLog);
     _todayLog = saved;
     notifyListeners();
     return saved;
@@ -115,7 +124,7 @@ class AppState extends ChangeNotifier {
     final id = log.id;
     if (id == null) return;
 
-    await _logs.update(id, {
+    await logs.update(id, {
       'end_time': endTime,
       'overtime_minutes': overtime,
     });

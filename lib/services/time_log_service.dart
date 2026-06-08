@@ -1,8 +1,10 @@
+import 'package:supabase_flutter/supabase_flutter.dart';
+
 import '../models/time_log.dart';
 import 'supabase_service.dart';
 
 class TimeLogService {
-  final _client = SupabaseService().client;
+  SupabaseClient get _client => SupabaseService.instance.client;
 
   Future<List<TimeLog>> all() async {
     final resp = await _client.from('time_logs').select().order('date', ascending: false);

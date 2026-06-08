@@ -1,8 +1,10 @@
+import 'package:supabase_flutter/supabase_flutter.dart';
+
 import '../models/work_period_setting.dart';
 import 'supabase_service.dart';
 
 class WorkPeriodService {
-  final _client = SupabaseService().client;
+  SupabaseClient get _client => SupabaseService.instance.client;
 
   Future<List<WorkPeriodSetting>> all() async {
     final resp = await _client.from('work_period_settings').select().order('start_date');

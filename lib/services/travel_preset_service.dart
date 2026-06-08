@@ -1,8 +1,10 @@
+import 'package:supabase_flutter/supabase_flutter.dart';
+
 import '../models/travel_preset.dart';
 import 'supabase_service.dart';
 
 class TravelPresetService {
-  final _client = SupabaseService().client;
+  SupabaseClient get _client => SupabaseService.instance.client;
 
   Future<List<TravelPreset>> all() async {
     final resp = await _client.from('travel_presets').select().order('name');
