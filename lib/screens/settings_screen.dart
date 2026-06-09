@@ -18,27 +18,32 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Settings')),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          _Section<WorkPeriodSetting>(
-            title: 'Work Periods',
-            subtitle: 'Seasonal work-day lengths',
-            items: _state.workPeriods,
-            itemBuilder: (p) => Text('${p.name}: ${p.expectedMinutes} min (${p.startDate} → ${p.endDate})'),
-            deleteItem: (p) => _state.deleteWorkPeriod(p.id!),
-            addCallback: () => _showAddPeriodDialog(context),
-          ),
-          const SizedBox(height: 24),
-          _Section<TravelPreset>(
-            title: 'Travel Presets',
-            subtitle: 'Commute scenarios with overhead buffer',
-            items: _state.travelPresets,
-            itemBuilder: (p) => Text('${p.name}: +${p.defaultOverheadMinutes} min overhead'),
-            deleteItem: (p) => _state.deleteTravelPreset(p.id!),
-            addCallback: () => _showAddPresetDialog(context),
-          ),
-        ],
+      body: ListenableBuilder(
+        listenable: _state,
+        builder: (context, _) {
+          return ListView(
+            padding: const EdgeInsets.all(16),
+            children: [
+              _Section<WorkPeriodSetting>(
+                title: 'Work Periods',
+                subtitle: 'Seasonal work-day lengths',
+                items: _state.workPeriods,
+                itemBuilder: (p) => Text('${p.name}: ${p.expectedMinutes} min (${p.startDate} → ${p.endDate})'),
+                deleteItem: (p) => _state.deleteWorkPeriod(p.id!),
+                addCallback: () => _showAddPeriodDialog(context),
+              ),
+              const SizedBox(height: 24),
+              _Section<TravelPreset>(
+                title: 'Travel Presets',
+                subtitle: 'Commute scenarios with overhead buffer',
+                items: _state.travelPresets,
+                itemBuilder: (p) => Text('${p.name}: +${p.defaultOverheadMinutes} min overhead'),
+                deleteItem: (p) => _state.deleteTravelPreset(p.id!),
+                addCallback: () => _showAddPresetDialog(context),
+              ),
+            ],
+          );
+        },
       ),
     );
   }

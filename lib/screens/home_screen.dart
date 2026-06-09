@@ -16,11 +16,7 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   int _currentIndex = 0;
-
-  final _screens = [
-    const _HomeTab(),
-    const HistoryScreen(),
-  ];
+  final _state = AppState();
 
   @override
   Widget build(BuildContext context) {
@@ -37,7 +33,18 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ],
       ),
-      body: IndexedStack(index: _currentIndex, children: _screens),
+      body: ListenableBuilder(
+        listenable: _state,
+        builder: (context, _) {
+          return IndexedStack(
+            index: _currentIndex,
+            children: [
+              _HomeTab(),
+              HistoryScreen(),
+            ],
+          );
+        },
+      ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _currentIndex,
         onDestinationSelected: (i) => setState(() => _currentIndex = i),
