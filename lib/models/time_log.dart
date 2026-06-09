@@ -12,6 +12,7 @@ class TimeLog {
   final String? endTime;  // "HH:MM:SS" — null while the day is active
   final int overheadMinutes;
   final int expectedMinutes;
+  final int lunchMinutes;
   final int overtimeMinutes;
   final String? note;
   final String? createdAt;
@@ -24,6 +25,7 @@ class TimeLog {
     this.endTime,
     required this.overheadMinutes,
     required this.expectedMinutes,
+    this.lunchMinutes = 0,
     required this.overtimeMinutes,
     this.note,
     this.createdAt,
@@ -42,6 +44,7 @@ class TimeLog {
       endTime: json['end_time'] as String?,
       overheadMinutes: json['overhead_minutes'] as int,
       expectedMinutes: json['expected_minutes'] as int,
+      lunchMinutes: (json['lunch_minutes'] as int?) ?? 0,
       overtimeMinutes: json['overtime_minutes'] as int,
       note: json['note'] as String?,
       createdAt: json['created_at'] as String?,
@@ -57,6 +60,7 @@ class TimeLog {
       'end_time': endTime,
       'overhead_minutes': overheadMinutes,
       'expected_minutes': expectedMinutes,
+      'lunch_minutes': lunchMinutes,
       'overtime_minutes': overtimeMinutes,
       'note': note,
       'created_at': createdAt,
@@ -142,7 +146,7 @@ class TimeLog {
     final actualMinutes = end.difference(start).inMinutes;
     final totalExpected = expectedMinutes + overheadMinutes;
 
-    return actualMinutes - totalExpected;
+    return actualMinutes - lunchMinutes - totalExpected;
   }
 
   /// Total minutes the user is expected to spend (work + overhead).
@@ -166,6 +170,7 @@ class TimeLog {
     String? endTime,
     int? overheadMinutes,
     int? expectedMinutes,
+    int? lunchMinutes,
     int? overtimeMinutes,
     String? note,
     String? createdAt,
@@ -178,6 +183,7 @@ class TimeLog {
       endTime: endTime ?? this.endTime,
       overheadMinutes: overheadMinutes ?? this.overheadMinutes,
       expectedMinutes: expectedMinutes ?? this.expectedMinutes,
+      lunchMinutes: lunchMinutes ?? this.lunchMinutes,
       overtimeMinutes: overtimeMinutes ?? this.overtimeMinutes,
       note: note ?? this.note,
       createdAt: createdAt ?? this.createdAt,

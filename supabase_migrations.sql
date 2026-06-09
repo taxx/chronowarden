@@ -30,3 +30,6 @@ create policy "Manage own travel presets" on travel_presets
 
 create policy "Manage own time logs" on time_logs
   for all using (user_id IS NULL OR auth.uid() = user_id);
+
+-- 4. Add lunch_minutes column to time_logs
+alter table time_logs add column if not exists lunch_minutes int not null default 0;

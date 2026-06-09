@@ -28,6 +28,7 @@ create table time_logs (
   end_time time,
   overhead_minutes int not null,
   expected_minutes int not null,
+  lunch_minutes int not null default 0,
   overtime_minutes int not null default 0,
   note text,
   created_at timestamp with time zone default timezone('utc'::text, now()) not null

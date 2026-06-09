@@ -273,6 +273,8 @@ class _HomeTabState extends State<_HomeTab> with SingleTickerProviderStateMixin 
                   ? '+${log.overtimeMinutes} min'
                   : '${log.overtimeMinutes} min',
             ),
+            if (log.lunchMinutes != null && log.lunchMinutes > 0)
+              _statRow(theme, 'Lunch', '${log.lunchMinutes} min'),
             if (log.note?.isNotEmpty == true)
               Padding(
                 padding: const EdgeInsets.only(top: 8),
@@ -350,14 +352,14 @@ class _HomeTabState extends State<_HomeTab> with SingleTickerProviderStateMixin 
   }
 
   Future<void> _showStopDayDialog(BuildContext ctx) async {
-    final result = await showDialog<TimeOfDay>(
+    final result = await showDialog<_StopDayResult>(
       context: ctx,
       builder: (_) => _StopDayDialog(),
     );
 
     if (result != null) {
-      final endStr = '${result.hour.toString().padLeft(2, '0')}:${result.minute.toString().padLeft(2, '0')}:00';
-      await _state.stopDay(endStr);
+      final endStr = '${result.time.hour.toString().padLeft(2, '0')}:${result.time.minute.toString().padLeft(2, '0')}:00';
+      await _state.stopDay(endStr, lunchMinutes: result.lunchMinutes);
     }
   }
 
@@ -389,6 +391,7 @@ class _HomeTabState extends State<_HomeTab> with SingleTickerProviderStateMixin 
         endTime: endStr,
         expectedMinutes: result.expectedMinutes,
         overheadMinutes: result.overheadMinutes,
+        lunchMinutes: result.lunchMinutes,
         note: result.note,
       );
       await state.editDay(editedLog);
@@ -401,6 +404,12 @@ class _StartDayResult {
   final int expectedMinutes;
   final int overheadMinutes;
   _StartDayResult(this.time, this.expectedMinutes, this.overheadMinutes);
+}
+
+class _StopDayResult {
+  final TimeOfDay time;
+  final int lunchMinutes;
+  _StopDayResult(this.time, this.lunchMinutes);
 }
 
 // ---------------------------------------------------------------------------
@@ -535,6 +544,7 @@ class _StopDayDialog extends StatefulWidget {
 
 class _StopDayDialogState extends State<_StopDayDialog> {
   late TimeOfDay _time;
+  int _lunchMinutes = 0;
 
   @override
   void initState() {
@@ -560,11 +570,32 @@ class _StopDayDialogState extends State<_StopDayDialog> {
             icon: const Icon(Icons.access_time),
             label: Text('${_time.hour.toString().padLeft(2, '0')}:${_time.minute.toString().padLeft(2, '0')}'),
           ),
+          const SizedBox(height: 16),
+          Text('Lunch break', style: theme.textTheme.titleSmall),
+          const SizedBox(height: 4),
+          Row(
+            children: [
+              Expanded(
+                child: Slider(
+                  value: _lunchMinutes.toDouble(),
+                  min: 0,
+                  max: 240,
+                  divisions: 48,
+                  label: '$_lunchMinutes min',
+                  onChanged: (v) => setState(() => _lunchMinutes = v.round()),
+                ),
+              ),
+              Text('$_lunchMinutes min', style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600)),
+            ],
+          ),
         ],
       ),
       actions: [
         TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
-        FilledButton(onPressed: () => Navigator.pop(context, _time), child: const Text('Stop')),
+        FilledButton(
+          onPressed: () => Navigator.pop(context, _StopDayResult(_time, _lunchMinutes)),
+          child: const Text('Stop'),
+        ),
       ],
     );
   }
@@ -579,12 +610,14 @@ class _EditDayResult {
   final TimeOfDay? endTime;
   final int expectedMinutes;
   final int overheadMinutes;
+  final int lunchMinutes;
   final String? note;
   _EditDayResult({
     required this.startTime,
     required this.endTime,
     required this.expectedMinutes,
     required this.overheadMinutes,
+    required this.lunchMinutes,
     this.note,
   });
 }
@@ -613,6 +646,7 @@ class _EditDayDialogState extends State<_EditDayDialog> {
   TimeOfDay? _endTime;
   late int _expected;
   late int _overhead;
+  late int _lunch;
   late String _note;
 
   @override
@@ -622,6 +656,7 @@ class _EditDayDialogState extends State<_EditDayDialog> {
     _endTime = widget.log.endTime != null ? _timeOfDayFromStr(widget.log.endTime!) : null;
     _expected = widget.log.expectedMinutes;
     _overhead = widget.log.overheadMinutes;
+    _lunch = widget.log.lunchMinutes ?? 0;
     _note = widget.log.note ?? '';
   }
 
@@ -690,6 +725,24 @@ class _EditDayDialogState extends State<_EditDayDialog> {
               onChanged: (v) { if (v != null) setState(() => _overhead = v); },
             ),
             const SizedBox(height: 16),
+            Text('Lunch break', style: theme.textTheme.titleSmall),
+            const SizedBox(height: 4),
+            Row(
+              children: [
+                Expanded(
+                  child: Slider(
+                    value: _lunch.toDouble(),
+                    min: 0,
+                    max: 240,
+                    divisions: 48,
+                    label: '$_lunch min',
+                    onChanged: (v) => setState(() => _lunch = v.round()),
+                  ),
+                ),
+                Text('$_lunch min', style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600)),
+              ],
+            ),
+            const SizedBox(height: 8),
             Text('Note', style: theme.textTheme.titleSmall),
             const SizedBox(height: 4),
             TextField(
@@ -709,6 +762,7 @@ class _EditDayDialogState extends State<_EditDayDialog> {
             endTime: _endTime,
             expectedMinutes: _expected,
             overheadMinutes: _overhead,
+            lunchMinutes: _lunch,
             note: _note.isEmpty ? null : _note,
           )),
           child: const Text('Save'),

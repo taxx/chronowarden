@@ -117,6 +117,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
         endTime: endStr,
         expectedMinutes: result.expectedMinutes,
         overheadMinutes: result.overheadMinutes,
+        lunchMinutes: result.lunchMinutes,
         note: result.note,
       );
       await state.editDay(editedLog);
@@ -156,7 +157,7 @@ class _LogCard extends StatelessWidget {
           ),
           title: Text(log.date),
           subtitle: Text(
-            '${log.startTime}${log.endTime != null ? ' → ${log.endTime}' : ' → …'}  ·  ${log.expectedMinutes} min work + ${log.overheadMinutes} min overhead',
+            '${log.startTime}${log.endTime != null ? ' → ${log.endTime}' : ' → …'}  ·  ${log.expectedMinutes} min work + ${log.overheadMinutes} min overhead${log.lunchMinutes > 0 ? ' · ${log.lunchMinutes} min lunch' : ''}',
             style: theme.textTheme.bodySmall,
           ),
           trailing: Row(
@@ -191,12 +192,14 @@ class _EditDayResult {
   final TimeOfDay? endTime;
   final int expectedMinutes;
   final int overheadMinutes;
+  final int lunchMinutes;
   final String? note;
   _EditDayResult({
     required this.startTime,
     required this.endTime,
     required this.expectedMinutes,
     required this.overheadMinutes,
+    required this.lunchMinutes,
     this.note,
   });
 }
@@ -225,6 +228,7 @@ class _EditDayDialogState extends State<_EditDayDialog> {
   TimeOfDay? _endTime;
   late int _expected;
   late int _overhead;
+  late int _lunch;
   late String _note;
 
   @override
@@ -234,6 +238,7 @@ class _EditDayDialogState extends State<_EditDayDialog> {
     _endTime = widget.log.endTime != null ? _timeOfDayFromStr(widget.log.endTime!) : null;
     _expected = widget.log.expectedMinutes;
     _overhead = widget.log.overheadMinutes;
+    _lunch = widget.log.lunchMinutes;
     _note = widget.log.note ?? '';
   }
 
@@ -302,6 +307,24 @@ class _EditDayDialogState extends State<_EditDayDialog> {
               onChanged: (v) { if (v != null) setState(() => _overhead = v); },
             ),
             const SizedBox(height: 16),
+            Text('Lunch break', style: theme.textTheme.titleSmall),
+            const SizedBox(height: 4),
+            Row(
+              children: [
+                Expanded(
+                  child: Slider(
+                    value: _lunch.toDouble(),
+                    min: 0,
+                    max: 240,
+                    divisions: 48,
+                    label: '$_lunch min',
+                    onChanged: (v) => setState(() => _lunch = v.round()),
+                  ),
+                ),
+                Text('$_lunch min', style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600)),
+              ],
+            ),
+            const SizedBox(height: 8),
             Text('Note', style: theme.textTheme.titleSmall),
             const SizedBox(height: 4),
             TextField(
@@ -321,6 +344,7 @@ class _EditDayDialogState extends State<_EditDayDialog> {
             endTime: _endTime,
             expectedMinutes: _expected,
             overheadMinutes: _overhead,
+            lunchMinutes: _lunch,
             note: _note.isEmpty ? null : _note,
           )),
           child: const Text('Save'),

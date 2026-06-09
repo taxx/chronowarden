@@ -177,6 +177,7 @@ class AppState extends ChangeNotifier {
       'end_time': log.endTime,
       'expected_minutes': log.expectedMinutes,
       'overhead_minutes': log.overheadMinutes,
+      'lunch_minutes': log.lunchMinutes,
       'overtime_minutes': overtime,
       'note': log.note,
     });
@@ -186,17 +187,18 @@ class AppState extends ChangeNotifier {
   }
 
   // -- stop today's workday ------------------------------------------
-  Future<void> stopDay(String endTime) async {
+  Future<void> stopDay(String endTime, {int lunchMinutes = 0}) async {
     final log = _todayLog;
     if (log == null) return;
 
-    final computed = log.copyWith(endTime: endTime);
+    final computed = log.copyWith(endTime: endTime, lunchMinutes: lunchMinutes);
     final overtime = computed.calculateOvertimeMinutes();
     final id = log.id;
     if (id == null) return;
 
     await logs.update(id, {
       'end_time': endTime,
+      'lunch_minutes': lunchMinutes,
       'overtime_minutes': overtime,
     });
 
