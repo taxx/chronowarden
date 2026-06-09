@@ -166,6 +166,25 @@ class AppState extends ChangeNotifier {
     return saved;
   }
 
+  // -- edit an existing day ------------------------------------------
+  Future<void> editDay(TimeLog log) async {
+    final id = log.id;
+    if (id == null) return;
+
+    final overtime = log.calculateOvertimeMinutes();
+    await logs.update(id, {
+      'start_time': log.startTime,
+      'end_time': log.endTime,
+      'expected_minutes': log.expectedMinutes,
+      'overhead_minutes': log.overheadMinutes,
+      'overtime_minutes': overtime,
+      'note': log.note,
+    });
+
+    await Future.wait([_loadToday(), _loadAll(), _loadBalance()]);
+    notifyListeners();
+  }
+
   // -- stop today's workday ------------------------------------------
   Future<void> stopDay(String endTime) async {
     final log = _todayLog;
