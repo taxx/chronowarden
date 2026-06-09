@@ -80,6 +80,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final result = await _showPeriodDialog(ctx, existing: period);
     if (result != null) {
       await _state.updateWorkPeriod(result);
+      if (ctx.mounted) {
+        final err = _state.lastError;
+        if (err != null) {
+          _state.clearLastError();
+          ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(content: Text('Error: $err')));
+        } else {
+          ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(content: Text('✓ Saved')));
+        }
+      }
     }
   }
 
@@ -173,6 +182,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final result = await _showPresetDialog(ctx);
     if (result != null) {
       await _state.addTravelPreset(result);
+      if (ctx.mounted) {
+        final err = _state.lastError;
+        if (err != null) {
+          _state.clearLastError();
+          ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(content: Text('Error: $err')));
+        } else {
+          ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(content: Text('✓ Added')));
+        }
+      }
     }
   }
 
@@ -180,6 +198,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final result = await _showPresetDialog(ctx, existing: preset);
     if (result != null) {
       await _state.updateTravelPreset(result);
+      if (ctx.mounted) {
+        final err = _state.lastError;
+        if (err != null) {
+          _state.clearLastError();
+          ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(content: Text('Error: $err')));
+        } else {
+          ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(content: Text('✓ Saved')));
+        }
+      }
     }
   }
 
