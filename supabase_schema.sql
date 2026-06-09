@@ -50,3 +50,18 @@ create policy "Users can manage their own travel presets" on travel_presets
 
 create policy "Users can manage their own time logs" on time_logs
   for all using (auth.uid() = user_id);
+
+-- Anon-key fallback (allows unauthenticated INSERT/SELECT for MVP use).
+-- Once you add Supabase Auth you can remove these six policies.
+create policy "Allow anon insert on work_period_settings" on work_period_settings
+  for insert with check (true);
+create policy "Allow anon insert on travel_presets" on travel_presets
+  for insert with check (true);
+create policy "Allow anon insert on time_logs" on time_logs
+  for insert with check (true);
+create policy "Allow anon select on work_period_settings" on work_period_settings
+  for select using (true);
+create policy "Allow anon select on travel_presets" on travel_presets
+  for select using (true);
+create policy "Allow anon select on time_logs" on time_logs
+  for select using (true);

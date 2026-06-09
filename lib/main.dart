@@ -28,7 +28,6 @@ class ChronoWardenApp extends StatefulWidget {
 
 class _ChronoWardenAppState extends State<ChronoWardenApp> {
   final _state = AppState();
-  bool _initialised = false;
 
   @override
   void initState() {
@@ -37,14 +36,9 @@ class _ChronoWardenAppState extends State<ChronoWardenApp> {
   }
 
   Future<void> _init() async {
-    final ready = await _state.refresh();
-    setState(() {
-      _initialised = true;
-      _tablesReady = ready;
-    });
+    await _state.refresh();
+    setState(() {}); // trigger initial routing decision
   }
-
-  bool _tablesReady = false;
 
   @override
   Widget build(BuildContext context) {
@@ -58,15 +52,10 @@ class _ChronoWardenAppState extends State<ChronoWardenApp> {
       home: ListenableBuilder(
         listenable: _state,
         builder: (context, _) {
-          if (!_initialised) {
-            return const Scaffold(
-              body: Center(child: CircularProgressIndicator()),
-            );
-          }
           if (supabaseUrl.isEmpty) {
             return const _NoConfigScreen();
           }
-          if (!_tablesReady) {
+          if (!_state.tablesReady) {
             return const SetupScreen();
           }
           return const HomeScreen();

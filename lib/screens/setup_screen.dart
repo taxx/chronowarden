@@ -1,36 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart' show rootBundle;
+import 'package:flutter/services.dart';
 
 import '../app_state.dart';
 
-/// Shown when the Supabase tables are missing.
-/// Displays the raw SQL from supabase_schema.sql and guides the user
-/// to paste it into the Supabase SQL Editor.
-class SetupScreen extends StatefulWidget {
-  const SetupScreen({super.key});
-
-  @override
-  State<SetupScreen> createState() => _SetupScreenState();
-}
-
-class _SetupScreenState extends State<SetupScreen> {
-  String _sql = '';
-  bool _loading = true;
-  String? _error;
-  bool _verified = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadSql();
-  }
-
-  Future<void> _loadSql() async {
-    try {
-      _sql = await rootBundle.loadString('supabase_schema.sql');
-    } catch (e) {
-      // Fallback: embedded version if asset is missing
-      _sql = '''
+/// Embedded SQL — avoids asset loading issues on Flutter Web.
+const _kSetupSql = '''
+-- 1. SEASONAL WORK PERIODS (Summer / Winter Time Definitions)
 create table work_period_settings (
   id uuid default gen_random_uuid() primary key,
   user_id uuid references auth.users not null default auth.uid(),
@@ -42,6 +17,7 @@ create table work_period_settings (
   constraint date_range_check check (start_date <= end_date)
 );
 
+-- 2. DYNAMIC COMMUTE / TRAVEL PRESETS
 create table travel_presets (
   id uuid default gen_random_uuid() primary key,
   user_id uuid references auth.users not null default auth.uid(),
@@ -50,6 +26,7 @@ create table travel_presets (
   created_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
 
+-- 3. ACTUAL TIME LOG entries
 create table time_logs (
   id uuid default gen_random_uuid() primary key,
   user_id uuid references auth.users not null default auth.uid(),
@@ -63,51 +40,80 @@ create table time_logs (
   created_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
 
--- Enable RLS
+-- 4. ROW LEVEL SECURITY (RLS) — Data Isolation per User
 alter table work_period_settings enable row level security;
 alter table travel_presets enable row level security;
 alter table time_logs enable row level security;
 
--- RLS policies
+-- Owned-data policies (authenticated users only)
 create policy "Users can manage their own work periods" on work_period_settings
   for all using (auth.uid() = user_id);
 create policy "Users can manage their own travel presets" on travel_presets
   for all using (auth.uid() = user_id);
 create policy "Users can manage their own time logs" on time_logs
   for all using (auth.uid() = user_id);
-''';
-    }
-    setState(() => _loading = false);
-  }
 
-  /// Try to query a table — if it works, tables are set up.
+-- Anon-key fallback (allows unauthenticated INSERT/SELECT for MVP use).
+-- Once you add Supabase Auth you can remove these three policies.
+create policy "Allow anon insert on work_period_settings" on work_period_settings
+  for insert with check (true);
+create policy "Allow anon insert on travel_presets" on travel_presets
+  for insert with check (true);
+create policy "Allow anon insert on time_logs" on time_logs
+  for insert with check (true);
+create policy "Allow anon select on work_period_settings" on work_period_settings
+  for select using (true);
+create policy "Allow anon select on travel_presets" on travel_presets
+  for select using (true);
+create policy "Allow anon select on time_logs" on time_logs
+  for select using (true);
+''';
+
+/// Shown when the Supabase tables are missing.
+class SetupScreen extends StatefulWidget {
+  const SetupScreen({super.key});
+
+  @override
+  State<SetupScreen> createState() => _SetupScreenState();
+}
+
+class _SetupScreenState extends State<SetupScreen> {
+  bool _loading = false;
+  bool _copying = false;
+  String? _error;
+
+  /// Probe all three tables. If they all respond, mark tables as ready.
   Future<void> _verifyTables() async {
+    if (!mounted) return;
     setState(() { _loading = true; _error = null; });
 
-    try {
-      // Probe: try to read from each table. If they exist, we're good.
-      await Future.wait([
-        AppState().logs.all(),
-        AppState().periods.all(),
-        AppState().presets.all(),
-      ]);
-      setState(() {
-        _loading = false;
-        _verified = true;
-      });
-      if (!mounted) return;
+    final state = AppState();
+    final ready = await state.refresh();
+
+    if (!mounted) return;
+    setState(() {
+      _loading = false;
+      if (!ready) {
+        _error = 'Tables not found yet. Run the SQL in your Supabase dashboard first.';
+      }
+    });
+
+    if (ready) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('✓ Tables verified — refreshing app…')),
+        const SnackBar(content: Text('✓ Tables verified')),
       );
-      // Refresh state and signal that setup is done.
-      await AppState().refresh();
-      // The main app will pick up the new state via ListenableBuilder.
-    } catch (e) {
-      setState(() {
-        _loading = false;
-        _error = 'Still missing: $e';
-      });
     }
+  }
+
+  Future<void> _copyToClipboard() async {
+    await Clipboard.setData(const ClipboardData(text: _kSetupSql));
+    if (!mounted) return;
+    setState(() => _copying = true);
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('✓ SQL copied to clipboard')),
+    );
+    await Future.delayed(const Duration(seconds: 1));
+    if (mounted) setState(() => _copying = false);
   }
 
   @override
@@ -116,81 +122,97 @@ create policy "Users can manage their own time logs" on time_logs
 
     return Scaffold(
       appBar: AppBar(title: const Text('Database Setup')),
-      body: _loading && _sql.isEmpty
-          ? const Center(child: CircularProgressIndicator())
-          : CustomScrollView(
-              slivers: [
-                // -- Instructions ----------------------------------------
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsets.all(20),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'First-time setup',
-                          style: theme.textTheme.headlineSmall?.copyWith(
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        Text(
-                          'ChronoWarden needs three tables in your Supabase project.\n\n'
-                          '1. Open your Supabase dashboard → SQL Editor\n'
-                          '2. Copy the SQL below\n'
-                          '3. Paste it and click RUN\n\n'
-                          'Then tap "Verify & Continue".',
-                          style: theme.textTheme.bodyLarge,
-                        ),
-                        if (_error != null) ...[
-                          const SizedBox(height: 12),
-                          Card(color: theme.colorScheme.errorContainer, child: Padding(
-                            padding: const EdgeInsets.all(12),
-                            child: Text(_error!, style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onErrorContainer)),
-                          )),
-                        ],
-                        const SizedBox(height: 16),
-                        FilledButton.icon(
-                          onPressed: _loading ? null : _verifyTables,
-                          icon: _loading ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(Icons.check_circle),
-                          label: Text(_verified ? 'Verified!' : 'Verify & Continue'),
-                        ),
-                      ],
-                    ),
+      body: CustomScrollView(
+        slivers: [
+          // -- Instructions ----------------------------------------
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'First-time setup',
+                    style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
                   ),
-                ),
-
-                // -- SQL code block --------------------------------------
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-                    child: Text('SQL Schema', style: theme.textTheme.titleSmall),
+                  const SizedBox(height: 12),
+                  Text(
+                    'ChronoWarden needs three tables in your Supabase project.\n\n'
+                    '1. Open your Supabase dashboard → SQL Editor\n'
+                    '2. Copy the SQL below\n'
+                    '3. Paste it and click RUN\n\n'
+                    'Then tap "Verify & Continue".',
+                    style: theme.textTheme.bodyLarge,
                   ),
-                ),
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
-                    child: Card(
-                      color: theme.colorScheme.surfaceContainerHighest,
+                  if (_error != null) ...[
+                    const SizedBox(height: 12),
+                    Card(
+                      color: theme.colorScheme.errorContainer,
                       child: Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: SingleChildScrollView(
-                          scrollDirection: Axis.horizontal,
-                          child: Text(
-                            _sql,
-                            style: theme.textTheme.bodySmall?.copyWith(
-                              fontFamily: 'monospace',
-                              fontSize: 11,
-                            ),
+                        padding: const EdgeInsets.all(12),
+                        child: Text(
+                          _error!,
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            color: theme.colorScheme.onErrorContainer,
                           ),
                         ),
                       ),
                     ),
+                  ],
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      FilledButton.icon(
+                        onPressed: _loading ? null : _verifyTables,
+                        icon: _loading
+                            ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
+                            : const Icon(Icons.check_circle),
+                        label: const Text('Verify & Continue'),
+                      ),
+                      const SizedBox(width: 12),
+                      OutlinedButton.icon(
+                        onPressed: _copying ? null : _copyToClipboard,
+                        icon: Icon(_copying ? Icons.check : Icons.content_copy),
+                        label: Text(_copying ? 'Copied!' : 'Copy SQL'),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+
+          // -- SQL code block --------------------------------------
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+              child: Text('SQL Schema', style: theme.textTheme.titleSmall),
+            ),
+          ),
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Card(
+                color: theme.colorScheme.surfaceContainerHighest,
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: SelectableText(
+                      _kSetupSql,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        fontFamily: 'monospace',
+                        fontSize: 12,
+                      ),
+                    ),
                   ),
                 ),
-                const SliverPadding(padding: EdgeInsets.only(bottom: 32)),
-              ],
+              ),
             ),
+          ),
+          const SliverPadding(padding: EdgeInsets.only(bottom: 32)),
+        ],
+      ),
     );
   }
 }
