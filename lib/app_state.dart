@@ -28,12 +28,14 @@ class AppState extends ChangeNotifier {
   List<WorkPeriodSetting> _periodsList = [];
   List<TravelPreset> _presetsList = [];
   int _timeBankMinutes = 0;
+  bool _tablesReady = false;  // true once all three tables are confirmed
 
   TimeLog? get todayLog => _todayLog;
   List<TimeLog> get allLogs => _allLogs;
   List<WorkPeriodSetting> get workPeriods => _periodsList;
   List<TravelPreset> get travelPresets => _presetsList;
   int get timeBankMinutes => _timeBankMinutes;
+  bool get tablesReady => _tablesReady;
 
   WorkPeriodSetting? get activePeriod {
     final now = DateTime.now();
@@ -44,7 +46,8 @@ class AppState extends ChangeNotifier {
   }
 
   // -- loading -------------------------------------------------------
-  Future<void> refresh() async {
+  /// Returns true if tables were successfully queried (or previously confirmed).
+  Future<bool> refresh() async {
     try {
       await Future.wait([
         _loadToday(),
@@ -53,10 +56,23 @@ class AppState extends ChangeNotifier {
         _loadPresets(),
         _loadBalance(),
       ]);
-    } catch (_) {
-      // Supabase not connected — keep empty state.
+      _tablesReady = true;
+    } catch (e) {
+      // Check if this is a "table not found" error → stay not-ready.
+      final msg = e.toString().toLowerCase();
+      if (msg.contains('could not find the table') || msg.contains('relation')) {
+        _tablesReady = false;
+      } else {
+        // Other error — if we were ready before, stay ready.
+        if (_tablesReady) {
+          // transient error, keep cached data
+        } else {
+          _tablesReady = false;
+        }
+      }
     }
     notifyListeners();
+    return _tablesReady;
   }
 
   Future<void> _loadToday() async => _todayLog = await logs.today();

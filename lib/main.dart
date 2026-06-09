@@ -3,6 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'app_state.dart';
 import 'screens/home_screen.dart';
+import 'screens/setup_screen.dart';
 
 // Compile-time injection via --dart-define-from-file=secrets.json
 const supabaseUrl = String.fromEnvironment('SUPABASE_URL');
@@ -27,12 +28,23 @@ class ChronoWardenApp extends StatefulWidget {
 
 class _ChronoWardenAppState extends State<ChronoWardenApp> {
   final _state = AppState();
+  bool _initialised = false;
 
   @override
   void initState() {
     super.initState();
-    _state.refresh();
+    _init();
   }
+
+  Future<void> _init() async {
+    final ready = await _state.refresh();
+    setState(() {
+      _initialised = true;
+      _tablesReady = ready;
+    });
+  }
+
+  bool _tablesReady = false;
 
   @override
   Widget build(BuildContext context) {
@@ -46,8 +58,16 @@ class _ChronoWardenAppState extends State<ChronoWardenApp> {
       home: ListenableBuilder(
         listenable: _state,
         builder: (context, _) {
+          if (!_initialised) {
+            return const Scaffold(
+              body: Center(child: CircularProgressIndicator()),
+            );
+          }
           if (supabaseUrl.isEmpty) {
             return const _NoConfigScreen();
+          }
+          if (!_tablesReady) {
+            return const SetupScreen();
           }
           return const HomeScreen();
         },
