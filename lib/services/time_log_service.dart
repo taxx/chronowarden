@@ -35,8 +35,8 @@ class TimeLogService {
   Future<TimeLog> insert(TimeLog log) async {
     final json = log.toJson();
     json.remove('id');
-    json.remove('user_id');
     json.remove('created_at');
+    // Don't send user_id — let DB default (auth.uid()) handle it.
     final row = await _client.from('time_logs').insert(json).select().single();
     return TimeLog.fromJson(row);
   }
