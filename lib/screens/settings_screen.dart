@@ -21,43 +21,81 @@ class _SettingsScreenState extends State<SettingsScreen> {
       body: ListenableBuilder(
         listenable: _state,
         builder: (context, _) {
-          return ListView(
-            padding: const EdgeInsets.all(16),
-            children: [
-              _Section<WorkPeriodSetting>(
-                title: 'Work Periods',
-                subtitle: 'Seasonal work-day lengths',
-                items: _state.workPeriods,
-                itemBuilder: (p) => Text('${p.name}: ${p.expectedMinutes} min (${p.startDate} → ${p.endDate})'),
-                deleteItem: (p) => _state.deleteWorkPeriod(p.id!),
-                addCallback: () => _showAddPeriodDialog(context),
-              ),
-              const SizedBox(height: 24),
-              _Section<TravelPreset>(
-                title: 'Travel Presets',
-                subtitle: 'Commute scenarios with overhead buffer',
-                items: _state.travelPresets,
-                itemBuilder: (p) => Text('${p.name}: +${p.defaultOverheadMinutes} min overhead'),
-                deleteItem: (p) => _state.deleteTravelPreset(p.id!),
-                addCallback: () => _showAddPresetDialog(context),
-              ),
-            ],
-          );
+          // Show error if any CRUD failed.
+          final err = _state.lastError;
+          final child = _buildBody(context);
+          if (err != null) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              _state.clearLastError();
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Error: $err')),
+                );
+              }
+            });
+          }
+          return child;
         },
       ),
     );
   }
 
-  Future<void> _showAddPeriodDialog(BuildContext ctx) async {
-    final nameCtrl = TextEditingController();
-    final startCtrl = TextEditingController();
-    final endCtrl = TextEditingController();
-    final minsCtrl = TextEditingController(text: '480');
+  Widget _buildBody(BuildContext context) {
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        _Section<WorkPeriodSetting>(
+          title: 'Work Periods',
+          subtitle: 'Seasonal work-day lengths',
+          items: _state.workPeriods,
+          itemBuilder: (p) => Text('${p.name}: ${p.expectedMinutes} min (${p.startDate} → ${p.endDate})'),
+          onEdit: (p) => _showEditPeriodDialog(context, p),
+          onDelete: (p) => _confirmDeletePeriod(context, p),
+          onAdd: () => _showAddPeriodDialog(context),
+        ),
+        const SizedBox(height: 24),
+        _Section<TravelPreset>(
+          title: 'Travel Presets',
+          subtitle: 'Commute scenarios with overhead buffer',
+          items: _state.travelPresets,
+          itemBuilder: (p) => Text('${p.name}: +${p.defaultOverheadMinutes} min overhead'),
+          onEdit: (p) => _showEditPresetDialog(context, p),
+          onDelete: (p) => _confirmDeletePreset(context, p),
+          onAdd: () => _showAddPresetDialog(context),
+        ),
+      ],
+    );
+  }
 
-    await showDialog<void>(
+  // -- Work period dialogs -------------------------------------------
+
+  Future<void> _showAddPeriodDialog(BuildContext ctx) async {
+    final result = await _showPeriodDialog(ctx);
+    if (result != null) {
+      await _state.addWorkPeriod(result);
+    }
+  }
+
+  Future<void> _showEditPeriodDialog(BuildContext ctx, WorkPeriodSetting period) async {
+    final result = await _showPeriodDialog(ctx, existing: period);
+    if (result != null) {
+      await _state.updateWorkPeriod(result);
+    }
+  }
+
+  Future<WorkPeriodSetting?> _showPeriodDialog(
+    BuildContext ctx, {
+    WorkPeriodSetting? existing,
+  }) async {
+    final nameCtrl = TextEditingController(text: existing?.name ?? '');
+    final startCtrl = TextEditingController(text: existing?.startDate ?? '');
+    final endCtrl = TextEditingController(text: existing?.endDate ?? '');
+    final minsCtrl = TextEditingController(text: existing?.expectedMinutes.toString() ?? '480');
+
+    final result = await showDialog<bool>(
       context: ctx,
       builder: (_) => AlertDialog(
-        title: const Text('Add Work Period'),
+        title: Text(existing == null ? 'Add Work Period' : 'Edit Work Period'),
         content: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -76,30 +114,86 @@ class _SettingsScreenState extends State<SettingsScreen> {
           TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
           FilledButton(
             onPressed: () {
-              final period = WorkPeriodSetting(
-                name: nameCtrl.text,
-                startDate: startCtrl.text,
-                endDate: endCtrl.text,
-                expectedMinutes: int.tryParse(minsCtrl.text) ?? 480,
-              );
-              Navigator.pop(ctx);
-              _state.addWorkPeriod(period);
+              if (nameCtrl.text.isNotEmpty && startCtrl.text.isNotEmpty && endCtrl.text.isNotEmpty && int.tryParse(minsCtrl.text) != null) {
+                Navigator.pop(ctx, true);
+              }
             },
-            child: const Text('Add'),
+            child: Text(existing == null ? 'Add' : 'Save'),
           ),
         ],
       ),
     );
+
+    if (result == true) {
+      return WorkPeriodSetting(
+        id: existing?.id,
+        name: nameCtrl.text,
+        startDate: startCtrl.text,
+        endDate: endCtrl.text,
+        expectedMinutes: int.parse(minsCtrl.text),
+      );
+    }
+    return null;
   }
 
-  Future<void> _showAddPresetDialog(BuildContext ctx) async {
-    final nameCtrl = TextEditingController();
-    final minsCtrl = TextEditingController(text: '60');
-
-    await showDialog<void>(
+  Future<void> _confirmDeletePeriod(BuildContext ctx, WorkPeriodSetting p) async {
+    final inUse = _state.isPeriodInUse(p);
+    final confirmed = await showDialog<bool>(
       context: ctx,
       builder: (_) => AlertDialog(
-        title: const Text('Add Travel Preset'),
+        title: const Text('Delete Work Period'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Delete "${p.name}"?'),
+            if (inUse) ...[
+              const SizedBox(height: 12),
+              Text(
+                '⚠ This period matches one or more logged days. Deleting it won\'t affect those logs (they store their own copy of the minutes).',
+                style: const TextStyle(color: Colors.orange),
+              ),
+            ],
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          FilledButton(onPressed: () => Navigator.pop(ctx, true), style: FilledButton.styleFrom(backgroundColor: Colors.red), child: const Text('Delete')),
+        ],
+      ),
+    );
+    if (confirmed == true) {
+      await _state.deleteWorkPeriod(p.id!);
+    }
+  }
+
+  // -- Travel preset dialogs -----------------------------------------
+
+  Future<void> _showAddPresetDialog(BuildContext ctx) async {
+    final result = await _showPresetDialog(ctx);
+    if (result != null) {
+      await _state.addTravelPreset(result);
+    }
+  }
+
+  Future<void> _showEditPresetDialog(BuildContext ctx, TravelPreset preset) async {
+    final result = await _showPresetDialog(ctx, existing: preset);
+    if (result != null) {
+      await _state.updateTravelPreset(result);
+    }
+  }
+
+  Future<TravelPreset?> _showPresetDialog(
+    BuildContext ctx, {
+    TravelPreset? existing,
+  }) async {
+    final nameCtrl = TextEditingController(text: existing?.name ?? '');
+    final minsCtrl = TextEditingController(text: existing?.defaultOverheadMinutes.toString() ?? '60');
+
+    final result = await showDialog<bool>(
+      context: ctx,
+      builder: (_) => AlertDialog(
+        title: Text(existing == null ? 'Add Travel Preset' : 'Edit Travel Preset'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -112,36 +206,79 @@ class _SettingsScreenState extends State<SettingsScreen> {
           TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
           FilledButton(
             onPressed: () {
-              final preset = TravelPreset(
-                name: nameCtrl.text,
-                defaultOverheadMinutes: int.tryParse(minsCtrl.text) ?? 60,
-              );
-              Navigator.pop(ctx);
-              _state.addTravelPreset(preset);
+              if (nameCtrl.text.isNotEmpty && int.tryParse(minsCtrl.text) != null) {
+                Navigator.pop(ctx, true);
+              }
             },
-            child: const Text('Add'),
+            child: Text(existing == null ? 'Add' : 'Save'),
           ),
         ],
       ),
     );
+
+    if (result == true) {
+      return TravelPreset(
+        id: existing?.id,
+        name: nameCtrl.text,
+        defaultOverheadMinutes: int.parse(minsCtrl.text),
+      );
+    }
+    return null;
+  }
+
+  Future<void> _confirmDeletePreset(BuildContext ctx, TravelPreset p) async {
+    final inUse = _state.isPresetInUse(p);
+    final confirmed = await showDialog<bool>(
+      context: ctx,
+      builder: (_) => AlertDialog(
+        title: const Text('Delete Travel Preset'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Delete "${p.name}"?'),
+            if (inUse) ...[
+              const SizedBox(height: 12),
+              Text(
+                '⚠ This preset matches one or more logged days. Deleting it won\'t affect those logs (they store their own copy of the minutes).',
+                style: const TextStyle(color: Colors.orange),
+              ),
+            ],
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          FilledButton(onPressed: () => Navigator.pop(ctx, true), style: FilledButton.styleFrom(backgroundColor: Colors.red), child: const Text('Delete')),
+        ],
+      ),
+    );
+    if (confirmed == true) {
+      await _state.deleteTravelPreset(p.id!);
+    }
   }
 }
+
+// ---------------------------------------------------------------------------
+// Reusable section widget
+// ---------------------------------------------------------------------------
 
 class _Section<T> extends StatelessWidget {
   final String title;
   final String subtitle;
   final List<T> items;
   final Widget Function(T) itemBuilder;
-  final void Function(T) deleteItem;
-  final VoidCallback addCallback;
+  final void Function(T) onEdit;
+  final void Function(T) onDelete;
+  final VoidCallback onAdd;
 
   const _Section({
     required this.title,
     required this.subtitle,
     required this.items,
     required this.itemBuilder,
-    required this.deleteItem,
-    required this.addCallback,
+    required this.onEdit,
+    required this.onDelete,
+    required this.onAdd,
   });
 
   @override
@@ -161,13 +298,22 @@ class _Section<T> extends StatelessWidget {
         else
           ...items.map((item) => ListTile(
                 title: itemBuilder(item),
-                trailing: IconButton(
-                  icon: const Icon(Icons.delete_outline, color: Colors.red),
-                  onPressed: () => deleteItem(item),
+                trailing: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.edit_outlined, color: Colors.blue),
+                      onPressed: () => onEdit(item),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.delete_outline, color: Colors.red),
+                      onPressed: () => onDelete(item),
+                    ),
+                  ],
                 ),
               )),
         FilledButton.icon(
-          onPressed: addCallback,
+          onPressed: onAdd,
           icon: const Icon(Icons.add),
           label: Text('Add ${title.split(' ').first.toLowerCase()}'),
         ),

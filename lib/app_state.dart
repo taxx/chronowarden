@@ -28,7 +28,8 @@ class AppState extends ChangeNotifier {
   List<WorkPeriodSetting> _periodsList = [];
   List<TravelPreset> _presetsList = [];
   int _timeBankMinutes = 0;
-  bool _tablesReady = false;  // true once all three tables are confirmed
+  bool _tablesReady = false;
+  String? _lastError;  // last user-facing error message
 
   TimeLog? get todayLog => _todayLog;
   List<TimeLog> get allLogs => _allLogs;
@@ -36,6 +37,10 @@ class AppState extends ChangeNotifier {
   List<TravelPreset> get travelPresets => _presetsList;
   int get timeBankMinutes => _timeBankMinutes;
   bool get tablesReady => _tablesReady;
+  String? get lastError => _lastError;
+
+  /// Clear the last error after the UI has consumed it.
+  void clearLastError() => _lastError = null;
 
   WorkPeriodSetting? get activePeriod {
     final now = DateTime.now();
@@ -45,8 +50,18 @@ class AppState extends ChangeNotifier {
     return null;
   }
 
+  // -- helpers: is item in use by any time log? ----------------------
+  /// Returns the names of logs referencing this period's expected minutes.
+  bool isPeriodInUse(WorkPeriodSetting period) {
+    return _allLogs.any((l) => l.expectedMinutes == period.expectedMinutes);
+  }
+
+  /// Returns the names of logs referencing this preset's overhead.
+  bool isPresetInUse(TravelPreset preset) {
+    return _allLogs.any((l) => l.overheadMinutes == preset.defaultOverheadMinutes);
+  }
+
   // -- loading -------------------------------------------------------
-  /// Returns true if tables were successfully queried (or previously confirmed).
   Future<bool> refresh() async {
     try {
       await Future.wait([
@@ -57,17 +72,14 @@ class AppState extends ChangeNotifier {
         _loadBalance(),
       ]);
       _tablesReady = true;
+      _lastError = null;
     } catch (e) {
-      // Check if this is a "table not found" error → stay not-ready.
       final msg = e.toString().toLowerCase();
       if (msg.contains('could not find the table') || msg.contains('relation')) {
         _tablesReady = false;
       } else {
-        // Other error — if we were ready before, stay ready.
-        if (_tablesReady) {
-          // transient error, keep cached data
-        } else {
-          _tablesReady = false;
+        if (!_tablesReady) {
+          _lastError = e.toString();
         }
       }
     }
@@ -83,27 +95,51 @@ class AppState extends ChangeNotifier {
 
   // -- work-period CRUD ----------------------------------------------
   Future<void> addWorkPeriod(WorkPeriodSetting p) async {
-    await periods.insert(p);
-    await _loadPeriods();
+    try {
+      await periods.insert(p);
+      await _loadPeriods();
+    } catch (e) { _lastError = e.toString(); }
+    notifyListeners();
+  }
+
+  Future<void> updateWorkPeriod(WorkPeriodSetting p) async {
+    try {
+      await periods.update(p.id!, p.toJson()..remove('id'));
+      await _loadPeriods();
+    } catch (e) { _lastError = e.toString(); }
     notifyListeners();
   }
 
   Future<void> deleteWorkPeriod(String id) async {
-    await periods.delete(id);
-    await _loadPeriods();
+    try {
+      await periods.delete(id);
+      await _loadPeriods();
+    } catch (e) { _lastError = e.toString(); }
     notifyListeners();
   }
 
   // -- travel-preset CRUD --------------------------------------------
   Future<void> addTravelPreset(TravelPreset p) async {
-    await presets.insert(p);
-    await _loadPresets();
+    try {
+      await presets.insert(p);
+      await _loadPresets();
+    } catch (e) { _lastError = e.toString(); }
+    notifyListeners();
+  }
+
+  Future<void> updateTravelPreset(TravelPreset p) async {
+    try {
+      await presets.update(p.id!, p.toJson()..remove('id'));
+      await _loadPresets();
+    } catch (e) { _lastError = e.toString(); }
     notifyListeners();
   }
 
   Future<void> deleteTravelPreset(String id) async {
-    await presets.delete(id);
-    await _loadPresets();
+    try {
+      await presets.delete(id);
+      await _loadPresets();
+    } catch (e) { _lastError = e.toString(); }
     notifyListeners();
   }
 
