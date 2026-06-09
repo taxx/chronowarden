@@ -30,6 +30,10 @@ class WorkPeriodService {
   }
 
   Future<void> update(String id, Map<String, dynamic> fields) async {
+    // Strip DB-managed columns — only keep editable fields.
+    fields.remove('id');
+    fields.remove('user_id');
+    fields.remove('created_at');
     await _client.from('work_period_settings').update(fields).eq('id', id);
   }
 
