@@ -6,8 +6,19 @@ import 'supabase_service.dart';
 class WorkPeriodService {
   SupabaseClient get _client => SupabaseService.instance.client;
 
+  String? get _userId {
+    final session = _client.auth.currentSession;
+    return session?.user.id;
+  }
+
   Future<List<WorkPeriodSetting>> all() async {
-    final resp = await _client.from('work_period_settings').select().order('start_date');
+    final userId = _userId;
+    if (userId == null) return [];
+    final resp = await _client
+        .from('work_period_settings')
+        .select()
+        .eq('user_id', userId)
+        .order('start_date');
     final rows = resp as List<dynamic>;
     return rows.map((r) => WorkPeriodSetting.fromJson(r as Map<String, dynamic>)).toList();
   }
@@ -21,23 +32,26 @@ class WorkPeriodService {
   }
 
   Future<WorkPeriodSetting> insert(WorkPeriodSetting period) async {
+    final userId = _userId;
+    if (userId == null) throw Exception('Not authenticated');
     final json = period.toJson();
     json.remove('id');
-    json.remove('user_id');
     json.remove('created_at');
+    json['user_id'] = userId;
     final row = await _client.from('work_period_settings').insert(json).select().single();
     return WorkPeriodSetting.fromJson(row);
   }
 
   Future<void> update(String id, Map<String, dynamic> fields) async {
-    // Strip DB-managed columns — only keep editable fields.
+    final userId = _userId ?? '';
     fields.remove('id');
     fields.remove('user_id');
     fields.remove('created_at');
-    await _client.from('work_period_settings').update(fields).eq('id', id);
+    await _client.from('work_period_settings').update(fields).eq('id', id).eq('user_id', userId);
   }
 
   Future<void> delete(String id) async {
-    await _client.from('work_period_settings').delete().eq('id', id);
+    final userId = _userId ?? '';
+    await _client.from('work_period_settings').delete().eq('id', id).eq('user_id', userId);
   }
 }
