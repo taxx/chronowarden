@@ -51,12 +51,10 @@ class AppState extends ChangeNotifier {
   }
 
   // -- helpers: is item in use by any time log? ----------------------
-  /// Returns the names of logs referencing this period's expected minutes.
   bool isPeriodInUse(WorkPeriodSetting period) {
     return _allLogs.any((l) => l.expectedMinutes == period.expectedMinutes);
   }
 
-  /// Returns the names of logs referencing this preset's overhead.
   bool isPresetInUse(TravelPreset preset) {
     return _allLogs.any((l) => l.overheadMinutes == preset.defaultOverheadMinutes);
   }
