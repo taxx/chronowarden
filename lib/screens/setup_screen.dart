@@ -1,14 +1,56 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import '../app_state.dart';
+import '../services/auth_service.dart';
+import '../services/supabase_service.dart';
+import 'login_screen.dart';
+import 'signup_screen.dart';
 
-/// Embedded SQL — avoids asset loading issues on Flutter Web.
-const _kSetupSql = '''
--- 1. SEASONAL WORK PERIODS (Summer / Winter Time Definitions)
+/// Complete schema SQL — drops everything and recreates with auth support.
+const _kSetupSql = r'''
+-- ============================================================
+-- ChronoWarden — Full Schema (drops + recreates everything)
+-- Run this ONCE in your Supabase SQL Editor
+-- ============================================================
+
+-- 0. Clean slate — drop tables (cascade removes their policies automatically)
+drop table if exists time_logs cascade;
+drop table if exists work_period_settings cascade;
+drop table if exists travel_presets cascade;
+drop table if exists invites cascade;
+drop table if exists profiles cascade;
+
+-- Also clean up auth trigger/functions if they exist
+drop trigger if exists on_auth_user_created on auth.users;
+drop function if exists handle_new_user();
+drop function if exists is_admin();
+drop function if exists has_profiles();
+
+-- 1. PROFILES — extends auth.users
+create table profiles (
+  id uuid references auth.users on delete cascade primary key,
+  email text not null default '',
+  role text not null default 'user' check (role in ('admin', 'user')),
+  status text not null default 'pending' check (status in ('pending', 'approved', 'rejected')),
+  full_name text,
+  created_at timestamp with time zone default timezone('utc'::text, now()) not null
+);
+
+-- 2. INVITE TOKENS
+create table invites (
+  id uuid default gen_random_uuid() primary key,
+  created_by uuid references auth.users on delete set null,
+  email text,
+  token text not null unique,
+  used boolean not null default false,
+  expires_at timestamp with time zone,
+  created_at timestamp with time zone default timezone('utc'::text, now()) not null
+);
+
+-- 3. SEASONAL WORK PERIODS
 create table work_period_settings (
   id uuid default gen_random_uuid() primary key,
-  user_id uuid references auth.users default auth.uid(),
+  user_id uuid references auth.users on delete cascade not null,
   name text not null,
   start_date date not null,
   end_date date not null,
@@ -17,85 +59,112 @@ create table work_period_settings (
   constraint date_range_check check (start_date <= end_date)
 );
 
--- 2. DYNAMIC COMMUTE / TRAVEL PRESETS
+-- 4. TRAVEL PRESETS
 create table travel_presets (
   id uuid default gen_random_uuid() primary key,
-  user_id uuid references auth.users default auth.uid(),
+  user_id uuid references auth.users on delete cascade not null,
   name text not null,
   default_overhead_minutes int not null,
   created_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
 
--- 3. ACTUAL TIME LOG entries
+-- 5. TIME LOGS
 create table time_logs (
   id uuid default gen_random_uuid() primary key,
-  user_id uuid references auth.users default auth.uid(),
+  user_id uuid references auth.users on delete cascade not null,
   date date not null default current_date,
   start_time time not null,
   end_time time,
   overhead_minutes int not null,
   expected_minutes int not null,
+  lunch_minutes int not null default 0,
   overtime_minutes int not null default 0,
   note text,
   created_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
 
--- 4. ROW LEVEL SECURITY (RLS) — Data Isolation per User
+-- 6. TRIGGER — create profile row on signup
+create function handle_new_user()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  insert into profiles (id, email, full_name, role, status)
+  values (
+    new.id,
+    new.email,
+    new.raw_user_meta_data->>'full_name',
+    coalesce(new.raw_user_meta_data->>'role', 'user'),
+    coalesce(new.raw_user_meta_data->>'status', 'pending')
+  );
+  return new;
+end;
+$$;
+
+create trigger on_auth_user_created
+  after insert on auth.users
+  for each row execute procedure handle_new_user();
+
+-- 6b. Helper: check if current user is an approved admin.
+--     SECURITY DEFINER bypasses RLS so the policy doesn't recurse.
+create function is_admin() returns boolean
+language sql
+security definer
+set search_path = public
+as $$
+  select exists (
+    select 1 from profiles
+    where id = auth.uid()
+      and role = 'admin'
+      and status = 'approved'
+  )
+$$;
+
+-- 6c. Helper: check if any profiles exist (used by unauthenticated clients
+--     to decide between first-admin signup vs normal login).
+create function has_profiles() returns boolean
+language sql
+security definer
+set search_path = public
+as $$
+  select exists (select 1 from profiles limit 1)
+$$;
+
+-- 7. ROW LEVEL SECURITY
+alter table profiles enable row level security;
+alter table invites enable row level security;
 alter table work_period_settings enable row level security;
 alter table travel_presets enable row level security;
 alter table time_logs enable row level security;
 
--- Policies: allow authenticated owner AND anon (user_id IS NULL) full CRUD.
--- "for all" covers SELECT, INSERT, UPDATE, and DELETE.
--- NULL user_id matches everything for anon-key usage; replace with
--- "auth.uid() = user_id" once you add Supabase Auth.
+-- profiles: everyone can read their own; admins can manage all
+create policy "users_view_own_profile" on profiles
+  for select using (auth.uid() = id);
+
+create policy "admin_manage_profiles" on profiles
+  for all using (is_admin());
+
+-- invites: admins only
+create policy "admin_manage_invites" on invites
+  for all using (is_admin());
+
+-- user data tables: owner only
 create policy "Manage own work periods" on work_period_settings
-  for all using (user_id IS NULL OR auth.uid() = user_id);
+  for all using (auth.uid() = user_id);
 
 create policy "Manage own travel presets" on travel_presets
-  for all using (user_id IS NULL OR auth.uid() = user_id);
+  for all using (auth.uid() = user_id);
 
 create policy "Manage own time logs" on time_logs
-  for all using (user_id IS NULL OR auth.uid() = user_id);
+  for all using (auth.uid() = user_id);
+
+-- 8. GRANT — allow service role to manage auth.users (for admin delete)
+grant delete on auth.users to service_role;
 ''';
 
-/// Migration SQL — run AFTER the initial schema if tables already exist.
-const _kMigrationSql = '''
--- Migration: make user_id nullable + fix anon RLS for UPDATE/DELETE.
--- Run this if you already created the tables.
-
--- 1. Drop ALL existing policies (we'll recreate them properly below)
-drop policy if exists "Users can manage their own work periods" on work_period_settings;
-drop policy if exists "Users can manage their own travel presets" on travel_presets;
-drop policy if exists "Users can manage their own time logs" on time_logs;
-drop policy if exists "Allow anon insert on work_period_settings" on work_period_settings;
-drop policy if exists "Allow anon insert on travel_presets" on travel_presets;
-drop policy if exists "Allow anon insert on time_logs" on time_logs;
-drop policy if exists "Allow anon select on work_period_settings" on work_period_settings;
-drop policy if exists "Allow anon select on travel_presets" on travel_presets;
-drop policy if exists "Allow anon select on time_logs" on time_logs;
-drop policy if exists "Manage own work periods" on work_period_settings;
-drop policy if exists "Manage own travel presets" on travel_presets;
-drop policy if exists "Manage own time logs" on time_logs;
-
--- 2. Make user_id nullable on all tables
-alter table work_period_settings alter column user_id drop not null;
-alter table travel_presets alter column user_id drop not null;
-alter table time_logs alter column user_id drop not null;
-
--- 3. Recreate policies — "for all" covers SELECT/INSERT/UPDATE/DELETE.
--- Allows NULL user_id (anon) full CRUD.
-create policy "Manage own work periods" on work_period_settings
-  for all using (user_id IS NULL OR auth.uid() = user_id);
-
-create policy "Manage own travel presets" on travel_presets
-  for all using (user_id IS NULL OR auth.uid() = user_id);
-
-create policy "Manage own time logs" on time_logs
-  for all using (user_id IS NULL OR auth.uid() = user_id);
-''';
-
-/// Shown when the Supabase tables are missing or not working.
+/// Shown when the Supabase tables are missing.
 class SetupScreen extends StatefulWidget {
   const SetupScreen({super.key});
 
@@ -106,30 +175,50 @@ class SetupScreen extends StatefulWidget {
 class _SetupScreenState extends State<SetupScreen> {
   bool _loading = false;
   bool _copyingSchema = false;
-  bool _copyingMigration = false;
   String? _error;
 
-  /// Probe all three tables by trying an actual insert then delete.
+  /// Probe tables directly — no auth required, just checks they exist.
   Future<void> _verifyTables() async {
     if (!mounted) return;
     setState(() { _loading = true; _error = null; });
 
-    final state = AppState();
-    final ready = await state.refresh();
+    final client = SupabaseService.instance.client;
+    bool ok = false;
+    try {
+      // Probe all 5 tables with a simple select query.
+      final tables = ['profiles', 'invites', 'work_period_settings', 'travel_presets', 'time_logs'];
+      for (final table in tables) {
+        await client.from(table).select('id').limit(1);
+      }
+      ok = true;
+    } catch (e) {
+      _error = e.toString();
+    }
 
     if (!mounted) return;
-    setState(() {
-      _loading = false;
-      if (!ready) {
-        _error = 'Tables not found or not working. See instructions below.';
-      }
-    });
+    setState(() => _loading = false);
 
-    if (ready) {
+    if (ok) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('✓ Tables verified')),
       );
+      // Navigate to the next step.
+      final hasProfiles = await AuthService().checkDatabaseState();
+      if (!mounted) return;
+      if (hasProfiles == true) {
+        // Tables exist but no profiles → first admin signup.
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const SignupScreen(isFirstAdmin: true)),
+        );
+      } else {
+        // Tables exist with profiles → normal login.
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const LoginScreen()),
+        );
+      }
     }
   }
 
@@ -138,21 +227,10 @@ class _SetupScreenState extends State<SetupScreen> {
     if (!mounted) return;
     setState(() => _copyingSchema = true);
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('✓ Schema SQL copied to clipboard')),
+      const SnackBar(content: Text('✓ SQL copied to clipboard')),
     );
     await Future.delayed(const Duration(seconds: 1));
     if (mounted) setState(() => _copyingSchema = false);
-  }
-
-  Future<void> _copyMigration() async {
-    await Clipboard.setData(const ClipboardData(text: _kMigrationSql));
-    if (!mounted) return;
-    setState(() => _copyingMigration = true);
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('✓ Migration SQL copied to clipboard')),
-    );
-    await Future.delayed(const Duration(seconds: 1));
-    if (mounted) setState(() => _copyingMigration = false);
   }
 
   @override
@@ -163,7 +241,6 @@ class _SetupScreenState extends State<SetupScreen> {
       appBar: AppBar(title: const Text('Database Setup')),
       body: CustomScrollView(
         slivers: [
-          // -- Instructions ----------------------------------------
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.all(20),
@@ -176,14 +253,13 @@ class _SetupScreenState extends State<SetupScreen> {
                   ),
                   const SizedBox(height: 12),
                   Text(
-                    'ChronoWarden needs three tables in your Supabase project.\n\n'
+                    'ChronoWarden needs several tables in your Supabase project.\n\n'
                     '1. Open your Supabase dashboard → SQL Editor\n'
                     '2. Copy the SQL below and paste it into the editor\n'
                     '3. Click RUN\n'
                     '4. Tap "Verify & Continue"\n\n'
-                    'Already ran the initial schema but inserts fail with\n'
-                    '"null value in column user_id violates not-null constraint"?\n'
-                    '→ Run the **Migration SQL** below instead (scroll down).',
+                    'This creates the profiles, invites, and data tables\n'
+                    'along with RLS policies and a signup trigger.',
                     style: theme.textTheme.bodyLarge,
                   ),
                   if (_error != null) ...[
@@ -202,40 +278,24 @@ class _SetupScreenState extends State<SetupScreen> {
                     ),
                   ],
                   const SizedBox(height: 16),
-                  Row(
-                    children: [
-                      FilledButton.icon(
-                        onPressed: _loading ? null : _verifyTables,
-                        icon: _loading
-                            ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
-                            : const Icon(Icons.check_circle),
-                        label: const Text('Verify & Continue'),
-                      ),
-                    ],
+                  FilledButton.icon(
+                    onPressed: _loading ? null : _verifyTables,
+                    icon: _loading
+                        ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
+                        : const Icon(Icons.check_circle),
+                    label: const Text('Verify & Continue'),
                   ),
                 ],
               ),
             ),
           ),
-
-          // -- Schema SQL --------------------------------------
           _SqlCard(
-            title: 'Initial Schema SQL',
+            title: 'Complete Schema SQL',
             sql: _kSetupSql,
             copying: _copyingSchema,
             onCopy: _copySchema,
             theme: theme,
           ),
-
-          // -- Migration SQL -----------------------------------
-          _SqlCard(
-            title: 'Migration SQL (if "user_id not-null" error)',
-            sql: _kMigrationSql,
-            copying: _copyingMigration,
-            onCopy: _copyMigration,
-            theme: theme,
-          ),
-
           const SliverPadding(padding: EdgeInsets.only(bottom: 32)),
         ],
       ),
