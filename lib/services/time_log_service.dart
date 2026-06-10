@@ -45,6 +45,10 @@ class TimeLogService {
     await _client.from('time_logs').update(fields).eq('id', id);
   }
 
+  Future<void> delete(String id) async {
+    await _client.from('time_logs').delete().eq('id', id);
+  }
+
   Future<int> totalOvertime() async {
     final logs = await all();
     return logs.fold<int>(0, (sum, l) => sum + l.overtimeMinutes);

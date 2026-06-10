@@ -101,9 +101,10 @@ class TimeLog {
 
   /// Convenience: same as [calculateLeaveTime] but derived from the stored
   /// [date] + [startTime] fields (no external [dayStart] argument needed).
+  /// Includes [lunchMinutes] because you must be present for lunch too.
   DateTime get leaveTime {
     final start = combineDateAndTime(date, startTime);
-    return start.add(Duration(minutes: expectedMinutes + overheadMinutes));
+    return start.add(Duration(minutes: expectedMinutes + overheadMinutes + lunchMinutes));
   }
 
   /// Elapsed minutes from start → now (or end if closed).
@@ -122,13 +123,13 @@ class TimeLog {
   /// **Morning Calculator** — Given the workday's exact start [DateTime],
   /// return the precise wall-clock moment the user is free to log off.
   ///
-  /// Formula: `[dayStart] + expectedMinutes + overheadMinutes`
+  /// Formula: `[dayStart] + expectedMinutes + overheadMinutes + lunchMinutes`
   ///
   /// Uses pure `Duration` arithmetic on the supplied [dayStart], so the
   /// result is always in the user's local wall-clock time.
   DateTime calculateLeaveTime(DateTime dayStart) {
     return dayStart.add(
-      Duration(minutes: expectedMinutes + overheadMinutes),
+      Duration(minutes: expectedMinutes + overheadMinutes + lunchMinutes),
     );
   }
 

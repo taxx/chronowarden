@@ -180,10 +180,15 @@ class _HomeTabState extends State<_HomeTab> with SingleTickerProviderStateMixin 
 
   Widget _buildActive(ThemeData theme, dynamic log) {
     final elapsed = log.elapsed;
-    final leaveTime = log.leaveTime;
+    final leaveTime = log.leaveTime; // includes lunch
     final now = DateTime.now();
     final remaining = leaveTime.difference(now);
     final isPast = remaining.isNegative;
+    final lunch = log.lunchMinutes;
+    // "net work" leave time = when you've done expected+overhead (no lunch)
+    final netWorkLeaveTime = leaveTime.subtract(Duration(minutes: lunch));
+    final netRemaining = netWorkLeaveTime.difference(now);
+    final isNetPast = netRemaining.isNegative;
 
     return Card(
       color: theme.colorScheme.primaryContainer.withValues(alpha: 0.3),
@@ -224,6 +229,11 @@ class _HomeTabState extends State<_HomeTab> with SingleTickerProviderStateMixin 
                     isPast ? '—' : _formatDuration(remaining),
                     style: theme.textTheme.titleMedium,
                   ),
+                  if (lunch > 0 && !isPast)
+                    Text(
+                      'net: ${isNetPast ? '✓ done' : _formatDuration(netRemaining)}',
+                      style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.secondary),
+                    ),
                 ]),
               ],
             ),
@@ -231,6 +241,28 @@ class _HomeTabState extends State<_HomeTab> with SingleTickerProviderStateMixin 
             _statRow(theme, 'Expected', '${log.expectedMinutes} min work'),
             _statRow(theme, 'Overhead', '${log.overheadMinutes} min buffer'),
             _statRow(theme, 'Total', '${log.expectedMinutes + log.overheadMinutes} min'),
+            InkWell(
+              onTap: () => _showEditLunchDialog(context, lunch),
+              borderRadius: BorderRadius.circular(8),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 4),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Row(children: [
+                      Text('Lunch', style: theme.textTheme.bodyMedium),
+                      const SizedBox(width: 4),
+                      Icon(Icons.restaurant, size: 16, color: theme.colorScheme.onSurfaceVariant),
+                    ]),
+                    Row(children: [
+                      Text('$lunch min', style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600)),
+                      const SizedBox(width: 4),
+                      Icon(Icons.edit, size: 14, color: theme.colorScheme.primary),
+                    ]),
+                  ],
+                ),
+              ),
+            ),
             const SizedBox(height: 24),
             SizedBox(
               width: double.infinity,
@@ -281,10 +313,24 @@ class _HomeTabState extends State<_HomeTab> with SingleTickerProviderStateMixin 
                 child: Text('Note: ${log.note}', style: theme.textTheme.bodyMedium),
               ),
             const SizedBox(height: 16),
-            OutlinedButton.icon(
-              onPressed: () => _showEditDayDialog(context, log),
-              icon: const Icon(Icons.edit),
-              label: const Text('Edit'),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                OutlinedButton.icon(
+                  onPressed: () => _showEditDayDialog(context, log),
+                  icon: const Icon(Icons.edit),
+                  label: const Text('Edit'),
+                ),
+                OutlinedButton.icon(
+                  onPressed: () => _confirmDelete(context, log.id!, log.date),
+                  icon: const Icon(Icons.delete),
+                  label: const Text('Delete'),
+                  style: OutlinedButton.styleFrom(
+                    side: const BorderSide(color: Colors.red),
+                    foregroundColor: Colors.red,
+                  ),
+                ),
+              ],
             ),
           ],
         ),
@@ -347,6 +393,7 @@ class _HomeTabState extends State<_HomeTab> with SingleTickerProviderStateMixin 
         startTime: startStr,
         expectedMinutes: result.expectedMinutes,
         overheadMinutes: result.overheadMinutes,
+        lunchMinutes: result.lunchMinutes,
       );
     }
   }
@@ -361,6 +408,46 @@ class _HomeTabState extends State<_HomeTab> with SingleTickerProviderStateMixin 
       final endStr = '${result.time.hour.toString().padLeft(2, '0')}:${result.time.minute.toString().padLeft(2, '0')}:00';
       await _state.stopDay(endStr, lunchMinutes: result.lunchMinutes);
     }
+  }
+
+  Future<void> _showEditLunchDialog(BuildContext ctx, int currentLunch) async {
+    int lunch = currentLunch;
+    await showDialog<void>(
+      context: ctx,
+      builder: (_) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text('Adjust lunch'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Slider(
+                value: lunch.toDouble(),
+                min: 0,
+                max: 120,
+                divisions: 24,
+                label: '$lunch min',
+                onChanged: (v) {
+                  lunch = v.round();
+                  setDialogState(() {});
+                },
+              ),
+              const SizedBox(height: 4),
+              Text('$lunch min', style: Theme.of(ctx).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
+            ],
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+            FilledButton(
+              onPressed: () {
+                Navigator.pop(ctx);
+                _state.updateLunchMinutes(lunch);
+              },
+              child: const Text('Save'),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   Future<void> _showEditDayDialog(BuildContext ctx, dynamic log) async {
@@ -397,13 +484,35 @@ class _HomeTabState extends State<_HomeTab> with SingleTickerProviderStateMixin 
       await state.editDay(editedLog);
     }
   }
+
+  Future<void> _confirmDelete(BuildContext ctx, String id, String date) async {
+    final confirmed = await showDialog<bool>(
+      context: ctx,
+      builder: (_) => AlertDialog(
+        title: const Text('Delete day'),
+        content: Text('Permanently delete the entry for $date? This cannot be undone.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true) {
+      await _state.deleteDay(id);
+    }
+  }
 }
 
 class _StartDayResult {
   final TimeOfDay time;
   final int expectedMinutes;
   final int overheadMinutes;
-  _StartDayResult(this.time, this.expectedMinutes, this.overheadMinutes);
+  final int lunchMinutes;
+  _StartDayResult(this.time, this.expectedMinutes, this.overheadMinutes, this.lunchMinutes);
 }
 
 class _StopDayResult {
@@ -435,18 +544,44 @@ class _StartDayDialog extends StatefulWidget {
 
 class _StartDayDialogState extends State<_StartDayDialog> {
   late TimeOfDay _startTime;
-  late int _expected;
-  late int _overhead;
+  late dynamic _selectedPeriod;
+  late dynamic _selectedPreset;
+  int _lunchMinutes = 30;
+
+  int get _expected => _selectedPeriod.expectedMinutes;
+  int get _overhead => _selectedPreset.defaultOverheadMinutes;
 
   @override
   void initState() {
     super.initState();
     _startTime = TimeOfDay.now();
-    _expected = widget.expectedMinutes;
-    _overhead = widget.overheadMinutes;
+    _selectedPeriod = _pickPeriod(widget.expectedMinutes);
+    _selectedPreset = _pickPreset(widget.overheadMinutes);
   }
 
+  dynamic _pickPeriod(int expected) {
+    for (final p in widget.workPeriods) {
+      if (p.expectedMinutes == expected) return p;
+    }
+    return widget.workPeriods.first;
+  }
+
+  dynamic _pickPreset(int overhead) {
+    for (final p in widget.travelPresets) {
+      if (p.defaultOverheadMinutes == overhead) return p;
+    }
+    return widget.travelPresets.first;
+  }
+
+  /// When you're physically free to leave (includes lunch time at office).
   DateTime get _leaveTime {
+    final now = DateTime.now();
+    final start = DateTime(now.year, now.month, now.day, _startTime.hour, _startTime.minute);
+    return start.add(Duration(minutes: _expected + _overhead + _lunchMinutes));
+  }
+
+  /// When you've done enough pure work (not counting lunch as work).
+  DateTime get _netWorkTime {
     final now = DateTime.now();
     final start = DateTime(now.year, now.month, now.day, _startTime.hour, _startTime.minute);
     return start.add(Duration(minutes: _expected + _overhead));
@@ -475,30 +610,42 @@ class _StartDayDialogState extends State<_StartDayDialog> {
             const SizedBox(height: 16),
             Text('Work period', style: theme.textTheme.titleSmall),
             const SizedBox(height: 4),
-            DropdownButtonFormField<int>(
-              initialValue: _expected,
-              items: widget.workPeriods.map<DropdownMenuItem<int>>((p) {
-                return DropdownMenuItem(
-                  value: (p.expectedMinutes) as int,
-                  child: Text('${p.name} (${p.expectedMinutes} min)'),
-                );
+            DropdownButtonFormField(
+              initialValue: _selectedPeriod,
+              items: widget.workPeriods.map<DropdownMenuItem>((p) {
+                return DropdownMenuItem(value: p, child: Text('${p.name} (${p.expectedMinutes} min)'));
               }).toList(),
-              onChanged: (v) { if (v != null) setState(() => _expected = v); },
+              onChanged: (v) { if (v != null) setState(() => _selectedPeriod = v); },
             ),
             const SizedBox(height: 16),
             Text('Travel preset', style: theme.textTheme.titleSmall),
             const SizedBox(height: 4),
-            DropdownButtonFormField<int>(
-              initialValue: _overhead,
-              items: widget.travelPresets.map<DropdownMenuItem<int>>((p) {
-                return DropdownMenuItem(
-                  value: (p.defaultOverheadMinutes) as int,
-                  child: Text('${p.name} (+${p.defaultOverheadMinutes} min)'),
-                );
+            DropdownButtonFormField(
+              initialValue: _selectedPreset,
+              items: widget.travelPresets.map<DropdownMenuItem>((p) {
+                return DropdownMenuItem(value: p, child: Text('${p.name} (+${p.defaultOverheadMinutes} min)'));
               }).toList(),
-              onChanged: (v) { if (v != null) setState(() => _overhead = v); },
+              onChanged: (v) { if (v != null) setState(() => _selectedPreset = v); },
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 16),
+            Text('Lunch break', style: theme.textTheme.titleSmall),
+            const SizedBox(height: 4),
+            Row(
+              children: [
+                Expanded(
+                  child: Slider(
+                    value: _lunchMinutes.toDouble(),
+                    min: 0,
+                    max: 120,
+                    divisions: 24,
+                    label: '$_lunchMinutes min',
+                    onChanged: (v) => setState(() => _lunchMinutes = v.round()),
+                  ),
+                ),
+                Text('$_lunchMinutes min', style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600)),
+              ],
+            ),
+            const SizedBox(height: 12),
             Container(
               width: double.infinity,
               padding: const EdgeInsets.all(16),
@@ -514,6 +661,13 @@ class _StartDayDialogState extends State<_StartDayDialog> {
                     '${_leaveTime.hour.toString().padLeft(2, '0')}:${_leaveTime.minute.toString().padLeft(2, '0')}',
                     style: theme.textTheme.headlineLarge?.copyWith(fontFamily: 'monospace', fontWeight: FontWeight.bold),
                   ),
+                  if (_lunchMinutes > 0) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      'net work done at ${_netWorkTime.hour.toString().padLeft(2, '0')}:${_netWorkTime.minute.toString().padLeft(2, '0')} (minus $_lunchMinutes min lunch)',
+                      style: theme.textTheme.bodySmall,
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -523,7 +677,7 @@ class _StartDayDialogState extends State<_StartDayDialog> {
       actions: [
         TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
         FilledButton(
-          onPressed: () => Navigator.pop(context, _StartDayResult(_startTime, _expected, _overhead)),
+          onPressed: () => Navigator.pop(context, _StartDayResult(_startTime, _expected, _overhead, _lunchMinutes)),
           child: const Text('Start'),
         ),
       ],
@@ -644,20 +798,37 @@ class _EditDayDialog extends StatefulWidget {
 class _EditDayDialogState extends State<_EditDayDialog> {
   late TimeOfDay _startTime;
   TimeOfDay? _endTime;
-  late int _expected;
-  late int _overhead;
+  late dynamic _selectedPeriod;
+  late dynamic _selectedPreset;
   late int _lunch;
   late String _note;
+
+  int get _expected => _selectedPeriod.expectedMinutes;
+  int get _overhead => _selectedPreset.defaultOverheadMinutes;
 
   @override
   void initState() {
     super.initState();
     _startTime = _timeOfDayFromStr(widget.log.startTime);
     _endTime = widget.log.endTime != null ? _timeOfDayFromStr(widget.log.endTime!) : null;
-    _expected = widget.log.expectedMinutes;
-    _overhead = widget.log.overheadMinutes;
+    _selectedPeriod = _matchPeriod(widget.workPeriods, widget.log.expectedMinutes);
+    _selectedPreset = _matchPreset(widget.travelPresets, widget.log.overheadMinutes);
     _lunch = widget.log.lunchMinutes ?? 0;
     _note = widget.log.note ?? '';
+  }
+
+  static dynamic _matchPeriod(List<dynamic> periods, int mins) {
+    for (final p in periods) {
+      if (p.expectedMinutes == mins) return p;
+    }
+    return periods.first;
+  }
+
+  static dynamic _matchPreset(List<dynamic> presets, int mins) {
+    for (final p in presets) {
+      if (p.defaultOverheadMinutes == mins) return p;
+    }
+    return presets.first;
   }
 
   TimeOfDay _timeOfDayFromStr(String timeStr) {
@@ -701,28 +872,22 @@ class _EditDayDialogState extends State<_EditDayDialog> {
             const SizedBox(height: 16),
             Text('Work period', style: theme.textTheme.titleSmall),
             const SizedBox(height: 4),
-            DropdownButtonFormField<int>(
-              initialValue: _expected,
-              items: widget.workPeriods.map<DropdownMenuItem<int>>((p) {
-                return DropdownMenuItem(
-                  value: (p.expectedMinutes) as int,
-                  child: Text('${p.name} (${p.expectedMinutes} min)'),
-                );
+            DropdownButtonFormField(
+              initialValue: _selectedPeriod,
+              items: widget.workPeriods.map<DropdownMenuItem>((p) {
+                return DropdownMenuItem(value: p, child: Text('${p.name} (${p.expectedMinutes} min)'));
               }).toList(),
-              onChanged: (v) { if (v != null) setState(() => _expected = v); },
+              onChanged: (v) { if (v != null) setState(() => _selectedPeriod = v); },
             ),
             const SizedBox(height: 16),
             Text('Travel preset', style: theme.textTheme.titleSmall),
             const SizedBox(height: 4),
-            DropdownButtonFormField<int>(
-              initialValue: _overhead,
-              items: widget.travelPresets.map<DropdownMenuItem<int>>((p) {
-                return DropdownMenuItem(
-                  value: (p.defaultOverheadMinutes) as int,
-                  child: Text('${p.name} (+${p.defaultOverheadMinutes} min)'),
-                );
+            DropdownButtonFormField(
+              initialValue: _selectedPreset,
+              items: widget.travelPresets.map<DropdownMenuItem>((p) {
+                return DropdownMenuItem(value: p, child: Text('${p.name} (+${p.defaultOverheadMinutes} min)'));
               }).toList(),
-              onChanged: (v) { if (v != null) setState(() => _overhead = v); },
+              onChanged: (v) { if (v != null) setState(() => _selectedPreset = v); },
             ),
             const SizedBox(height: 16),
             Text('Lunch break', style: theme.textTheme.titleSmall),

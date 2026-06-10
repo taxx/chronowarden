@@ -148,6 +148,7 @@ class AppState extends ChangeNotifier {
     required String startTime,
     required int expectedMinutes,
     required int overheadMinutes,
+    int lunchMinutes = 0,
   }) async {
     final date = _dateStr(DateTime.now());
     final existing = await logs.activeToday();
@@ -158,12 +159,22 @@ class AppState extends ChangeNotifier {
       startTime: startTime,
       expectedMinutes: expectedMinutes,
       overheadMinutes: overheadMinutes,
+      lunchMinutes: lunchMinutes,
       overtimeMinutes: 0,
     );
     final saved = await logs.insert(newLog);
     _todayLog = saved;
     notifyListeners();
     return saved;
+  }
+
+  // -- update lunch on the active day --------------------------------
+  Future<void> updateLunchMinutes(int lunchMinutes) async {
+    final log = _todayLog;
+    if (log == null || log.id == null) return;
+    await logs.update(log.id!, {'lunch_minutes': lunchMinutes});
+    await _loadToday();
+    notifyListeners();
   }
 
   // -- edit an existing day ------------------------------------------
@@ -184,6 +195,42 @@ class AppState extends ChangeNotifier {
 
     await Future.wait([_loadToday(), _loadAll(), _loadBalance()]);
     notifyListeners();
+  }
+
+  // -- delete a day --------------------------------------------------
+  Future<void> deleteDay(String id) async {
+    try {
+      await logs.delete(id);
+      await Future.wait([_loadToday(), _loadAll(), _loadBalance()]);
+    } catch (e) { _lastError = e.toString(); }
+    notifyListeners();
+  }
+
+  // -- add a generic (potentially past) day --------------------------
+  Future<TimeLog> addDay({
+    required String date,
+    required String startTime,
+    required String endTime,
+    required int expectedMinutes,
+    required int overheadMinutes,
+    int lunchMinutes = 0,
+    String? note,
+  }) async {
+    final newLog = TimeLog(
+      date: date,
+      startTime: startTime,
+      endTime: endTime,
+      expectedMinutes: expectedMinutes,
+      overheadMinutes: overheadMinutes,
+      lunchMinutes: lunchMinutes,
+      overtimeMinutes: 0,
+      note: note,
+    );
+    final overtime = newLog.calculateOvertimeMinutes();
+    final saved = await logs.insert(newLog.copyWith(overtimeMinutes: overtime));
+    await Future.wait([_loadToday(), _loadAll(), _loadBalance()]);
+    notifyListeners();
+    return saved;
   }
 
   // -- stop today's workday ------------------------------------------
