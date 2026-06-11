@@ -42,12 +42,27 @@ class _ChronoWardenAppState extends State<ChronoWardenApp> {
   }
 
   Future<void> _init() async {
+    // Listen for auth state changes so we refresh app data after login.
+    _auth.addListener(_onAuthChanged);
     // Initialise auth first, then app data.
     await _auth.init();
     if (_auth.isAuthenticated && _auth.profile?.isApproved == true) {
       await _state.refresh();
     }
     if (mounted) setState(() {});
+  }
+
+  @override
+  void dispose() {
+    _auth.removeListener(_onAuthChanged);
+    super.dispose();
+  }
+
+  /// Called whenever AuthService notifies — refresh app data after login.
+  void _onAuthChanged() {
+    if (_auth.isAuthenticated && _auth.profile?.isApproved == true) {
+      _state.refresh();
+    }
   }
 
   @override
