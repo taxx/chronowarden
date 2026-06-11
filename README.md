@@ -30,9 +30,11 @@ See `AUTH.md` for the full authentication architecture.
 4. **Time Bank:** The overall flex-time balance is derived dynamically by summing the `overtime_minutes` (+/- net) across all recorded entries.
 
 ## Getting Started & Secrets Management
-To keep API credentials out of version control, ChronoWarden uses `--dart-define-from-file`.
+ChronoWarden uses `--dart-define-from-file` to inject API credentials at compile time.
+Secrets are kept out of version control via `.gitignore` (both `secrets.json` and `.env`).
 
-1. Create a file named `secrets.json` in the root directory (this file is excluded via `.gitignore`):
+### Local Development
+1. Create a file named `secrets.json` in the root directory:
 ```json
 {
   "SUPABASE_URL": "https://your-project.supabase.co",
@@ -46,6 +48,22 @@ To keep API credentials out of version control, ChronoWarden uses `--dart-define
 ```bash
 flutter run --dart-define-from-file=secrets.json
 ```
+
+### Docker Deployment
+ChronoWarden can be containerized with a multi-stage Docker build (Flutter compile → nginx serve).
+
+1. Create a `.env` file from the template:
+```bash
+cp .env.example .env
+```
+2. Edit `.env` with your real Supabase credentials.
+3. Build and run:
+```bash
+docker compose up --build
+```
+The app will be available at `http://localhost:8080`.
+
+The final image is a slim nginx container (~40 MB) — the bulky Flutter build stage is discarded. Any change to secrets requires a full rebuild since `String.fromEnvironment` bakes values into the compiled JS at build time.
 
 ## Project Structure
 ```

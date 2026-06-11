@@ -19,9 +19,17 @@ ChronoWarden uses Supabase Auth with an admin-invite model. Key points:
 See `AUTH.md` for the full architecture reference.
 
 ## Configuration & Environment
-API Secrets are loaded securely via `--dart-define-from-file=secrets.json`. 
+API Secrets are loaded securely via `--dart-define-from-file=secrets.json`.
 Access credentials safely in Dart code using:
 ```dart
 const supabaseUrl = String.fromEnvironment('SUPABASE_URL');
 const supabaseAnonKey = String.fromEnvironment('SUPABASE_ANON_KEY');
 ```
+These values are **compile-time constants** — changing secrets requires a full rebuild.
+
+### Docker & Deployment
+The project includes a multi-stage Dockerfile + docker-compose.yaml for containerized deployment:
+- **Stage 1**: Flutter SDK builds the web release with secrets injected via `docker build --build-arg`. A temporary `secrets.json` is generated from the env vars, used for the build, then immediately deleted.
+- **Stage 2**: Slim nginx:alpine serves the static `build/web/` output with gzip and SPA routing.
+- **Secrets flow**: `.env` → `docker compose` build args → compiled JS. `.env` is gitignored; `.env.example` shows required keys.
+- **Running**: `docker compose up --build` exposes the app on port `8080`.

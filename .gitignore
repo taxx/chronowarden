@@ -1,5 +1,6 @@
 # Secrets — never commit API credentials
 secrets.json
+.env
 
 # Flutter build output
 /.dart_tool/
@@ -34,5 +35,3 @@ ios/Runner/GeneratedPluginRegistrant.*
 
 # Coverage
 coverage/
-
-secrets.json
