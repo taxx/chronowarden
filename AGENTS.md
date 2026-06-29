@@ -33,3 +33,48 @@ The project includes a multi-stage Dockerfile + docker-compose.yaml for containe
 - **Stage 2**: Slim nginx:alpine serves the static `build/web/` output with gzip and SPA routing.
 - **Secrets flow**: `.env` → `docker compose` build args → compiled JS. `.env` is gitignored; `.env.example` shows required keys.
 - **Running**: `docker compose up --build` exposes the app on port `8080`.
+
+## Release to production
+### 1a. Where It Is Hosted
+
+| Detail | Value |
+|--------|-------|
+| **Server IP** | `192.168.1.50` |
+| **SSH user** | `tobbe` (SSH key auth, no password) |
+| **Repo path** | `/opt/appdata/chronotime` |
+| **Git remote** | `origin` → `github.com:taxx/chronowarden.git` |
+| **Branch** | `main` |
+| **App URL** | `https://chronowarden.slumpen.com/` |
+
+---
+
+### 1b. How to Update the App
+
+Whenever source code is changed locally, follow these steps to deploy to the server:
+
+#### Step 1 — Commit and push locally
+
+```bash
+cd /path/to/chronowarden
+git add -A
+git commit -m "describe the change"
+git push origin main
+```
+
+#### Step 2 — SSH into the server and rebuild
+
+```bash
+ssh tobbe@192.168.1.50 "cd /opt/appdata/chronotime && git pull && docker compose up --build -d"
+```
+
+This does three things:
+1. **`git pull`** — Fetches the latest code from GitHub
+2. **`docker compose up --build`** — Rebuilds any images whose Dockerfile or dependencies changed, then (re)starts all containers
+3. **`-d`** — Runs in detached mode
+
+#### Step 3 — Verify the deployment
+
+```bash
+# Check all containers are running
+ssh tobbe@192.168.1.50 "cd /opt/appdata/chronotime && docker compose ps"
+```
