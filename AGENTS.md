@@ -41,7 +41,7 @@ The project includes a multi-stage Dockerfile + docker-compose.yaml for containe
 |--------|-------|
 | **Server IP** | `192.168.1.50` |
 | **SSH user** | `tobbe` (SSH key auth, no password) |
-| **Repo path** | `/opt/appdata/chronotime` |
+| **Repo path** | `/opt/appdata/chronowarden` |
 | **Git remote** | `origin` → `github.com:taxx/chronowarden.git` |
 | **Branch** | `main` |
 | **App URL** | `https://chronowarden.slumpen.com/` |
@@ -64,7 +64,7 @@ git push origin main
 #### Step 2 — SSH into the server and rebuild
 
 ```bash
-ssh tobbe@192.168.1.50 "cd /opt/appdata/chronotime && git pull && docker compose up --build -d"
+ssh tobbe@192.168.1.50 "cd /opt/appdata/chronowarden && git pull && docker compose up --build -d"
 ```
 
 This does three things:
@@ -76,5 +76,5 @@ This does three things:
 
 ```bash
 # Check all containers are running
-ssh tobbe@192.168.1.50 "cd /opt/appdata/chronotime && docker compose ps"
+ssh tobbe@192.168.1.50 "cd /opt/appdata/chronowarden && docker compose ps"
 ```
