@@ -3,107 +3,17 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../app_state.dart';
-import '../services/auth_service.dart';
-import 'history_screen.dart';
-import 'settings_screen.dart';
 
-/// Bottom-nav shell: Home | History | Settings.
-/// [showSettings] and [showLogout] let the admin shell reuse this screen
-/// without duplicating those actions in its own app bar.
-class HomeScreen extends StatefulWidget {
-  final bool showSettings;
-  final bool showLogout;
-
-  const HomeScreen({
-    super.key,
-    this.showSettings = true,
-    this.showLogout = true,
-  });
+/// The "My Day" content widget — shows today's time tracking.
+/// This is a standalone widget (no Scaffold) meant for use inside MainShell.
+class MyDayTab extends StatefulWidget {
+  const MyDayTab({super.key});
 
   @override
-  State<HomeScreen> createState() => _HomeScreenState();
+  State<MyDayTab> createState() => _MyDayTabState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
-  int _currentIndex = 0;
-  final _state = AppState();
-  final _auth = AuthService();
-
-  Future<void> _handleLogout() async {
-    final confirm = await showDialog<bool>(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: const Text('Sign out'),
-        content: const Text('Are you sure you want to sign out?'),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
-          FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Sign Out')),
-        ],
-      ),
-    );
-    if (confirm == true && mounted) {
-      await _auth.signOut();
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('ChronoWarden'),
-        actions: [
-          if (widget.showSettings)
-            IconButton(
-              icon: const Icon(Icons.settings),
-              onPressed: () => Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const SettingsScreen()),
-              ),
-            ),
-          if (widget.showLogout)
-            IconButton(
-              icon: const Icon(Icons.logout_outlined),
-              tooltip: 'Sign out',
-              onPressed: _handleLogout,
-            ),
-        ],
-      ),
-      body: ListenableBuilder(
-        listenable: _state,
-        builder: (context, _) {
-          return IndexedStack(
-            index: _currentIndex,
-            children: [
-              _HomeTab(),
-              HistoryScreen(),
-            ],
-          );
-        },
-      ),
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: _currentIndex,
-        onDestinationSelected: (i) => setState(() => _currentIndex = i),
-        destinations: const [
-          NavigationDestination(icon: Icon(Icons.home), label: 'Home'),
-          NavigationDestination(icon: Icon(Icons.history), label: 'History'),
-        ],
-      ),
-    );
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Today tab
-// ---------------------------------------------------------------------------
-
-class _HomeTab extends StatefulWidget {
-  const _HomeTab();
-
-  @override
-  State<_HomeTab> createState() => _HomeTabState();
-}
-
-class _HomeTabState extends State<_HomeTab> with SingleTickerProviderStateMixin {
+class _MyDayTabState extends State<MyDayTab> with SingleTickerProviderStateMixin {
   late Timer _ticker;
   final _state = AppState();
 

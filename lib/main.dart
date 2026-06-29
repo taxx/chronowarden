@@ -2,8 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'app_state.dart';
-import 'screens/admin_shell.dart';
-import 'screens/home_screen.dart';
+import 'screens/main_shell.dart';
 import 'screens/login_screen.dart';
 import 'screens/pending_screen.dart';
 import 'screens/setup_screen.dart';
@@ -118,10 +117,8 @@ class _ChronoWardenAppState extends State<ChronoWardenApp> {
             if (!_state.tablesReady) {
               return const SetupScreen();
             }
-            // Admin gets the admin shell; regular users get the normal home.
-            return profile.isAdmin
-                ? const AdminShell()
-                : const HomeScreen();
+            // Unified shell — My Day | History | Admin (admin-only tab).
+            return const MainShell();
           },
         );
       },
