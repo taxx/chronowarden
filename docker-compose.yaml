@@ -6,5 +6,5 @@ services:
         SUPABASE_URL: ${SUPABASE_URL}
         SUPABASE_ANON_KEY: ${SUPABASE_ANON_KEY}
     ports:
-      - "8080:80"
+      - "8981:80"
     restart: unless-stopped
