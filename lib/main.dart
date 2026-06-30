@@ -8,6 +8,7 @@ import 'screens/pending_screen.dart';
 import 'screens/setup_screen.dart';
 import 'screens/signup_screen.dart';
 import 'services/auth_service.dart';
+import 'services/theme_service.dart';
 
 // Compile-time injection via --dart-define-from-file=secrets.json
 const supabaseUrl = String.fromEnvironment('SUPABASE_URL');
@@ -19,6 +20,8 @@ void main() async {
   if (supabaseUrl.isNotEmpty && supabaseAnonKey.isNotEmpty) {
     await Supabase.initialize(url: supabaseUrl, publishableKey: supabaseAnonKey);
   }
+
+  await ThemeService().init();
 
   runApp(const ChronoWardenApp());
 }
@@ -66,16 +69,29 @@ class _ChronoWardenAppState extends State<ChronoWardenApp> {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'ChronoWarden',
-      debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        colorSchemeSeed: const Color(0xFF1E3A5F),
-        useMaterial3: true,
-      ),
-      home: SelectionArea(
-        child: _buildRoot(),
-      ),
+    return ListenableBuilder(
+      listenable: ThemeService(),
+      builder: (context, _) {
+        final ts = ThemeService();
+        return MaterialApp(
+          title: 'ChronoWarden',
+          debugShowCheckedModeBanner: false,
+          themeMode: ts.mode,
+          theme: ThemeData(
+            colorSchemeSeed: const Color(0xFF1E3A5F),
+            useMaterial3: true,
+            brightness: Brightness.light,
+          ),
+          darkTheme: ThemeData(
+            colorSchemeSeed: const Color(0xFF1E3A5F),
+            useMaterial3: true,
+            brightness: Brightness.dark,
+          ),
+          home: SelectionArea(
+            child: _buildRoot(),
+          ),
+        );
+      },
     );
   }
 

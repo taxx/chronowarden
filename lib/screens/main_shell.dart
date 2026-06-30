@@ -6,6 +6,7 @@ import '../models/invite.dart';
 import '../models/user_profile.dart';
 import '../services/auth_service.dart';
 import '../services/profile_service.dart';
+import '../services/theme_service.dart';
 import 'admin_screen.dart';
 import 'history_content.dart';
 import 'my_day_tab.dart';
@@ -78,6 +79,33 @@ class _MainShellState extends State<MainShell> {
       appBar: AppBar(
         title: const Text('ChronoWarden'),
         actions: [
+          ListenableBuilder(
+            listenable: ThemeService(),
+            builder: (context, _) {
+              final ts = ThemeService();
+              IconData icon;
+              String tooltip;
+              switch (ts.mode) {
+                case ThemeMode.light:
+                  icon = Icons.sunny;
+                  tooltip = 'Light mode';
+                  break;
+                case ThemeMode.dark:
+                  icon = Icons.nightlight_round;
+                  tooltip = 'Dark mode';
+                  break;
+                case ThemeMode.system:
+                  icon = Icons.brightness_auto;
+                  tooltip = 'Auto (system)';
+                  break;
+              }
+              return IconButton(
+                icon: Icon(icon),
+                tooltip: tooltip,
+                onPressed: () => ts.cycleMode(),
+              );
+            },
+          ),
           IconButton(
             icon: const Icon(Icons.settings),
             tooltip: 'Settings',
