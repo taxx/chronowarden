@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../app_state.dart';
 import '../models/time_log.dart';
+import '../utils/overtime_colors.dart';
 
 /// Aggregated overview: week / month / year summaries with period navigation.
 class OverviewTab extends StatefulWidget {
@@ -258,15 +259,6 @@ class _PeriodTabState extends State<_PeriodTab> {
     if (h == 0) return '${sign}${m} min';
     return '${sign}${h}h ${m}m';
   }
-
-  String _overtimeStr(int minutes) {
-    if (minutes == 0) return '✓';
-    final sign = minutes > 0 ? '+' : '';
-    final h = minutes.abs() ~/ 60;
-    final m = minutes.abs() % 60;
-    if (h == 0) return '$sign${m}min';
-    return '$sign${h}h${m}min';
-  }
 }
 
 // ---------------------------------------------------------------------------
@@ -481,11 +473,11 @@ List<Widget> _buildMonthRows(BuildContext context, double cellWidth, Map<String,
           )),
           if (log != null && log.endTime != null)
             Text(
-              _overtimeStr(log.overtimeMinutes),
+              formatOvertime(log.overtimeMinutes),
               style: theme.textTheme.bodySmall?.copyWith(
                 fontWeight: FontWeight.bold,
                 fontSize: 10,
-                color: theme.colorScheme.primary,
+                color: overtimeText(log.overtimeMinutes, theme),
               ),
             ),
         ],
@@ -515,15 +507,6 @@ List<Widget> _buildMonthRows(BuildContext context, double cellWidth, Map<String,
     ));
   }
   return rows;
-}
-
-String _overtimeStr(int minutes) {
-  if (minutes == 0) return '✓';
-  final sign = minutes > 0 ? '+' : '';
-  final h = minutes.abs() ~/ 60;
-  final m = minutes.abs() % 60;
-  if (h == 0) return '$sign${m}min';
-  return '$sign${h}h${m}min';
 }
 
 // ---------------------------------------------------------------------------
@@ -576,12 +559,10 @@ Widget _YearCalendar(BuildContext context, Map<String, TimeLog> logByDate, {
                   Text('$daysLogged days', style: theme.textTheme.bodySmall),
                   if (daysLogged > 0)
                     Text(
-                      _overtimeStr(totalOt),
+                      formatOvertime(totalOt),
                       style: theme.textTheme.bodySmall?.copyWith(
                         fontWeight: FontWeight.bold,
-                        color: totalOt >= 0
-                            ? theme.colorScheme.primary
-                            : Colors.orange,
+                        color: overtimeText(totalOt, theme),
                       ),
                     ),
                 ],

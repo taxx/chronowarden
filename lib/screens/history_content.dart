@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../app_state.dart';
 import '../models/time_log.dart';
+import '../utils/overtime_colors.dart';
 
 /// History content widget — lists past logs with cumulative time-bank balance.
 /// No Scaffold wrapper — meant for use inside MainShell.
@@ -40,7 +41,7 @@ class _HistoryContentState extends State<HistoryContent> {
                             children: [
                               Icon(
                                 balance >= 0 ? Icons.savings : Icons.warning_amber_rounded,
-                                color: balance >= 0 ? theme.colorScheme.primary : Colors.orange,
+                                color: overtimeIcon(balance, theme),
                                 size: 32,
                               ),
                               const SizedBox(width: 16),
@@ -48,12 +49,12 @@ class _HistoryContentState extends State<HistoryContent> {
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    Text('Time Bank Balance', style: theme.textTheme.titleSmall),
+                                    Text('Time Bank', style: theme.textTheme.titleSmall),
                                     Text(
-                                      _formatBalance(balance),
+                                      formatBalance(balance),
                                       style: theme.textTheme.headlineSmall?.copyWith(
                                         fontWeight: FontWeight.bold,
-                                        color: balance >= 0 ? null : Colors.orange,
+                                        color: overtimeText(balance, theme),
                                       ),
                                     ),
                                   ],
@@ -170,11 +171,7 @@ class _HistoryContentState extends State<HistoryContent> {
   }
 
   String _formatBalance(int minutes) {
-    final sign = minutes >= 0 ? '+' : '';
-    final h = minutes.abs() ~/ 60;
-    final m = minutes.abs() % 60;
-    if (h == 0) return '$sign$m min';
-    return '$sign${h}h ${m}m';
+    return formatBalance(minutes);
   }
 
   Future<void> _showEditDayDialog(BuildContext ctx, TimeLog log) async {
@@ -224,17 +221,20 @@ class _LogCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isCompleted = log.endTime != null;
-    final overtime = log.overtimeMinutes;
+    final ot = log.overtimeMinutes;
+    final otBg = overtimeBackground(ot, theme);
+    final hasNote = log.note?.isNotEmpty == true;
 
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+      color: otBg != Colors.transparent ? otBg : null,
       child: InkWell(
         onTap: onEdit,
         borderRadius: BorderRadius.circular(12),
         child: ListTile(
           leading: CircleAvatar(
             backgroundColor: isCompleted
-                ? (overtime >= 0 ? theme.colorScheme.primaryContainer : Colors.green.shade100)
+                ? (ot >= 0 ? theme.colorScheme.primaryContainer : Colors.green.shade100)
                 : theme.colorScheme.secondaryContainer,
             child: Icon(
               isCompleted ? Icons.check : Icons.pending,
@@ -244,20 +244,39 @@ class _LogCard extends StatelessWidget {
                   : theme.colorScheme.onSecondaryContainer,
             ),
           ),
-          title: Text(log.date),
-          subtitle: Text(
-            '${log.startTime}${log.endTime != null ? ' → ${log.endTime}' : ' → …'}  ·  ${log.expectedMinutes} min work + ${log.overheadMinutes} min overhead${log.lunchMinutes > 0 ? ' · ${log.lunchMinutes} min lunch' : ''}',
-            style: theme.textTheme.bodySmall,
+          title: Row(
+            children: [
+              Text(log.date),
+              if (hasNote)
+                Padding(
+                  padding: const EdgeInsets.only(left: 6),
+                  child: Icon(Icons.note_outlined, size: 16, color: theme.colorScheme.onSurfaceVariant),
+                ),
+            ],
+          ),
+          subtitle: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                '${log.startTime}${log.endTime != null ? ' → ${log.endTime}' : ' → …'}  ·  ${log.expectedMinutes} min work + ${log.overheadMinutes} min overhead${log.lunchMinutes > 0 ? ' · ${log.lunchMinutes} min lunch' : ''}',
+                style: theme.textTheme.bodySmall,
+              ),
+              if (hasNote)
+                Text('📝 ${log.note}', maxLines: 1, overflow: TextOverflow.ellipsis, style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                  fontStyle: FontStyle.italic,
+                )),
+            ],
           ),
           trailing: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(
-                isCompleted ? (overtime == 0 ? '✓' : '$overtime min') : 'active',
+                isCompleted ? formatOvertime(ot) : 'active',
                 style: theme.textTheme.titleMedium?.copyWith(
                   fontWeight: FontWeight.bold,
                   color: isCompleted
-                      ? (overtime >= 0 ? theme.colorScheme.primary : Colors.green)
+                      ? overtimeText(ot, theme)
                       : theme.colorScheme.secondary,
                 ),
               ),
