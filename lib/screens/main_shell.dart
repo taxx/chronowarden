@@ -77,7 +77,17 @@ class _MainShellState extends State<MainShell> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('ChronoWarden'),
+        title: Row(
+          children: [
+            Image.asset(
+              'chronowarden.png',
+              height: 28,
+              fit: BoxFit.contain,
+            ),
+            const SizedBox(width: 10),
+            const Text('ChronoWarden'),
+          ],
+        ),
         actions: [
           ListenableBuilder(
             listenable: ThemeService(),
