@@ -133,13 +133,13 @@ class _PeriodTabState extends State<_PeriodTab> {
         final weekEnd = weekStart.add(const Duration(days: 6));
         return '${weekStart.day}/${weekStart.month} — ${weekEnd.day}/${weekEnd.month}';
       case Period.month:
-        return monthYearLabel(now);
+        return _monthYearLabel(now);
       case Period.year:
         return '${now.year}';
     }
   }
 
-  String monthYearLabel(DateTime date) {
+  String _monthYearLabel(DateTime date) {
     const months = [
       'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
       'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
@@ -204,8 +204,12 @@ class _PeriodTabState extends State<_PeriodTab> {
     final totalOverhead = filtered.fold<int>(0, (sum, l) => sum + l.overheadMinutes);
     final totalActual = filtered.fold<int>(0, (sum, l) => sum + (l.endTime != null ? l.elapsed.inMinutes : 0));
     final totalOvertime = filtered.fold<int>(0, (sum, l) => sum + l.overtimeMinutes);
-    final avgActual = filtered.length > 0 ? totalActual ~/ filtered.length : 0;
-    final avgOvertime = filtered.length > 0 ? totalOvertime ~/ filtered.length : 0;
+
+    // Build a quick lookup: date string → TimeLog
+    final logByDate = <String, TimeLog>{};
+    for (final l in filtered) {
+      logByDate[l.date] = l;
+    }
 
     return RefreshIndicator(
       onRefresh: () => _state.refresh(),
@@ -223,21 +227,27 @@ class _PeriodTabState extends State<_PeriodTab> {
             isOvertime: true,
             valueMinutes: totalOvertime,
           ),
-          _SummaryCard(theme, 'Avg hours / day', _formatMinutes(avgActual)),
-          _SummaryCard(
-            theme,
-            'Avg overtime / day',
-            _formatMinutes(avgOvertime),
-            isOvertime: true,
-            valueMinutes: avgOvertime,
-          ),
           const SizedBox(height: 16),
-          Text('Daily breakdown', style: theme.textTheme.titleMedium),
-          const SizedBox(height: 8),
-          ...filtered.reversed.map((log) => _DayMiniCard(log, theme)),
+          // Calendar view depending on period
+          _buildCalendar(theme, logByDate),
         ],
       ),
     );
+  }
+
+  // ------------------------------------------------------------------
+  // Calendar views
+  // ------------------------------------------------------------------
+
+  Widget _buildCalendar(ThemeData theme, Map<String, TimeLog> logByDate) {
+    switch (widget.period) {
+      case Period.week:
+        return _WeekCalendar(context, logByDate, refDate: _offsetDate());
+      case Period.month:
+        return _MonthCalendar(context, logByDate, refDate: _offsetDate());
+      case Period.year:
+        return _YearCalendar(context, logByDate, refDate: _offsetDate());
+    }
   }
 
   String _formatMinutes(int minutes) {
@@ -247,6 +257,15 @@ class _PeriodTabState extends State<_PeriodTab> {
     final m = abs % 60;
     if (h == 0) return '${sign}${m} min';
     return '${sign}${h}h ${m}m';
+  }
+
+  String _overtimeStr(int minutes) {
+    if (minutes == 0) return '✓';
+    final sign = minutes > 0 ? '+' : '';
+    final h = minutes.abs() ~/ 60;
+    final m = minutes.abs() % 60;
+    if (h == 0) return '$sign${m}min';
+    return '$sign${h}h${m}min';
   }
 }
 
@@ -285,36 +304,292 @@ Widget _SummaryCard(
   );
 }
 
-Widget _DayMiniCard(TimeLog log, ThemeData theme) {
-  final isCompleted = log.endTime != null;
-  final overtime = log.overtimeMinutes;
-  return Card(
-    margin: const EdgeInsets.symmetric(vertical: 2, horizontal: 4),
-    child: ListTile(
-      dense: true,
-      leading: Icon(
-        isCompleted ? Icons.check_circle : Icons.pending,
-        size: 18,
-        color: isCompleted
-            ? (overtime >= 0 ? theme.colorScheme.primary : Colors.green)
-            : theme.colorScheme.secondary,
-      ),
-      title: Text(log.date, style: theme.textTheme.bodySmall),
-      subtitle: Text(
-        '${log.startTime}${log.endTime != null ? ' → ${log.endTime}' : ' → …'}  ·  ${log.expectedMinutes} min work',
-        style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
-      ),
-      trailing: Text(
-        isCompleted
-            ? (overtime == 0 ? '✓' : '${overtime > 0 ? '+' : ''}$overtime min')
-            : 'active',
-        style: theme.textTheme.bodySmall?.copyWith(
-          fontWeight: FontWeight.w600,
-          color: isCompleted
-              ? (overtime >= 0 ? theme.colorScheme.primary : Colors.green)
-              : theme.colorScheme.secondary,
+// ---------------------------------------------------------------------------
+// Week calendar — 7 day row
+// ---------------------------------------------------------------------------
+
+Widget _WeekCalendar(BuildContext context, Map<String, TimeLog> logByDate, {
+  required DateTime refDate,
+}) {
+  final theme = Theme.of(context);
+  final weekStart = refDate.subtract(Duration(days: refDate.weekday - 1));
+  const dayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+
+  return Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Text('Daily overview', style: theme.textTheme.titleMedium),
+      const SizedBox(height: 8),
+      SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          children: List.generate(7, (i) {
+            final day = weekStart.add(Duration(days: i));
+            final dateStr = _dateStr(day);
+            final log = logByDate[dateStr];
+            return _DayCell(theme, dayName: dayNames[i], day: day, log: log);
+          }),
         ),
       ),
+    ],
+  );
+}
+
+String _dateStr(DateTime d) =>
+    '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+
+Widget _DayCell(ThemeData theme, {
+  required String dayName,
+  required DateTime day,
+  TimeLog? log,
+}) {
+  final isToday = _isToday(day);
+  final isFuture = day.isAfter(DateTime.now().subtract(const Duration(hours: 24)));
+
+  Color? bgColor;
+  String? label;
+  if (log != null && log.endTime != null) {
+    final ot = log.overtimeMinutes;
+    if (ot == 0) {
+      bgColor = Colors.green.shade50;
+      label = '✓';
+    } else if (ot > 0) {
+      bgColor = theme.colorScheme.primaryContainer.withValues(alpha: 0.3);
+      label = '+${ot}min';
+    } else {
+      bgColor = Colors.green.shade50;
+      label = '${ot}min';
+    }
+  } else if (log != null && log.endTime == null) {
+    bgColor = Colors.amber.shade50;
+    label = 'active';
+  }
+
+  return Padding(
+    padding: const EdgeInsets.symmetric(horizontal: 4),
+    child: Container(
+      width: 80,
+      decoration: BoxDecoration(
+        color: bgColor ?? (isToday ? theme.colorScheme.surfaceContainerHigh : null),
+        borderRadius: BorderRadius.circular(12),
+        border: isToday ? Border.all(color: theme.colorScheme.primary, width: 2) : null,
+      ),
+      padding: const EdgeInsets.all(8),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(dayName, style: theme.textTheme.bodySmall?.copyWith(
+            fontWeight: FontWeight.w600,
+          )),
+          const SizedBox(height: 4),
+          Text('${day.day}', style: theme.textTheme.titleMedium),
+          if (isFuture && log == null)
+            Text('—', style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ))
+          else if (label != null)
+            Text(label, style: theme.textTheme.bodySmall?.copyWith(
+              fontWeight: FontWeight.bold,
+              color: bgColor != null ? theme.colorScheme.primary : null,
+              fontSize: 11,
+            ))
+          else
+            Text('—', style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            )),
+        ],
+      ),
     ),
+  );
+}
+
+bool _isToday(DateTime date) {
+  final now = DateTime.now();
+  return date.year == now.year && date.month == now.month && date.day == now.day;
+}
+
+// ---------------------------------------------------------------------------
+// Month calendar — full grid
+// ---------------------------------------------------------------------------
+
+Widget _MonthCalendar(BuildContext context, Map<String, TimeLog> logByDate, {
+  required DateTime refDate,
+}) {
+  final theme = Theme.of(context);
+  final cellWidth = (MediaQuery.of(context).size.width - 32) / 7;
+  final firstDay = DateTime(refDate.year, refDate.month, 1);
+  final lastDay = DateTime(refDate.year, refDate.month + 1, 0);
+  final startWeekday = firstDay.weekday % 7; // 0 = Sun, 1 = Mon … 6 = Sat
+  final daysInMonth = lastDay.day;
+
+  return Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Text('Daily overview', style: theme.textTheme.titleMedium),
+      const SizedBox(height: 8),
+      // Day-of-week header
+      Row(
+        children: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((d) {
+          return SizedBox(
+            width: cellWidth,
+            child: Text(d, textAlign: TextAlign.center,
+              style: theme.textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w600)),
+          );
+        }).toList(),
+      ),
+      const SizedBox(height: 4),
+      // Grid rows
+      ..._buildMonthRows(context, cellWidth, logByDate, firstDay, startWeekday, daysInMonth),
+    ],
+  );
+}
+
+List<Widget> _buildMonthRows(BuildContext context, double cellWidth, Map<String, TimeLog> logByDate,
+    DateTime firstDay, int startWeekday, int daysInMonth) {
+  final theme = Theme.of(context);
+  final cells = <Widget>[];
+
+  for (int day = 1; day <= daysInMonth; day++) {
+    final date = DateTime(firstDay.year, firstDay.month, day);
+    final dateStr = _dateStr(date);
+    final log = logByDate[dateStr];
+    final isToday = _isToday(date);
+
+    Color? bgColor;
+    if (log != null && log.endTime != null) {
+      final ot = log.overtimeMinutes;
+      bgColor = ot >= 0
+          ? theme.colorScheme.primaryContainer.withValues(alpha: 0.3)
+          : Colors.green.shade50;
+    } else if (log != null && log.endTime == null) {
+      bgColor = Colors.amber.shade50;
+    }
+
+    cells.add(Container(
+      width: cellWidth,
+      height: 48,
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: BorderRadius.circular(8),
+        border: isToday ? Border.all(color: theme.colorScheme.primary, width: 2) : null,
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Text('$day', style: theme.textTheme.bodySmall?.copyWith(
+            fontWeight: FontWeight.w600,
+          )),
+          if (log != null && log.endTime != null)
+            Text(
+              _overtimeStr(log.overtimeMinutes),
+              style: theme.textTheme.bodySmall?.copyWith(
+                fontWeight: FontWeight.bold,
+                fontSize: 10,
+                color: theme.colorScheme.primary,
+              ),
+            ),
+        ],
+      ),
+    ));
+  }
+
+  // Build rows of 7
+  final rows = <Widget>[];
+  final totalCells = startWeekday + daysInMonth;
+  final numRows = (totalCells / 7).ceil();
+
+  int cellIdx = 0;
+  for (int r = 0; r < numRows; r++) {
+    final rowChildren = <Widget>[];
+    for (int c = 0; c < 7; c++) {
+      if (cellIdx < startWeekday || cellIdx >= startWeekday + daysInMonth) {
+        rowChildren.add(SizedBox(width: cellWidth, child: const Text('')));
+      } else {
+        rowChildren.add(cells[cellIdx - startWeekday]);
+      }
+      cellIdx++;
+    }
+    rows.add(Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2),
+      child: Row(children: rowChildren),
+    ));
+  }
+  return rows;
+}
+
+String _overtimeStr(int minutes) {
+  if (minutes == 0) return '✓';
+  final sign = minutes > 0 ? '+' : '';
+  final h = minutes.abs() ~/ 60;
+  final m = minutes.abs() % 60;
+  if (h == 0) return '$sign${m}min';
+  return '$sign${h}h${m}min';
+}
+
+// ---------------------------------------------------------------------------
+// Year calendar — 3×4 month grid
+// ---------------------------------------------------------------------------
+
+Widget _YearCalendar(BuildContext context, Map<String, TimeLog> logByDate, {
+  required DateTime refDate,
+}) {
+  final theme = Theme.of(context);
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+                  'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+  return Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Text('Monthly overview', style: theme.textTheme.titleMedium),
+      const SizedBox(height: 8),
+      // 3×4 grid
+      GridView.builder(
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 3,
+          childAspectRatio: 1.5,
+          crossAxisSpacing: 8,
+          mainAxisSpacing: 8,
+        ),
+        itemCount: 12,
+        itemBuilder: (ctx, i) {
+          final monthDate = DateTime(refDate.year, i + 1, 1);
+          final monthStr = '${refDate.year}-${(i+1).toString().padLeft(2, '0')}';
+          final logsThisMonth = logByDate.entries
+              .where((e) => e.key.startsWith(monthStr))
+              .map((e) => e.value)
+              .toList();
+          final totalOt = logsThisMonth.fold<int>(0, (s, l) => s + l.overtimeMinutes);
+          final daysLogged = logsThisMonth.length;
+
+          return Card(
+            child: Padding(
+              padding: const EdgeInsets.all(10),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(months[i], style: theme.textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  )),
+                  const SizedBox(height: 4),
+                  Text('$daysLogged days', style: theme.textTheme.bodySmall),
+                  if (daysLogged > 0)
+                    Text(
+                      _overtimeStr(totalOt),
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: totalOt >= 0
+                            ? theme.colorScheme.primary
+                            : Colors.orange,
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    ],
   );
 }
