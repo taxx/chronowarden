@@ -344,9 +344,10 @@ class _MyDayTabState extends State<MyDayTab> with SingleTickerProviderStateMixin
   }
 
   Future<void> _showStopDayDialog(BuildContext ctx) async {
+    final currentLunch = _state.todayLog?.lunchMinutes ?? 0;
     final result = await showDialog<_StopDayResult>(
       context: ctx,
-      builder: (_) => _StopDayDialog(),
+      builder: (_) => _StopDayDialog(initialLunchMinutes: currentLunch),
     );
 
     if (result != null) {
@@ -635,7 +636,9 @@ class _StartDayDialogState extends State<_StartDayDialog> {
 // ---------------------------------------------------------------------------
 
 class _StopDayDialog extends StatefulWidget {
-  const _StopDayDialog();
+  final int initialLunchMinutes;
+
+  const _StopDayDialog({this.initialLunchMinutes = 0});
 
   @override
   State<_StopDayDialog> createState() => _StopDayDialogState();
@@ -643,12 +646,13 @@ class _StopDayDialog extends StatefulWidget {
 
 class _StopDayDialogState extends State<_StopDayDialog> {
   late TimeOfDay _time;
-  int _lunchMinutes = 0;
+  late int _lunchMinutes;
 
   @override
   void initState() {
     super.initState();
     _time = TimeOfDay.now();
+    _lunchMinutes = widget.initialLunchMinutes;
   }
 
   @override
