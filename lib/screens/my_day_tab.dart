@@ -236,7 +236,9 @@ class _MyDayTabState extends State<MyDayTab> with SingleTickerProviderStateMixin
             Icon(
               log.overtimeMinutes >= 0 ? Icons.check_circle_rounded : Icons.savings_rounded,
               size: 48,
-              color: log.overtimeMinutes >= 0 ? theme.colorScheme.primary : Colors.green,
+              color: log.overtimeMinutes >= 0
+                  ? theme.colorScheme.primary
+                  : theme.colorScheme.onTertiaryContainer,
             ),
             const SizedBox(height: 12),
             Text('Day completed', style: theme.textTheme.titleLarge),
