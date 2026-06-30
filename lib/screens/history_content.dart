@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 
 import '../app_state.dart';
 import '../models/time_log.dart';
-import '../utils/overtime_colors.dart';
 
 /// History content widget — lists past logs with cumulative time-bank balance.
 /// No Scaffold wrapper — meant for use inside MainShell.
@@ -41,7 +40,7 @@ class _HistoryContentState extends State<HistoryContent> {
                             children: [
                               Icon(
                                 balance >= 0 ? Icons.savings : Icons.warning_amber_rounded,
-                                color: overtimeIcon(balance, theme),
+                                color: balance >= 0 ? theme.colorScheme.primary : Colors.orange,
                                 size: 32,
                               ),
                               const SizedBox(width: 16),
@@ -51,10 +50,10 @@ class _HistoryContentState extends State<HistoryContent> {
                                   children: [
                                     Text('Time Bank', style: theme.textTheme.titleSmall),
                                     Text(
-                                      formatBalance(balance),
+                                      _formatBalance(balance),
                                       style: theme.textTheme.headlineSmall?.copyWith(
                                         fontWeight: FontWeight.bold,
-                                        color: overtimeText(balance, theme),
+                                        color: balance >= 0 ? null : Colors.orange,
                                       ),
                                     ),
                                   ],
@@ -171,7 +170,11 @@ class _HistoryContentState extends State<HistoryContent> {
   }
 
   String _formatBalance(int minutes) {
-    return formatBalance(minutes);
+    final sign = minutes >= 0 ? '+' : '';
+    final h = minutes.abs() ~/ 60;
+    final m = minutes.abs() % 60;
+    if (h == 0) return '$sign$m min';
+    return '$sign${h}h ${m}m';
   }
 
   Future<void> _showEditDayDialog(BuildContext ctx, TimeLog log) async {
@@ -221,20 +224,18 @@ class _LogCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isCompleted = log.endTime != null;
-    final ot = log.overtimeMinutes;
-    final otBg = overtimeBackground(ot, theme);
+    final overtime = log.overtimeMinutes;
     final hasNote = log.note?.isNotEmpty == true;
 
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-      color: otBg != Colors.transparent ? otBg : null,
       child: InkWell(
         onTap: onEdit,
         borderRadius: BorderRadius.circular(12),
         child: ListTile(
           leading: CircleAvatar(
             backgroundColor: isCompleted
-                ? (ot >= 0 ? theme.colorScheme.primaryContainer : Colors.green.shade100)
+                ? (overtime >= 0 ? theme.colorScheme.primaryContainer : Colors.green.shade100)
                 : theme.colorScheme.secondaryContainer,
             child: Icon(
               isCompleted ? Icons.check : Icons.pending,
@@ -272,11 +273,11 @@ class _LogCard extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(
-                isCompleted ? formatOvertime(ot) : 'active',
+                isCompleted ? (overtime == 0 ? '✓' : '$overtime min') : 'active',
                 style: theme.textTheme.titleMedium?.copyWith(
                   fontWeight: FontWeight.bold,
                   color: isCompleted
-                      ? overtimeText(ot, theme)
+                      ? (overtime >= 0 ? theme.colorScheme.primary : Colors.green)
                       : theme.colorScheme.secondary,
                 ),
               ),

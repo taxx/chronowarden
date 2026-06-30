@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 
 import '../app_state.dart';
 import '../models/time_log.dart';
-import '../utils/overtime_colors.dart';
 
 /// Aggregated overview: week / month / year summaries with period navigation.
 class OverviewTab extends StatefulWidget {
@@ -259,6 +258,15 @@ class _PeriodTabState extends State<_PeriodTab> {
     if (h == 0) return '${sign}${m} min';
     return '${sign}${h}h ${m}m';
   }
+
+  String _overtimeStr(int minutes) {
+    if (minutes == 0) return '✓';
+    final sign = minutes > 0 ? '+' : '';
+    final h = minutes.abs() ~/ 60;
+    final m = minutes.abs() % 60;
+    if (h == 0) return '$sign${m}min';
+    return '$sign${h}h${m}min';
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -337,6 +345,7 @@ Widget _DayCell(ThemeData theme, {
 }) {
   final isToday = _isToday(day);
   final isFuture = day.isAfter(DateTime.now().subtract(const Duration(hours: 24)));
+  final hasNote = log?.note?.isNotEmpty == true;
 
   Color? bgColor;
   String? label;
@@ -359,37 +368,52 @@ Widget _DayCell(ThemeData theme, {
 
   return Padding(
     padding: const EdgeInsets.symmetric(horizontal: 4),
-    child: Container(
-      width: 80,
-      decoration: BoxDecoration(
-        color: bgColor ?? (isToday ? theme.colorScheme.surfaceContainerHigh : null),
-        borderRadius: BorderRadius.circular(12),
-        border: isToday ? Border.all(color: theme.colorScheme.primary, width: 2) : null,
-      ),
-      padding: const EdgeInsets.all(8),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(dayName, style: theme.textTheme.bodySmall?.copyWith(
-            fontWeight: FontWeight.w600,
-          )),
-          const SizedBox(height: 4),
-          Text('${day.day}', style: theme.textTheme.titleMedium),
-          if (isFuture && log == null)
-            Text('—', style: theme.textTheme.bodySmall?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
-            ))
-          else if (label != null)
-            Text(label, style: theme.textTheme.bodySmall?.copyWith(
-              fontWeight: FontWeight.bold,
-              color: bgColor != null ? theme.colorScheme.primary : null,
-              fontSize: 11,
-            ))
-          else
-            Text('—', style: theme.textTheme.bodySmall?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
-            )),
-        ],
+    child: Tooltip(
+      message: log != null
+          ? '${log.date}: ${log.startTime}${log.endTime != null ? ' → ${log.endTime}' : ' → …'}\n${log.expectedMinutes} min work${log.note != null ? '\n📝 ${log.note}' : ''}'
+          : '',
+      child: Container(
+        width: 80,
+        decoration: BoxDecoration(
+          color: bgColor ?? (isToday ? theme.colorScheme.surfaceContainerHigh : null),
+          borderRadius: BorderRadius.circular(12),
+          border: isToday ? Border.all(color: theme.colorScheme.primary, width: 2) : null,
+        ),
+        padding: const EdgeInsets.all(8),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(dayName, style: theme.textTheme.bodySmall?.copyWith(
+                  fontWeight: FontWeight.w600,
+                )),
+                if (hasNote)
+                  Padding(
+                    padding: const EdgeInsets.only(left: 4),
+                    child: Icon(Icons.note_outlined, size: 12, color: theme.colorScheme.onSurfaceVariant),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Text('${day.day}', style: theme.textTheme.titleMedium),
+            if (isFuture && log == null)
+              Text('—', style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ))
+            else if (label != null)
+              Text(label, style: theme.textTheme.bodySmall?.copyWith(
+                fontWeight: FontWeight.bold,
+                color: bgColor != null ? theme.colorScheme.primary : null,
+                fontSize: 11,
+              ))
+            else
+              Text('—', style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              )),
+          ],
+        ),
       ),
     ),
   );
@@ -457,6 +481,7 @@ List<Widget> _buildMonthRows(BuildContext context, double cellWidth, Map<String,
       bgColor = Colors.amber.shade50;
     }
 
+    final hasNote = log?.note?.isNotEmpty == true;
     cells.add(Container(
       width: cellWidth,
       height: 48,
@@ -465,22 +490,37 @@ List<Widget> _buildMonthRows(BuildContext context, double cellWidth, Map<String,
         borderRadius: BorderRadius.circular(8),
         border: isToday ? Border.all(color: theme.colorScheme.primary, width: 2) : null,
       ),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Text('$day', style: theme.textTheme.bodySmall?.copyWith(
-            fontWeight: FontWeight.w600,
-          )),
-          if (log != null && log.endTime != null)
-            Text(
-              formatOvertime(log.overtimeMinutes),
-              style: theme.textTheme.bodySmall?.copyWith(
-                fontWeight: FontWeight.bold,
-                fontSize: 10,
-                color: overtimeText(log.overtimeMinutes, theme),
-              ),
+      child: Tooltip(
+        message: log != null
+            ? '${log.date}: ${log.startTime}${log.endTime != null ? ' → ${log.endTime}' : ' → …'}\n${log.expectedMinutes} min work${log.note != null ? '\n📝 ${log.note}' : ''}'
+            : '',
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text('$day', style: theme.textTheme.bodySmall?.copyWith(
+                  fontWeight: FontWeight.w600,
+                )),
+                if (hasNote)
+                  Padding(
+                    padding: const EdgeInsets.only(left: 3),
+                    child: Icon(Icons.note_outlined, size: 10, color: theme.colorScheme.onSurfaceVariant),
+                  ),
+              ],
             ),
-        ],
+            if (log != null && log.endTime != null)
+              Text(
+                _overtimeStr(log.overtimeMinutes),
+                style: theme.textTheme.bodySmall?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 10,
+                  color: theme.colorScheme.primary,
+                ),
+              ),
+          ],
+        ),
       ),
     ));
   }
@@ -507,6 +547,15 @@ List<Widget> _buildMonthRows(BuildContext context, double cellWidth, Map<String,
     ));
   }
   return rows;
+}
+
+String _overtimeStr(int minutes) {
+  if (minutes == 0) return '✓';
+  final sign = minutes > 0 ? '+' : '';
+  final h = minutes.abs() ~/ 60;
+  final m = minutes.abs() % 60;
+  if (h == 0) return '$sign${m}min';
+  return '$sign${h}h${m}min';
 }
 
 // ---------------------------------------------------------------------------
@@ -559,10 +608,12 @@ Widget _YearCalendar(BuildContext context, Map<String, TimeLog> logByDate, {
                   Text('$daysLogged days', style: theme.textTheme.bodySmall),
                   if (daysLogged > 0)
                     Text(
-                      formatOvertime(totalOt),
+                      _overtimeStr(totalOt),
                       style: theme.textTheme.bodySmall?.copyWith(
                         fontWeight: FontWeight.bold,
-                        color: overtimeText(totalOt, theme),
+                        color: totalOt >= 0
+                            ? theme.colorScheme.primary
+                            : Colors.orange,
                       ),
                     ),
                 ],
