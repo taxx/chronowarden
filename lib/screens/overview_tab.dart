@@ -216,11 +216,11 @@ class _PeriodTabState extends State<_PeriodTab> {
       child: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          _SummaryCard(theme, 'Days logged', '${filtered.length}'),
-          _SummaryCard(theme, 'Total hours worked', _formatMinutes(totalActual)),
-          _SummaryCard(theme, 'Expected work', _formatMinutes(totalExpected)),
-          _SummaryCard(theme, 'Overhead buffer', _formatMinutes(totalOverhead)),
-          _SummaryCard(
+          _summaryCard(theme, 'Days logged', '${filtered.length}'),
+          _summaryCard(theme, 'Total hours worked', _formatMinutes(totalActual)),
+          _summaryCard(theme, 'Expected work', _formatMinutes(totalExpected)),
+          _summaryCard(theme, 'Overhead buffer', _formatMinutes(totalOverhead)),
+          _summaryCard(
             theme,
             'Net overtime',
             _formatMinutes(totalOvertime),
@@ -242,11 +242,11 @@ class _PeriodTabState extends State<_PeriodTab> {
   Widget _buildCalendar(ThemeData theme, Map<String, TimeLog> logByDate) {
     switch (widget.period) {
       case Period.week:
-        return _WeekCalendar(context, logByDate, refDate: _offsetDate());
+        return _weekCalendar(context, logByDate, refDate: _offsetDate());
       case Period.month:
-        return _MonthCalendar(context, logByDate, refDate: _offsetDate());
+        return _monthCalendar(context, logByDate, refDate: _offsetDate());
       case Period.year:
-        return _YearCalendar(context, logByDate, refDate: _offsetDate());
+        return _yearCalendar(context, logByDate, refDate: _offsetDate());
     }
   }
 
@@ -255,25 +255,17 @@ class _PeriodTabState extends State<_PeriodTab> {
     final abs = minutes.abs();
     final h = abs ~/ 60;
     final m = abs % 60;
-    if (h == 0) return '${sign}${m} min';
-    return '${sign}${h}h ${m}m';
+    if (h == 0) return '$sign$m min';
+    return '$sign${h}h ${m}m';
   }
 
-  String _overtimeStr(int minutes) {
-    if (minutes == 0) return '✓';
-    final sign = minutes > 0 ? '+' : '';
-    final h = minutes.abs() ~/ 60;
-    final m = minutes.abs() % 60;
-    if (h == 0) return '$sign${m}min';
-    return '$sign${h}h${m}min';
-  }
 }
 
 // ---------------------------------------------------------------------------
 // Shared widgets
 // ---------------------------------------------------------------------------
 
-Widget _SummaryCard(
+Widget _summaryCard(
   ThemeData theme,
   String label,
   String value, {
@@ -308,7 +300,7 @@ Widget _SummaryCard(
 // Week calendar — 7 day row
 // ---------------------------------------------------------------------------
 
-Widget _WeekCalendar(BuildContext context, Map<String, TimeLog> logByDate, {
+Widget _weekCalendar(BuildContext context, Map<String, TimeLog> logByDate, {
   required DateTime refDate,
 }) {
   final theme = Theme.of(context);
@@ -327,7 +319,7 @@ Widget _WeekCalendar(BuildContext context, Map<String, TimeLog> logByDate, {
             final day = weekStart.add(Duration(days: i));
             final dateStr = _dateStr(day);
             final log = logByDate[dateStr];
-            return _DayCell(theme, dayName: dayNames[i], day: day, log: log);
+            return _dayCell(theme, dayName: dayNames[i], day: day, log: log);
           }),
         ),
       ),
@@ -338,7 +330,7 @@ Widget _WeekCalendar(BuildContext context, Map<String, TimeLog> logByDate, {
 String _dateStr(DateTime d) =>
     '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
 
-Widget _DayCell(ThemeData theme, {
+Widget _dayCell(ThemeData theme, {
   required String dayName,
   required DateTime day,
   TimeLog? log,
@@ -348,26 +340,21 @@ Widget _DayCell(ThemeData theme, {
   final hasNote = log?.note?.isNotEmpty == true;
 
   Color? bgColor;
-  Color? textColor;
   String? label;
   if (log != null && log.endTime != null) {
     final ot = log.overtimeMinutes;
     if (ot == 0) {
       bgColor = theme.colorScheme.tertiaryContainer.withValues(alpha: 0.35);
-      textColor = theme.colorScheme.onTertiaryContainer;
       label = '✓';
     } else if (ot > 0) {
       bgColor = theme.colorScheme.primaryContainer.withValues(alpha: 0.35);
-      textColor = theme.colorScheme.onPrimaryContainer;
       label = '+${ot}min';
     } else {
       bgColor = theme.colorScheme.tertiaryContainer.withValues(alpha: 0.35);
-      textColor = theme.colorScheme.onTertiaryContainer;
       label = '${ot}min';
     }
   } else if (log != null && log.endTime == null) {
     bgColor = theme.colorScheme.secondaryContainer.withValues(alpha: 0.35);
-    textColor = theme.colorScheme.onSecondaryContainer;
     label = 'active';
   }
 
@@ -433,7 +420,7 @@ bool _isToday(DateTime date) {
 // Month calendar — full grid
 // ---------------------------------------------------------------------------
 
-Widget _MonthCalendar(BuildContext context, Map<String, TimeLog> logByDate, {
+Widget _monthCalendar(BuildContext context, Map<String, TimeLog> logByDate, {
   required DateTime refDate,
 }) {
   final theme = Theme.of(context);
@@ -569,7 +556,7 @@ String _overtimeStr(int minutes) {
 // Year calendar — 3×4 month grid
 // ---------------------------------------------------------------------------
 
-Widget _YearCalendar(BuildContext context, Map<String, TimeLog> logByDate, {
+Widget _yearCalendar(BuildContext context, Map<String, TimeLog> logByDate, {
   required DateTime refDate,
 }) {
   final theme = Theme.of(context);
@@ -593,7 +580,6 @@ Widget _YearCalendar(BuildContext context, Map<String, TimeLog> logByDate, {
         ),
         itemCount: 12,
         itemBuilder: (ctx, i) {
-          final monthDate = DateTime(refDate.year, i + 1, 1);
           final monthStr = '${refDate.year}-${(i+1).toString().padLeft(2, '0')}';
           final logsThisMonth = logByDate.entries
               .where((e) => e.key.startsWith(monthStr))
