@@ -28,7 +28,7 @@ ARG SUPABASE_ANON_KEY
 RUN printf '{"SUPABASE_URL":"%s","SUPABASE_ANON_KEY":"%s"}' \
     "$SUPABASE_URL" "$SUPABASE_ANON_KEY" \
     > /tmp/secrets.json \
-    && flutter build web --release --web-enable-semantics --dart-define-from-file=/tmp/secrets.json \
+    && flutter build web --release --dart-define-from-file=/tmp/secrets.json \
     && rm -f /tmp/secrets.json
 
 # Stage 2: Serve
