@@ -9,13 +9,14 @@ import '../services/profile_service.dart';
 import 'admin_screen.dart';
 import 'history_content.dart';
 import 'my_day_tab.dart';
+import 'overview_tab.dart';
 import 'settings_screen.dart';
 
 /// Unified shell for all authenticated, approved users.
 /// Single Scaffold, single AppBar, single NavigationBar.
 ///
-/// Bottom nav tabs (visible to all):
-///   My Day (index 0, default)  |  History (index 1)  |  Admin (index 2, admin-only)
+/// Bottom nav tabs:
+///   My Day (0, default)  |  History (1)  |  Overview (2)  |  Admin (3, admin-only)
 ///
 /// Settings accessed via gear icon in AppBar.
 class MainShell extends StatefulWidget {
@@ -62,6 +63,10 @@ class _MainShellState extends State<MainShell> {
         icon: Icon(Icons.history),
         label: 'History',
       ),
+      const NavigationDestination(
+        icon: Icon(Icons.bar_chart_rounded),
+        label: 'Overview',
+      ),
       if (isAdmin)
         const NavigationDestination(
           icon: Icon(Icons.admin_panel_settings),
@@ -96,6 +101,7 @@ class _MainShellState extends State<MainShell> {
             children: [
               const MyDayTab(),
               const HistoryContent(),
+              const OverviewTab(),
               if (isAdmin) const AdminScreen(),
             ],
           );
