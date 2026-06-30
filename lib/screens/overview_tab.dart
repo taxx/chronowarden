@@ -348,21 +348,26 @@ Widget _DayCell(ThemeData theme, {
   final hasNote = log?.note?.isNotEmpty == true;
 
   Color? bgColor;
+  Color? textColor;
   String? label;
   if (log != null && log.endTime != null) {
     final ot = log.overtimeMinutes;
     if (ot == 0) {
-      bgColor = Colors.green.shade50;
+      bgColor = theme.colorScheme.tertiaryContainer.withValues(alpha: 0.35);
+      textColor = theme.colorScheme.onTertiaryContainer;
       label = '✓';
     } else if (ot > 0) {
-      bgColor = theme.colorScheme.primaryContainer.withValues(alpha: 0.3);
+      bgColor = theme.colorScheme.primaryContainer.withValues(alpha: 0.35);
+      textColor = theme.colorScheme.onPrimaryContainer;
       label = '+${ot}min';
     } else {
-      bgColor = Colors.green.shade50;
+      bgColor = theme.colorScheme.tertiaryContainer.withValues(alpha: 0.35);
+      textColor = theme.colorScheme.onTertiaryContainer;
       label = '${ot}min';
     }
   } else if (log != null && log.endTime == null) {
-    bgColor = Colors.amber.shade50;
+    bgColor = theme.colorScheme.secondaryContainer.withValues(alpha: 0.35);
+    textColor = theme.colorScheme.onSecondaryContainer;
     label = 'active';
   }
 
@@ -516,7 +521,9 @@ List<Widget> _buildMonthRows(BuildContext context, double cellWidth, Map<String,
                 style: theme.textTheme.bodySmall?.copyWith(
                   fontWeight: FontWeight.bold,
                   fontSize: 10,
-                  color: theme.colorScheme.primary,
+                  color: log.overtimeMinutes >= 0
+                      ? theme.colorScheme.onPrimaryContainer
+                      : theme.colorScheme.onTertiaryContainer,
                 ),
               ),
           ],
@@ -613,7 +620,7 @@ Widget _YearCalendar(BuildContext context, Map<String, TimeLog> logByDate, {
                         fontWeight: FontWeight.bold,
                         color: totalOt >= 0
                             ? theme.colorScheme.primary
-                            : Colors.orange,
+                            : theme.colorScheme.error,
                       ),
                     ),
                 ],
