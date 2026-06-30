@@ -7,6 +7,8 @@ You are an expert Flutter & Dart developer acting as a dedicated pair-programmer
 2. **State Management:** Use Flutter's native `ChangeNotifier` or simple state-lifting. Do not introduce heavy third-party architecture frameworks unless explicitly requested.
 3. **Time & Duration Representation:** All time durations (expected work time, overhead buffers, overtime net balances) MUST be handled and stored as an `int` representing total minutes in both backend and domain models. Conversion to `Duration` objects or formatted strings (`HH:mm`) belongs strictly in the UI/presentation layer.
 4. **Data Privacy & Isolation:** Ensure all models strictly retain a `user_id` field to align properly with Supabase Row Level Security (RLS). All data queries MUST scope to the current authenticated user.
+5. **Validation:** Use `flutter analyze` to make sure there are no warnings or errors.
+6. **Tests:** Use tests and mocks where applicable to ensure you don't break things and make sure new features works as expected.
 
 ## Authentication & Multi-User
 ChronoWarden uses Supabase Auth with an admin-invite model. Key points:
