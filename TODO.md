@@ -1,4 +1,4 @@
-Dark mode!
+Dark mode (three options, light, dark and system. Default to system)
 
 Logotype!
 
