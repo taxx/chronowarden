@@ -6,6 +6,8 @@ import 'models/work_period_setting.dart';
 import 'services/time_log_service.dart';
 import 'services/travel_preset_service.dart';
 import 'services/work_period_service.dart';
+import 'services/supabase_service.dart';
+import 'utils/csv_import.dart';
 
 /// Central app state — singleton ChangeNotifier holding all data + actions.
 class AppState extends ChangeNotifier {
@@ -229,6 +231,38 @@ class AppState extends ChangeNotifier {
     await Future.wait([_loadToday(), _loadAll(), _loadBalance()]);
     notifyListeners();
     return saved;
+  }
+
+  // -- CSV import -----------------------------------------------------
+
+  /// Import days from a CSV string. Each row is parsed, validated, then
+  /// inserted as a new [TimeLog]. Existing dates are skipped to prevent
+  /// accidental overwrites.
+  Future<ImportResult> importDaysFromCsv(String csv) async {
+    final userId = _getUserId();
+    final existingDates = _allLogs.map((l) => l.date).toSet();
+    final result = parseCsvTimeLogs(csv, userId: userId, existingDates: existingDates);
+
+    // Insert each valid log, recalculating overtime
+    for (final log in result.imported) {
+      final overtime = log.calculateOvertimeMinutes();
+      final updated = log.copyWith(overtimeMinutes: overtime);
+      try {
+        await logs.insert(updated);
+      } catch (e) {
+        result.errors.add('Failed to insert ${log.date}: $e');
+      }
+    }
+
+    // Reload fresh data
+    await Future.wait([_loadToday(), _loadAll(), _loadBalance()]);
+    notifyListeners();
+    return result;
+  }
+
+  String? _getUserId() {
+    final session = SupabaseService.instance.client.auth.currentSession;
+    return session?.user.id;
   }
 
   // -- stop today's workday ------------------------------------------
