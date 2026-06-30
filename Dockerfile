@@ -35,7 +35,7 @@ FROM nginx:alpine AS runner
 
 COPY --from=build /app/build/web /usr/share/nginx/html
 
-RUN echo 'server { listen 80; server_name _; root /usr/share/nginx/html; index index.html; gzip on; gzip_types text/css application/javascript application/json image/svg+xml; location / { try_files $uri $uri/ /index.html; } location ~ \.(js|dart)$ { add_header Cache-Control "no-cache, no-store, must-revalidate"; } location ~ \.(html|json)$ { add_header Cache-Control "no-cache, no-store, must-revalidate"; }' > /etc/nginx/conf.d/default.conf
+RUN echo 'server { listen 80; server_name _; root /usr/share/nginx/html; index index.html; gzip on; gzip_types text/css application/javascript application/json image/svg+xml; location / { try_files $uri $uri/ /index.html; } location ~ \.(js|dart)$ { add_header Cache-Control "no-cache, no-store, must-revalidate"; } location ~ \.(html|json)$ { add_header Cache-Control "no-cache, no-store, must-revalidate"; } }' > /etc/nginx/conf.d/default.conf
 
 EXPOSE 80
 CMD ["nginx", "-g", "daemon off;"]
