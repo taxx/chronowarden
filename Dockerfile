@@ -10,7 +10,6 @@ RUN apt-get update && apt-get install -y \
     libglu1-mesa \
     && rm -rf /var/lib/apt/lists/*
 
-ARG FLUTTER_VERSION=3.27.1
 RUN git clone https://github.com/flutter/flutter.git \
     -b stable \
     /usr/local/flutter \
