@@ -66,15 +66,15 @@ class _ChronoWardenAppState extends State<ChronoWardenApp> {
 
   @override
   Widget build(BuildContext context) {
-    return SelectionArea(
-      child: MaterialApp(
-        title: 'ChronoWarden',
-        debugShowCheckedModeBanner: false,
-        theme: ThemeData(
-          colorSchemeSeed: const Color(0xFF1E3A5F),
-          useMaterial3: true,
-        ),
-        home: _buildRoot(),
+    return MaterialApp(
+      title: 'ChronoWarden',
+      debugShowCheckedModeBanner: false,
+      theme: ThemeData(
+        colorSchemeSeed: const Color(0xFF1E3A5F),
+        useMaterial3: true,
+      ),
+      home: SelectionArea(
+        child: _buildRoot(),
       ),
     );
   }
