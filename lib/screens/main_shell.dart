@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 
 import '../app_state.dart';
 import '../models/invite.dart';
@@ -79,8 +80,8 @@ class _MainShellState extends State<MainShell> {
       appBar: AppBar(
         title: Row(
           children: [
-            Image.asset(
-              'chronowarden.png',
+            SvgPicture.asset(
+              'chronowarden.svg',
               height: 28,
               fit: BoxFit.contain,
             ),
