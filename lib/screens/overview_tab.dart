@@ -237,16 +237,52 @@ class _PeriodTabState extends State<_PeriodTab> {
 
   // ------------------------------------------------------------------
   // Calendar views
+  // -- Day edit dialog ----------------------------------------------
+
+  void _showEditDayDialog(TimeLog log) {
+    final state = _state;
+    if (state.workPeriods.isEmpty || state.travelPresets.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Settings not loaded yet. Try again.')),
+      );
+      return;
+    }
+
+    showDialog<_EditDayResult>(
+      context: context,
+      builder: (_) => _EditDayDialog(
+        log: log,
+        workPeriods: state.workPeriods,
+        travelPresets: state.travelPresets,
+      ),
+    ).then((result) {
+      if (result == null) return;
+      final startStr = '${result.startTime.hour.toString().padLeft(2, '0')}:${result.startTime.minute.toString().padLeft(2, '0')}:00';
+      final endStr = result.endTime != null
+          ? '${result.endTime!.hour.toString().padLeft(2, '0')}:${result.endTime!.minute.toString().padLeft(2, '0')}:00'
+          : null;
+      final editedLog = log.copyWith(
+        startTime: startStr,
+        endTime: endStr,
+        expectedMinutes: result.expectedMinutes,
+        overheadMinutes: result.overheadMinutes,
+        lunchMinutes: result.lunchMinutes,
+        note: result.note,
+      );
+      state.editDay(editedLog);
+    });
+  }
+
   // ------------------------------------------------------------------
 
   Widget _buildCalendar(ThemeData theme, Map<String, TimeLog> logByDate) {
     switch (widget.period) {
       case Period.week:
-        return _weekCalendar(context, logByDate, refDate: _offsetDate());
+        return _weekCalendar(context, logByDate, refDate: _offsetDate(), onDayTap: _showEditDayDialog);
       case Period.month:
-        return _monthCalendar(context, logByDate, refDate: _offsetDate());
+        return _monthCalendar(context, logByDate, refDate: _offsetDate(), onDayTap: _showEditDayDialog);
       case Period.year:
-        return _yearCalendar(context, logByDate, refDate: _offsetDate());
+        return _yearCalendar(context, logByDate, refDate: _offsetDate(), onDayTap: _showEditDayDialog);
     }
   }
 
@@ -302,6 +338,7 @@ Widget _summaryCard(
 
 Widget _weekCalendar(BuildContext context, Map<String, TimeLog> logByDate, {
   required DateTime refDate,
+  void Function(TimeLog)? onDayTap,
 }) {
   final theme = Theme.of(context);
   final weekStart = refDate.subtract(Duration(days: refDate.weekday - 1));
@@ -319,7 +356,7 @@ Widget _weekCalendar(BuildContext context, Map<String, TimeLog> logByDate, {
             final day = weekStart.add(Duration(days: i));
             final dateStr = _dateStr(day);
             final log = logByDate[dateStr];
-            return _dayCell(theme, dayName: dayNames[i], day: day, log: log);
+            return _dayCell(theme, dayName: dayNames[i], day: day, log: log, onTap: log != null && onDayTap != null ? () => onDayTap(log) : null);
           }),
         ),
       ),
@@ -334,6 +371,7 @@ Widget _dayCell(ThemeData theme, {
   required String dayName,
   required DateTime day,
   TimeLog? log,
+  VoidCallback? onTap,
 }) {
   final isToday = _isToday(day);
   final isFuture = day.isAfter(DateTime.now().subtract(const Duration(hours: 24)));
@@ -344,13 +382,13 @@ Widget _dayCell(ThemeData theme, {
   if (log != null && log.endTime != null) {
     final ot = log.overtimeMinutes;
     if (ot == 0) {
-      bgColor = theme.colorScheme.tertiaryContainer.withValues(alpha: 0.35);
+      bgColor = Colors.green.shade100.withValues(alpha: 0.35);
       label = '✓';
     } else if (ot > 0) {
-      bgColor = theme.colorScheme.primaryContainer.withValues(alpha: 0.35);
+      bgColor = theme.colorScheme.errorContainer.withValues(alpha: 0.35);
       label = '+${ot}min';
     } else {
-      bgColor = theme.colorScheme.tertiaryContainer.withValues(alpha: 0.35);
+      bgColor = Colors.green.shade100.withValues(alpha: 0.35);
       label = '${ot}min';
     }
   } else if (log != null && log.endTime == null) {
@@ -364,6 +402,9 @@ Widget _dayCell(ThemeData theme, {
       message: log != null
           ? '${log.date}: ${log.startTime}${log.endTime != null ? ' → ${log.endTime}' : ' → …'}\n${log.expectedMinutes} min work${log.note != null ? '\n📝 ${log.note}' : ''}'
           : '',
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
       child: Container(
         width: 80,
         decoration: BoxDecoration(
@@ -397,7 +438,11 @@ Widget _dayCell(ThemeData theme, {
             else if (label != null)
               Text(label, style: theme.textTheme.bodySmall?.copyWith(
                 fontWeight: FontWeight.bold,
-                color: bgColor != null ? theme.colorScheme.primary : null,
+                color: bgColor != null
+                    ? (log != null && log.overtimeMinutes > 0
+                        ? theme.colorScheme.error
+                        : Colors.green.shade700)
+                    : null,
                 fontSize: 11,
               ))
             else
@@ -406,6 +451,7 @@ Widget _dayCell(ThemeData theme, {
               )),
           ],
         ),
+      ),
       ),
     ),
   );
@@ -422,6 +468,7 @@ bool _isToday(DateTime date) {
 
 Widget _monthCalendar(BuildContext context, Map<String, TimeLog> logByDate, {
   required DateTime refDate,
+  void Function(TimeLog)? onDayTap,
 }) {
   final theme = Theme.of(context);
   final cellWidth = (MediaQuery.of(context).size.width - 32) / 7;
@@ -447,13 +494,14 @@ Widget _monthCalendar(BuildContext context, Map<String, TimeLog> logByDate, {
       ),
       const SizedBox(height: 4),
       // Grid rows
-      ..._buildMonthRows(context, cellWidth, logByDate, firstDay, startWeekday, daysInMonth),
+      ..._buildMonthRows(context, cellWidth, logByDate, firstDay, startWeekday, daysInMonth, onDayTap),
     ],
   );
 }
 
 List<Widget> _buildMonthRows(BuildContext context, double cellWidth, Map<String, TimeLog> logByDate,
-    DateTime firstDay, int startWeekday, int daysInMonth) {
+    DateTime firstDay, int startWeekday, int daysInMonth,
+    void Function(TimeLog)? onDayTap) {
   final theme = Theme.of(context);
   final cells = <Widget>[];
 
@@ -466,9 +514,9 @@ List<Widget> _buildMonthRows(BuildContext context, double cellWidth, Map<String,
     Color? bgColor;
     if (log != null && log.endTime != null) {
       final ot = log.overtimeMinutes;
-      bgColor = ot >= 0
-          ? theme.colorScheme.primaryContainer.withValues(alpha: 0.3)
-          : Colors.green.shade50;
+      bgColor = ot > 0
+          ? theme.colorScheme.errorContainer.withValues(alpha: 0.3)
+          : Colors.green.shade100.withValues(alpha: 0.35);
     } else if (log != null && log.endTime == null) {
       bgColor = Colors.amber.shade50;
     }
@@ -482,38 +530,42 @@ List<Widget> _buildMonthRows(BuildContext context, double cellWidth, Map<String,
         borderRadius: BorderRadius.circular(8),
         border: isToday ? Border.all(color: theme.colorScheme.primary, width: 2) : null,
       ),
-      child: Tooltip(
-        message: log != null
-            ? '${log.date}: ${log.startTime}${log.endTime != null ? ' → ${log.endTime}' : ' → …'}\n${log.expectedMinutes} min work${log.note != null ? '\n📝 ${log.note}' : ''}'
-            : '',
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text('$day', style: theme.textTheme.bodySmall?.copyWith(
-                  fontWeight: FontWeight.w600,
-                )),
-                if (hasNote)
-                  Padding(
-                    padding: const EdgeInsets.only(left: 3),
-                    child: Icon(Icons.note_outlined, size: 10, color: theme.colorScheme.onSurfaceVariant),
-                  ),
-              ],
-            ),
-            if (log != null && log.endTime != null)
-              Text(
-                _overtimeStr(log.overtimeMinutes),
-                style: theme.textTheme.bodySmall?.copyWith(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 10,
-                  color: log.overtimeMinutes >= 0
-                      ? theme.colorScheme.onPrimaryContainer
-                      : theme.colorScheme.onTertiaryContainer,
-                ),
+      child: InkWell(
+        onTap: log != null && onDayTap != null ? () => onDayTap(log) : null,
+        borderRadius: BorderRadius.circular(8),
+        child: Tooltip(
+          message: log != null
+              ? '${log.date}: ${log.startTime}${log.endTime != null ? ' → ${log.endTime}' : ' → …'}\n${log.expectedMinutes} min work${log.note != null ? '\n📝 ${log.note}' : ''}'
+              : '',
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text('$day', style: theme.textTheme.bodySmall?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  )),
+                  if (hasNote)
+                    Padding(
+                      padding: const EdgeInsets.only(left: 3),
+                      child: Icon(Icons.note_outlined, size: 10, color: theme.colorScheme.onSurfaceVariant),
+                    ),
+                ],
               ),
-          ],
+              if (log != null && log.endTime != null)
+                Text(
+                  _overtimeStr(log.overtimeMinutes),
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 10,
+                    color: log.overtimeMinutes > 0
+                        ? theme.colorScheme.error
+                        : Colors.green.shade700,
+                  ),
+                ),
+            ],
+          ),
         ),
       ),
     ));
@@ -558,6 +610,7 @@ String _overtimeStr(int minutes) {
 
 Widget _yearCalendar(BuildContext context, Map<String, TimeLog> logByDate, {
   required DateTime refDate,
+  void Function(TimeLog)? onDayTap,
 }) {
   final theme = Theme.of(context);
   const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
@@ -604,9 +657,9 @@ Widget _yearCalendar(BuildContext context, Map<String, TimeLog> logByDate, {
                       _overtimeStr(totalOt),
                       style: theme.textTheme.bodySmall?.copyWith(
                         fontWeight: FontWeight.bold,
-                        color: totalOt >= 0
-                            ? theme.colorScheme.primary
-                            : theme.colorScheme.error,
+                        color: totalOt > 0
+                            ? theme.colorScheme.error
+                            : Colors.green.shade700,
                       ),
                     ),
                 ],
@@ -617,4 +670,182 @@ Widget _yearCalendar(BuildContext context, Map<String, TimeLog> logByDate, {
       ),
     ],
   );
+}
+
+// ---------------------------------------------------------------------------
+// Edit day dialog (shared with history screen)
+// ---------------------------------------------------------------------------
+
+class _EditDayResult {
+  final TimeOfDay startTime;
+  final TimeOfDay? endTime;
+  final int expectedMinutes;
+  final int overheadMinutes;
+  final int lunchMinutes;
+  final String? note;
+  _EditDayResult({
+    required this.startTime,
+    required this.endTime,
+    required this.expectedMinutes,
+    required this.overheadMinutes,
+    required this.lunchMinutes,
+    this.note,
+  });
+}
+
+class _EditDayDialog extends StatefulWidget {
+  final TimeLog log;
+  final List<dynamic> workPeriods;
+  final List<dynamic> travelPresets;
+
+  const _EditDayDialog({
+    required this.log,
+    required this.workPeriods,
+    required this.travelPresets,
+  });
+
+  @override
+  State<_EditDayDialog> createState() => _EditDayDialogState();
+}
+
+class _EditDayDialogState extends State<_EditDayDialog> {
+  late TimeOfDay _startTime;
+  TimeOfDay? _endTime;
+  late dynamic _selectedPeriod;
+  late dynamic _selectedPreset;
+  late int _lunch;
+  late String _note;
+
+  int get _expected => _selectedPeriod.expectedMinutes;
+  int get _overhead => _selectedPreset.defaultOverheadMinutes;
+
+  @override
+  void initState() {
+    super.initState();
+    _startTime = _timeOfDayFromStr(widget.log.startTime);
+    _endTime = widget.log.endTime != null ? _timeOfDayFromStr(widget.log.endTime!) : null;
+    _selectedPeriod = _matchPeriod(widget.workPeriods, widget.log.expectedMinutes);
+    _selectedPreset = _matchPreset(widget.travelPresets, widget.log.overheadMinutes);
+    _lunch = widget.log.lunchMinutes;
+    _note = widget.log.note ?? '';
+  }
+
+  TimeOfDay _timeOfDayFromStr(String timeStr) {
+    final parts = timeStr.split(':');
+    return TimeOfDay(hour: int.parse(parts[0]), minute: int.parse(parts[1]));
+  }
+
+  static dynamic _matchPeriod(List<dynamic> periods, int mins) {
+    for (final p in periods) {
+      if (p.expectedMinutes == mins) return p;
+    }
+    return periods.first;
+  }
+
+  static dynamic _matchPreset(List<dynamic> presets, int mins) {
+    for (final p in presets) {
+      if (p.defaultOverheadMinutes == mins) return p;
+    }
+    return presets.first;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return AlertDialog(
+      title: const Text('Edit Day'),
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Start time', style: theme.textTheme.titleSmall),
+            const SizedBox(height: 4),
+            FilledButton.icon(
+              onPressed: () async {
+                final picked = await showTimePicker(context: context, initialTime: _startTime);
+                if (picked != null) setState(() => _startTime = picked);
+              },
+              icon: const Icon(Icons.access_time),
+              label: Text('${_startTime.hour.toString().padLeft(2, '0')}:${_startTime.minute.toString().padLeft(2, '0')}'),
+            ),
+            const SizedBox(height: 16),
+            Text('End time', style: theme.textTheme.titleSmall),
+            const SizedBox(height: 4),
+            FilledButton.icon(
+              onPressed: () async {
+                final picked = await showTimePicker(context: context, initialTime: _endTime ?? TimeOfDay.now());
+                if (picked != null) setState(() => _endTime = picked);
+              },
+              icon: const Icon(Icons.access_time),
+              label: Text(_endTime != null
+                  ? '${_endTime!.hour.toString().padLeft(2, '0')}:${_endTime!.minute.toString().padLeft(2, '0')}'
+                  : '— not set —'),
+            ),
+            const SizedBox(height: 16),
+            Text('Work period', style: theme.textTheme.titleSmall),
+            const SizedBox(height: 4),
+            DropdownButtonFormField(
+              initialValue: _selectedPeriod,
+              items: widget.workPeriods.map<DropdownMenuItem>((p) {
+                return DropdownMenuItem(value: p, child: Text('${p.name} (${p.expectedMinutes} min)'));
+              }).toList(),
+              onChanged: (v) { if (v != null) setState(() => _selectedPeriod = v); },
+            ),
+            const SizedBox(height: 16),
+            Text('Travel preset', style: theme.textTheme.titleSmall),
+            const SizedBox(height: 4),
+            DropdownButtonFormField(
+              initialValue: _selectedPreset,
+              items: widget.travelPresets.map<DropdownMenuItem>((p) {
+                return DropdownMenuItem(value: p, child: Text('${p.name} (+${p.defaultOverheadMinutes} min)'));
+              }).toList(),
+              onChanged: (v) { if (v != null) setState(() => _selectedPreset = v); },
+            ),
+            const SizedBox(height: 16),
+            Text('Lunch break', style: theme.textTheme.titleSmall),
+            const SizedBox(height: 4),
+            Row(
+              children: [
+                Expanded(
+                  child: Slider(
+                    value: _lunch.toDouble(),
+                    min: 0,
+                    max: 240,
+                    divisions: 48,
+                    label: '$_lunch min',
+                    onChanged: (v) => setState(() => _lunch = v.round()),
+                  ),
+                ),
+                Text('$_lunch min', style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600)),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text('Note', style: theme.textTheme.titleSmall),
+            const SizedBox(height: 4),
+            TextField(
+              controller: TextEditingController(text: _note),
+              maxLines: 2,
+              decoration: const InputDecoration(hintText: 'Optional note...'),
+              onChanged: (v) => _note = v,
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+        FilledButton(
+          onPressed: () => Navigator.pop(context, _EditDayResult(
+            startTime: _startTime,
+            endTime: _endTime,
+            expectedMinutes: _expected,
+            overheadMinutes: _overhead,
+            lunchMinutes: _lunch,
+            note: _note.isEmpty ? null : _note,
+          )),
+          child: const Text('Save'),
+        ),
+      ],
+    );
+  }
 }

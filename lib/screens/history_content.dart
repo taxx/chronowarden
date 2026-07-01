@@ -301,17 +301,21 @@ class _LogCard extends StatelessWidget {
         child: ListTile(
           leading: CircleAvatar(
             backgroundColor: isCompleted
-                ? (overtime >= 0
-                    ? theme.colorScheme.primaryContainer
-                    : theme.colorScheme.tertiaryContainer)
+                ? (overtime > 0
+                    ? theme.colorScheme.errorContainer
+                    : overtime < 0
+                        ? Colors.green.shade100
+                        : theme.colorScheme.tertiaryContainer)
                 : theme.colorScheme.secondaryContainer,
             child: Icon(
               isCompleted ? Icons.check : Icons.pending,
               size: 20,
               color: isCompleted
-                  ? (overtime >= 0
-                      ? theme.colorScheme.onPrimaryContainer
-                      : theme.colorScheme.onTertiaryContainer)
+                  ? (overtime > 0
+                      ? theme.colorScheme.onErrorContainer
+                      : overtime < 0
+                          ? Colors.green.shade700
+                          : theme.colorScheme.onTertiaryContainer)
                   : theme.colorScheme.onSecondaryContainer,
             ),
           ),
@@ -347,9 +351,11 @@ class _LogCard extends StatelessWidget {
                 style: theme.textTheme.titleMedium?.copyWith(
                   fontWeight: FontWeight.bold,
                   color: isCompleted
-                      ? (overtime >= 0
-                          ? theme.colorScheme.primary
-                          : theme.colorScheme.onTertiaryContainer)
+                      ? (overtime > 0
+                          ? theme.colorScheme.error
+                          : overtime < 0
+                              ? Colors.green.shade700
+                              : theme.colorScheme.primary)
                       : theme.colorScheme.secondary,
                 ),
               ),
