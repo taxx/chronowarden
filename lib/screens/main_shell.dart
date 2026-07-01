@@ -18,18 +18,28 @@ import 'settings_screen.dart';
 ///
 /// Settings accessed via gear icon in AppBar.
 class MainShell extends StatefulWidget {
-  const MainShell({super.key});
+  final int tabIndex;
+  const MainShell({super.key, this.tabIndex = 0});
 
   @override
   State<MainShell> createState() => _MainShellState();
 }
 
 class _MainShellState extends State<MainShell> {
-  int _currentIndex = 0;
+  late int _currentIndex;
   final _auth = AuthService();
   final _state = AppState();
 
+  @override
+  void initState() {
+    super.initState();
+    _currentIndex = widget.tabIndex;
+  }
+
   bool get _isAdmin => _auth.profile?.isAdmin ?? false;
+
+  /// Tab route names — each push creates a browser history entry.
+  static const _tabRoutes = ['/', '/history', '/overview', '/admin'];
 
   Future<void> _handleLogout() async {
     final confirm = await showDialog<bool>(
@@ -46,6 +56,14 @@ class _MainShellState extends State<MainShell> {
     if (confirm == true && mounted) {
       await _auth.signOut();
     }
+  }
+
+  void _switchTab(int index) {
+    final routeName = index < _tabRoutes.length ? _tabRoutes[index] : '/';
+    // Push a new route so the browser back button creates a history entry.
+    // Each tab change adds to the stack; browser back pops back.
+    Navigator.pushNamed(context, routeName);
+    setState(() => _currentIndex = index);
   }
 
   @override
@@ -144,7 +162,7 @@ class _MainShellState extends State<MainShell> {
       ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _currentIndex,
-        onDestinationSelected: (i) => setState(() => _currentIndex = i),
+        onDestinationSelected: (i) => _switchTab(i),
         destinations: destinations,
       ),
     );

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:url_strategy/url_strategy.dart';
 
-import 'app_state.dart';
 import 'screens/main_shell.dart';
 import 'screens/login_screen.dart';
 import 'screens/pending_screen.dart';
@@ -9,6 +9,7 @@ import 'screens/setup_screen.dart';
 import 'screens/signup_screen.dart';
 import 'services/auth_service.dart';
 import 'services/theme_service.dart';
+import 'app_state.dart';
 
 // Compile-time injection via --dart-define-from-file=secrets.json
 const supabaseUrl = String.fromEnvironment('SUPABASE_URL');
@@ -16,6 +17,7 @@ const supabaseAnonKey = String.fromEnvironment('SUPABASE_ANON_KEY');
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  setPathUrlStrategy();
 
   if (supabaseUrl.isNotEmpty && supabaseAnonKey.isNotEmpty) {
     await Supabase.initialize(url: supabaseUrl, publishableKey: supabaseAnonKey);
@@ -87,6 +89,16 @@ class _ChronoWardenAppState extends State<ChronoWardenApp> {
             useMaterial3: true,
             brightness: Brightness.dark,
           ),
+          initialRoute: '/auth',
+          onGenerateRoute: (settings) {
+            // Tab routes — handled here so browser back/forward work
+            if (settings.name == '/') return MaterialPageRoute(builder: (_) => const MainShell(tabIndex: 0));
+            if (settings.name == '/history') return MaterialPageRoute(builder: (_) => const MainShell(tabIndex: 1));
+            if (settings.name == '/overview') return MaterialPageRoute(builder: (_) => const MainShell(tabIndex: 2));
+            if (settings.name == '/admin') return MaterialPageRoute(builder: (_) => const MainShell(tabIndex: 3));
+            // Fall through to home for auth-gated routes
+            return null;
+          },
           home: SelectionArea(
             child: _buildRoot(),
           ),
