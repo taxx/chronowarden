@@ -52,12 +52,13 @@ class _MainShellState extends State<MainShell> {
   @override
   void initState() {
     super.initState();
-    _currentIndex = _tabIndexFromRoute(ModalRoute.of(context)?.settings.name);
+    _currentIndex = 0;
   }
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
+    // ModalRoute is only safe to access after initState completes.
     final route = ModalRoute.of(context)?.settings.name;
     final newIndex = _tabIndexFromRoute(route);
     if (newIndex != _currentIndex) {
