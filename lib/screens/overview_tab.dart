@@ -116,55 +116,60 @@ class _PeriodTabState extends State<_PeriodTab> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final logs = _state.allLogs;
+    return ListenableBuilder(
+      listenable: _state,
+      builder: (context, _) {
+        final theme = Theme.of(context);
+        final logs = _state.allLogs;
 
-    final filtered = _filterLogs(logs);
-    final label = _periodLabel();
+        final filtered = _filterLogs(logs);
+        final label = _periodLabel();
 
-    return Column(
-      children: [
-        // Navigation header
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              IconButton(
-                icon: const Icon(Icons.arrow_back),
-                onPressed: () => _updateOffset(_offset - 1),
-                tooltip: 'Previous',
-              ),
-              Text(label, style: theme.textTheme.titleMedium),
-              IconButton(
-                icon: const Icon(Icons.arrow_forward),
-                onPressed: () => _updateOffset(_offset + 1),
-                tooltip: 'Next',
-              ),
-            ],
-          ),
-        ),
-        if (_offset != 0)
-          Align(
-            child: TextButton(
-              onPressed: () => _updateOffset(0),
-              child: const Text('Back to current'),
-            ),
-          ),
-        // Content
-        Expanded(
-          child: filtered.isEmpty
-              ? Center(
-                  child: Text(
-                    'No logs in this period',
-                    style: theme.textTheme.bodyLarge?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
+        return Column(
+          children: [
+            // Navigation header
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.arrow_back),
+                    onPressed: () => _updateOffset(_offset - 1),
+                    tooltip: 'Previous',
                   ),
-                )
-              : _buildContent(theme, filtered),
-        ),
-      ],
+                  Text(label, style: theme.textTheme.titleMedium),
+                  IconButton(
+                    icon: const Icon(Icons.arrow_forward),
+                    onPressed: () => _updateOffset(_offset + 1),
+                    tooltip: 'Next',
+                  ),
+                ],
+              ),
+            ),
+            if (_offset != 0)
+              Align(
+                child: TextButton(
+                  onPressed: () => _updateOffset(0),
+                  child: const Text('Back to current'),
+                ),
+              ),
+            // Content
+            Expanded(
+              child: filtered.isEmpty
+                  ? Center(
+                      child: Text(
+                        'No logs in this period',
+                        style: theme.textTheme.bodyLarge?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    )
+                  : _buildContent(theme, filtered),
+            ),
+          ],
+        );
+      },
     );
   }
 
@@ -350,7 +355,15 @@ class _PeriodTabState extends State<_PeriodTab> {
         overheadMinutes: result.overheadMinutes,
         lunchMinutes: result.lunchMinutes,
         note: result.note,
-      );
+      ).then((_) {
+        // Refresh was triggered by addDay — no extra work needed.
+      }).catchError((e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Failed to save day: $e')),
+          );
+        }
+      });
     });
   }
 
@@ -1047,6 +1060,7 @@ class _AddDayDialogState extends State<_AddDayDialog> {
                   initialDate: _date,
                   firstDate: DateTime(2020),
                   lastDate: DateTime.now(),
+                  locale: const Locale('en', 'GB'),
                 );
                 if (picked != null) setState(() => _date = picked);
               },

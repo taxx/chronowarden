@@ -665,6 +665,7 @@ class _AddDayDialogState extends State<_AddDayDialog> {
                   initialDate: _date,
                   firstDate: DateTime(2020),
                   lastDate: DateTime.now(),
+                  locale: const Locale('en', 'GB'),
                 );
                 if (picked != null) setState(() => _date = picked);
               },
