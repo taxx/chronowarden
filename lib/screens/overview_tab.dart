@@ -438,7 +438,7 @@ Widget _weekCalendar(BuildContext context, Map<String, TimeLog> logByDate, {
             final day = weekStart.add(Duration(days: i));
             final dateStr = _dateStr(day);
             final log = logByDate[dateStr];
-            return _dayCell(theme, dayName: dayNames[i], day: day, log: log, onTap: log != null && onDayTap != null ? () => onDayTap(log) : null);
+            return _dayCell(theme, dayName: dayNames[i], day: day, log: log, onTap: log != null && onDayTap != null ? () => onDayTap(log) : null, onEmptyPastDayTap: log == null && onEmptyPastDayTap != null ? () => onEmptyPastDayTap(day) : null);
           }),
         ),
       ),
