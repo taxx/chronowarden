@@ -11,15 +11,13 @@ import 'overview_tab.dart';
 import 'settings_screen.dart';
 
 /// Unified shell for all authenticated, approved users.
-/// Single Scaffold, single AppBar, single NavigationBar.
 ///
-/// Bottom nav tabs:
-///   My Day (0, default)  |  History (1)  |  Overview (2)  |  Admin (3, admin-only)
-///
-/// Settings accessed via gear icon in AppBar.
+/// Tab switching pushes named routes onto the root Navigator so the browser
+/// URL updates. Each push uses [PageRouteBuilder] with no transition to
+/// avoid hero conflicts from multiple scaffold instances. The browser back
+/// button naturally pops the route stack, navigating through tab history.
 class MainShell extends StatefulWidget {
-  final int tabIndex;
-  const MainShell({super.key, this.tabIndex = 0});
+  const MainShell({super.key});
 
   @override
   State<MainShell> createState() => _MainShellState();
@@ -30,16 +28,56 @@ class _MainShellState extends State<MainShell> {
   final _auth = AuthService();
   final _state = AppState();
 
+  bool get _isAdmin => _auth.profile?.isAdmin ?? false;
+
+  /// Route name → tab index mapping
+  static int _tabIndexFromRoute(String? route) {
+    if (route == null || route == '/' || route == '/my-day') return 0;
+    if (route == '/history') return 1;
+    if (route == '/overview') return 2;
+    if (route == '/admin') return 3;
+    return 0;
+  }
+
+  static String _routeFromTab(int index) {
+    switch (index) {
+      case 0: return '/my-day';
+      case 1: return '/history';
+      case 2: return '/overview';
+      case 3: return '/admin';
+      default: return '/my-day';
+    }
+  }
+
   @override
   void initState() {
     super.initState();
-    _currentIndex = widget.tabIndex;
+    _currentIndex = _tabIndexFromRoute(ModalRoute.of(context)?.settings.name);
   }
 
-  bool get _isAdmin => _auth.profile?.isAdmin ?? false;
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final route = ModalRoute.of(context)?.settings.name;
+    final newIndex = _tabIndexFromRoute(route);
+    if (newIndex != _currentIndex) {
+      setState(() => _currentIndex = newIndex);
+    }
+  }
 
-  /// Tab route names — each push creates a browser history entry.
-  static const _tabRoutes = ['/', '/history', '/overview', '/admin'];
+  /// Push a named tab route with a silent transition so the browser URL
+  /// updates but there is no hero-animation conflict between scaffolds.
+  void _pushTabRoute(String routeName) {
+    // ignore: prefer_const_constructors
+    Navigator.push(
+      context,
+      PageRouteBuilder(
+        pageBuilder: (ctx, animation, secondaryAnimation) => const MainShell(),
+        transitionsBuilder: (ctx, animation, secondaryAnimation, child) => child,
+        settings: RouteSettings(name: routeName),
+      ),
+    );
+  }
 
   Future<void> _handleLogout() async {
     final confirm = await showDialog<bool>(
@@ -59,11 +97,9 @@ class _MainShellState extends State<MainShell> {
   }
 
   void _switchTab(int index) {
-    final routeName = index < _tabRoutes.length ? _tabRoutes[index] : '/';
-    // Push a new route so the browser back button creates a history entry.
-    // Each tab change adds to the stack; browser back pops back.
-    Navigator.pushNamed(context, routeName);
+    if (index == _currentIndex) return;
     setState(() => _currentIndex = index);
+    _pushTabRoute(_routeFromTab(index));
   }
 
   @override

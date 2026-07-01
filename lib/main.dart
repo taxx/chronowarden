@@ -46,9 +46,7 @@ class _ChronoWardenAppState extends State<ChronoWardenApp> {
   }
 
   Future<void> _init() async {
-    // Listen for auth state changes so we refresh app data after login.
     _auth.addListener(_onAuthChanged);
-    // Initialise auth first, then app data.
     await _auth.init();
     if (_auth.isAuthenticated && _auth.profile?.isApproved == true) {
       await _state.refresh();
@@ -62,7 +60,6 @@ class _ChronoWardenAppState extends State<ChronoWardenApp> {
     super.dispose();
   }
 
-  /// Called whenever AuthService notifies — refresh app data after login.
   void _onAuthChanged() {
     if (_auth.isAuthenticated && _auth.profile?.isApproved == true) {
       _state.refresh();
@@ -89,14 +86,17 @@ class _ChronoWardenAppState extends State<ChronoWardenApp> {
             useMaterial3: true,
             brightness: Brightness.dark,
           ),
-          initialRoute: '/auth',
           onGenerateRoute: (settings) {
-            // Tab routes — handled here so browser back/forward work
-            if (settings.name == '/') return MaterialPageRoute(builder: (_) => const MainShell(tabIndex: 0));
-            if (settings.name == '/history') return MaterialPageRoute(builder: (_) => const MainShell(tabIndex: 1));
-            if (settings.name == '/overview') return MaterialPageRoute(builder: (_) => const MainShell(tabIndex: 2));
-            if (settings.name == '/admin') return MaterialPageRoute(builder: (_) => const MainShell(tabIndex: 3));
-            // Fall through to home for auth-gated routes
+            final name = settings.name;
+            // Tab routes all show MainShell — tab index is derived from the route.
+            if (name == '/my-day' || name == '/history' ||
+                name == '/overview' || name == '/admin') {
+              return MaterialPageRoute(
+                builder: (_) => const MainShell(),
+                settings: settings,
+              );
+            }
+            // Everything else falls through to home (auth gate).
             return null;
           },
           home: SelectionArea(
@@ -115,13 +115,10 @@ class _ChronoWardenAppState extends State<ChronoWardenApp> {
     return ListenableBuilder(
       listenable: _auth,
       builder: (context, _) {
-        // Still checking session…
         if (_auth.isInitializing) {
           return const Center(child: CircularProgressIndicator());
         }
 
-        // Not logged in → decide between login, signup (first admin), or setup.
-        // Also listen to _state so the DB verification in SetupScreen triggers a rebuild.
         if (!_auth.isAuthenticated) {
           return ListenableBuilder(
             listenable: _state,
@@ -129,25 +126,21 @@ class _ChronoWardenAppState extends State<ChronoWardenApp> {
           );
         }
 
-        // Logged in — check profile status.
         final profile = _auth.profile;
         if (profile == null) {
           return const LoginScreen();
         }
 
-        // Pending approval.
         if (!profile.isApproved) {
           return const PendingScreen();
         }
 
-        // Approved — show the main app (check if tables exist).
         return ListenableBuilder(
           listenable: _state,
           builder: (context, _) {
             if (!_state.tablesReady) {
               return const SetupScreen();
             }
-            // Unified shell — My Day | History | Admin (admin-only tab).
             return const MainShell();
           },
         );
@@ -162,15 +155,12 @@ class _ChronoWardenAppState extends State<ChronoWardenApp> {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
         }
-        // Tables don't exist yet → must run SQL setup first.
         if (snapshot.data == null) {
           return const SetupScreen();
         }
-        // Tables exist, no profiles → first admin signup.
         if (snapshot.data == true) {
           return const SignupScreen(isFirstAdmin: true);
         }
-        // Tables exist with users → normal login.
         return const LoginScreen();
       },
     );
