@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:url_strategy/url_strategy.dart';
 
 import 'screens/main_shell.dart';
 import 'screens/login_screen.dart';
@@ -17,7 +16,6 @@ const supabaseAnonKey = String.fromEnvironment('SUPABASE_ANON_KEY');
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  setPathUrlStrategy();
 
   if (supabaseUrl.isNotEmpty && supabaseAnonKey.isNotEmpty) {
     await Supabase.initialize(url: supabaseUrl, publishableKey: supabaseAnonKey);
@@ -86,19 +84,6 @@ class _ChronoWardenAppState extends State<ChronoWardenApp> {
             useMaterial3: true,
             brightness: Brightness.dark,
           ),
-          onGenerateRoute: (settings) {
-            final name = settings.name;
-            // Tab routes all show MainShell — tab index is derived from the route.
-            if (name == '/my-day' || name == '/history' ||
-                name == '/overview' || name == '/admin') {
-              return MaterialPageRoute(
-                builder: (_) => const MainShell(),
-                settings: settings,
-              );
-            }
-            // Everything else falls through to home (auth gate).
-            return null;
-          },
           home: SelectionArea(
             child: _buildRoot(),
           ),
