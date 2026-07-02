@@ -305,19 +305,23 @@ class _PeriodTabState extends State<_PeriodTab> {
       ),
     ).then((result) {
       if (result == null) return;
-      final startStr = '${result.startTime.hour.toString().padLeft(2, '0')}:${result.startTime.minute.toString().padLeft(2, '0')}:00';
-      final endStr = result.endTime != null
-          ? '${result.endTime!.hour.toString().padLeft(2, '0')}:${result.endTime!.minute.toString().padLeft(2, '0')}:00'
-          : null;
-      final editedLog = log.copyWith(
-        startTime: startStr,
-        endTime: endStr,
-        expectedMinutes: result.expectedMinutes,
-        overheadMinutes: result.overheadMinutes,
-        lunchMinutes: result.lunchMinutes,
-        note: result.note,
-      );
-      state.editDay(editedLog);
+      if (result.isDelete) {
+        state.deleteDay(log.id!);
+      } else {
+        final startStr = '${result.startTime.hour.toString().padLeft(2, '0')}:${result.startTime.minute.toString().padLeft(2, '0')}:00';
+        final endStr = result.endTime != null
+            ? '${result.endTime!.hour.toString().padLeft(2, '0')}:${result.endTime!.minute.toString().padLeft(2, '0')}:00'
+            : null;
+        final editedLog = log.copyWith(
+          startTime: startStr,
+          endTime: endStr,
+          expectedMinutes: result.expectedMinutes,
+          overheadMinutes: result.overheadMinutes,
+          lunchMinutes: result.lunchMinutes,
+          note: result.note,
+        );
+        state.editDay(editedLog);
+      }
     });
   }
 
@@ -789,6 +793,7 @@ class _EditDayResult {
   final int overheadMinutes;
   final int lunchMinutes;
   final String? note;
+  final bool isDelete;
   _EditDayResult({
     required this.startTime,
     required this.endTime,
@@ -796,6 +801,7 @@ class _EditDayResult {
     required this.overheadMinutes,
     required this.lunchMinutes,
     this.note,
+    this.isDelete = false,
   });
 }
 
@@ -940,6 +946,20 @@ class _EditDayDialogState extends State<_EditDayDialog> {
       ),
       actions: [
         TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+        if (widget.log.id != null)
+          TextButton(
+            onPressed: () => Navigator.pop(context, _EditDayResult(
+              startTime: _startTime,
+              endTime: _endTime,
+              expectedMinutes: _expected,
+              overheadMinutes: _overhead,
+              lunchMinutes: _lunch,
+              note: _note.isEmpty ? null : _note,
+              isDelete: true,
+            )),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Delete'),
+          ),
         FilledButton(
           onPressed: () => Navigator.pop(context, _EditDayResult(
             startTime: _startTime,
