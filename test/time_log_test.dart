@@ -5,7 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 void main() {
   group('TimeLog.leaveTime', () {
     // Helper to create a TimeLog with the given values
-    TimeLog _makeLog({
+    TimeLog makeLog({
       String startTime = '07:30:00',
       int expectedMinutes = 480,
       int overheadMinutes = 50,
@@ -24,35 +24,34 @@ void main() {
       );
     }
 
-    test('no productive commute — leave time unchanged from current formula', () {
-      final log = _makeLog(productiveCommuteMinutes: 0);
-      // Current formula: start + expected + overhead + lunch
-      // New formula subtracts 0, so same result
+    test('no productive commute — leave time = start + expected + lunch', () {
+      final log = makeLog(productiveCommuteMinutes: 0);
+      // Formula: start + expected + lunch (overhead not included)
       final leave = log.leaveTime;
       final expected = DateTime(2024, 1, 15, 7, 30)
-          .add(const Duration(minutes: 480 + 50));
+          .add(const Duration(minutes: 480));
       expect(leave, expected);
     });
 
-    test('with productive commute — leave time shifts earlier by half', () {
+    test('with productive commute — leave time subtracts evening portion', () {
       // User works 60 min on train (30 each direction)
-      // Evening portion (30 min) should be subtracted from leave time
-      final log = _makeLog(
+      // Evening portion (30 min) subtracted from leave time
+      final log = makeLog(
         startTime: '07:30:00',
         expectedMinutes: 480,
         overheadMinutes: 50,
         productiveCommuteMinutes: 60,
       );
       final leave = log.leaveTime;
-      // start + expected + overhead + lunch - (productiveCommute ~/ 2)
-      // = 07:30 + 480 + 50 - 30 = 07:30 + 500 = 15:50
+      // start + expected + lunch - (productiveCommute ~/ 2)
+      // = 07:30 + 480 - 30 = 07:30 + 450 = 15:00
       final expected = DateTime(2024, 1, 15, 7, 30)
-          .add(const Duration(minutes: 480 + 50 - 30));
+          .add(const Duration(minutes: 480 - 30));
       expect(leave, expected);
     });
 
     test('with lunch and productive commute', () {
-      final log = _makeLog(
+      final log = makeLog(
         startTime: '07:30:00',
         expectedMinutes: 480,
         overheadMinutes: 50,
@@ -60,15 +59,15 @@ void main() {
         productiveCommuteMinutes: 60,
       );
       final leave = log.leaveTime;
-      // 07:30 + 480 + 50 + 30 - 30 = 07:30 + 530 = 16:20
+      // 07:30 + 480 + 30 - 30 = 07:30 + 480 = 15:30
       final expected = DateTime(2024, 1, 15, 7, 30)
-          .add(const Duration(minutes: 480 + 50 + 30 - 30));
+          .add(const Duration(minutes: 480 + 30 - 30));
       expect(leave, expected);
     });
 
     test('odd productive commute minutes — integer division truncates', () {
       // 45 min total = 22.5 evening, truncates to 22
-      final log = _makeLog(
+      final log = makeLog(
         startTime: '07:30:00',
         expectedMinutes: 480,
         overheadMinutes: 50,
@@ -76,12 +75,12 @@ void main() {
       );
       final leave = log.leaveTime;
       final expected = DateTime(2024, 1, 15, 7, 30)
-          .add(const Duration(minutes: 480 + 50 - 22));
+          .add(const Duration(minutes: 480 - 22));
       expect(leave, expected);
     });
 
     test('calculateLeaveTime() matches leaveTime getter', () {
-      final log = _makeLog(
+      final log = makeLog(
         startTime: '07:30:00',
         expectedMinutes: 480,
         overheadMinutes: 50,
@@ -94,7 +93,7 @@ void main() {
   });
 
   group('TimeLog.calculateOvertimeMinutes', () {
-    TimeLog _makeLogWithEnd({
+    TimeLog makeLogWithEnd({
       String startTime = '07:30:00',
       String? endTime,
       int expectedMinutes = 480,
@@ -116,14 +115,14 @@ void main() {
     }
 
     test('no end time — returns 0', () {
-      final log = _makeLogWithEnd(endTime: null);
+      final log = makeLogWithEnd(endTime: null);
       expect(log.calculateOvertimeMinutes(), 0);
     });
 
     test('exactly on target — no overtime', () {
       // Start 07:30, end 16:20 = 530 min
       // expected(480) + overhead(50) = 530 → 0 overtime
-      final log = _makeLogWithEnd(
+      final log = makeLogWithEnd(
         startTime: '07:30:00',
         endTime: '16:20:00',
         expectedMinutes: 480,
@@ -135,7 +134,7 @@ void main() {
     test('with productive commute and on target — no overtime', () {
       // Total elapsed = expected + overhead regardless of productive commute
       // Start 07:30, end 16:20 = 530 min, expected+overhead = 530 → 0
-      final log = _makeLogWithEnd(
+      final log = makeLogWithEnd(
         startTime: '07:30:00',
         endTime: '16:20:00',
         expectedMinutes: 480,
@@ -148,7 +147,7 @@ void main() {
     test('overtime worked — positive overtime', () {
       // Start 07:30, end 17:20 = 590 min
       // 590 - 480 - 50 = 60 min overtime
-      final log = _makeLogWithEnd(
+      final log = makeLogWithEnd(
         startTime: '07:30:00',
         endTime: '17:20:00',
         expectedMinutes: 480,
@@ -160,7 +159,7 @@ void main() {
     test('left early — negative overtime (time bank credit)', () {
       // Start 07:30, end 15:20 = 470 min
       // 470 - 480 - 50 = -60 min (time bank credit)
-      final log = _makeLogWithEnd(
+      final log = makeLogWithEnd(
         startTime: '07:30:00',
         endTime: '15:20:00',
         expectedMinutes: 480,
@@ -172,7 +171,7 @@ void main() {
     test('with lunch — lunch minutes subtracted', () {
       // Start 07:30, end 16:50 = 560 min
       // 560 - 30 (lunch) - 480 - 50 = 0
-      final log = _makeLogWithEnd(
+      final log = makeLogWithEnd(
         startTime: '07:30:00',
         endTime: '16:50:00',
         expectedMinutes: 480,
@@ -186,7 +185,7 @@ void main() {
       // Start 07:30, end 16:50 = 560 min
       // 560 - 30 (lunch) - 480 - 50 = 0
       // productive commute doesn't affect overtime formula
-      final log = _makeLogWithEnd(
+      final log = makeLogWithEnd(
         startTime: '07:30:00',
         endTime: '16:50:00',
         expectedMinutes: 480,

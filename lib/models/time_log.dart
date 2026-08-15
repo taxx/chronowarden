@@ -108,9 +108,12 @@ class TimeLog {
   /// Includes [lunchMinutes] because you must be present for lunch too.
   /// Subtracts half of [productiveCommuteMinutes] (evening portion) because
   /// that work happens after leaving the office.
+  /// Does NOT include [overheadMinutes] — commute overhead happens before
+  /// work starts (morning) or after leaving (evening), so it doesn't extend
+  /// your office stay.
   DateTime get leaveTime {
     final start = combineDateAndTime(date, startTime);
-    return start.add(Duration(minutes: expectedMinutes + overheadMinutes + lunchMinutes - (productiveCommuteMinutes ~/ 2)));
+    return start.add(Duration(minutes: expectedMinutes + lunchMinutes - (productiveCommuteMinutes ~/ 2)));
   }
 
   /// Elapsed minutes from start → now (or end if closed).
@@ -129,13 +132,14 @@ class TimeLog {
   /// **Morning Calculator** — Given the workday's exact start [DateTime],
   /// return the precise wall-clock moment the user is free to log off.
   ///
-  /// Formula: `[dayStart] + expectedMinutes + overheadMinutes + lunchMinutes - productiveCommuteMinutes/2`
+  /// Formula: `[dayStart] + expectedMinutes + lunchMinutes - productiveCommuteMinutes/2`
   ///
-  /// Uses pure `Duration` arithmetic on the supplied [dayStart], so the
-  /// result is always in the user's local wall-clock time.
+  /// Does NOT include [overheadMinutes] — commute overhead happens before
+  /// work starts (morning) or after leaving (evening), so it doesn't extend
+  /// your office stay.
   DateTime calculateLeaveTime(DateTime dayStart) {
     return dayStart.add(
-      Duration(minutes: expectedMinutes + overheadMinutes + lunchMinutes - (productiveCommuteMinutes ~/ 2)),
+      Duration(minutes: expectedMinutes + lunchMinutes - (productiveCommuteMinutes ~/ 2)),
     );
   }
 

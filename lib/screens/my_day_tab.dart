@@ -524,17 +524,22 @@ class _StartDayDialogState extends State<_StartDayDialog> {
   }
 
   /// When you're physically free to leave (includes lunch time at office).
+  /// Subtracts evening productive commute because that work happens after
+  /// leaving the office.
+  /// Does NOT include overhead — commute overhead happens before work
+  /// starts (morning) or after leaving (evening), so it doesn't extend
+  /// your office stay.
   DateTime get _leaveTime {
     final now = DateTime.now();
     final start = DateTime(now.year, now.month, now.day, _startTime.hour, _startTime.minute);
-    return start.add(Duration(minutes: _expected + _overhead + _lunchMinutes));
+    return start.add(Duration(minutes: _expected + _lunchMinutes - (_productiveCommute ~/ 2)));
   }
 
   /// When you've done enough pure work (not counting lunch as work).
   DateTime get _netWorkTime {
     final now = DateTime.now();
     final start = DateTime(now.year, now.month, now.day, _startTime.hour, _startTime.minute);
-    return start.add(Duration(minutes: _expected + _overhead));
+    return start.add(Duration(minutes: _expected - (_productiveCommute ~/ 2)));
   }
 
   @override
