@@ -4,6 +4,7 @@ class TravelPreset {
   final String? userId;
   final String name;
   final int defaultOverheadMinutes;
+  final int productiveCommuteMinutes;
   final String? createdAt;
 
   const TravelPreset({
@@ -11,6 +12,7 @@ class TravelPreset {
     this.userId,
     required this.name,
     required this.defaultOverheadMinutes,
+    this.productiveCommuteMinutes = 0,
     this.createdAt,
   });
 
@@ -20,6 +22,7 @@ class TravelPreset {
       userId: json['user_id'] as String?,
       name: json['name'] as String,
       defaultOverheadMinutes: json['default_overhead_minutes'] as int,
+      productiveCommuteMinutes: (json['productive_commute_minutes'] as int?) ?? 0,
       createdAt: json['created_at'] as String?,
     );
   }
@@ -30,11 +33,12 @@ class TravelPreset {
       'user_id': userId,
       'name': name,
       'default_overhead_minutes': defaultOverheadMinutes,
+      'productive_commute_minutes': productiveCommuteMinutes,
       'created_at': createdAt,
     };
   }
 
   @override
   String toString() =>
-      'TravelPreset($name: $defaultOverheadMinutes min overhead)';
+      'TravelPreset($name: ${defaultOverheadMinutes}min overhead, ${productiveCommuteMinutes}min productive commute)';
 }

@@ -149,6 +149,7 @@ class AppState extends ChangeNotifier {
     required int expectedMinutes,
     required int overheadMinutes,
     int lunchMinutes = 0,
+    int productiveCommuteMinutes = 0,
   }) async {
     final date = _dateStr(DateTime.now());
     final existing = await logs.activeToday();
@@ -161,6 +162,7 @@ class AppState extends ChangeNotifier {
       overheadMinutes: overheadMinutes,
       lunchMinutes: lunchMinutes,
       overtimeMinutes: 0,
+      productiveCommuteMinutes: productiveCommuteMinutes,
     );
     final saved = await logs.insert(newLog);
     _todayLog = saved;
@@ -190,6 +192,7 @@ class AppState extends ChangeNotifier {
       'overhead_minutes': log.overheadMinutes,
       'lunch_minutes': log.lunchMinutes,
       'overtime_minutes': overtime,
+      'productive_commute_minutes': log.productiveCommuteMinutes,
       'note': log.note,
     });
 
@@ -214,6 +217,7 @@ class AppState extends ChangeNotifier {
     required int expectedMinutes,
     required int overheadMinutes,
     int lunchMinutes = 0,
+    int productiveCommuteMinutes = 0,
     String? note,
   }) async {
     final newLog = TimeLog(
@@ -224,6 +228,7 @@ class AppState extends ChangeNotifier {
       overheadMinutes: overheadMinutes,
       lunchMinutes: lunchMinutes,
       overtimeMinutes: 0,
+      productiveCommuteMinutes: productiveCommuteMinutes,
       note: note,
     );
     final overtime = newLog.calculateOvertimeMinutes();

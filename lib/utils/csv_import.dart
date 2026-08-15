@@ -195,6 +195,7 @@ _RowResult _parseRow(String line, String? userId, Set<String> existingDates) {
     overheadMinutes: overhead,
     lunchMinutes: lunch,
     overtimeMinutes: 0, // recalculated on insert
+    productiveCommuteMinutes: 0, // CSV import doesn't support this yet
     note: note.isEmpty ? null : note,
   );
 

@@ -14,6 +14,7 @@ class TimeLog {
   final int expectedMinutes;
   final int lunchMinutes;
   final int overtimeMinutes;
+  final int productiveCommuteMinutes;
   final String? note;
   final String? createdAt;
 
@@ -27,6 +28,7 @@ class TimeLog {
     required this.expectedMinutes,
     this.lunchMinutes = 0,
     required this.overtimeMinutes,
+    this.productiveCommuteMinutes = 0,
     this.note,
     this.createdAt,
   });
@@ -46,6 +48,7 @@ class TimeLog {
       expectedMinutes: json['expected_minutes'] as int,
       lunchMinutes: (json['lunch_minutes'] as int?) ?? 0,
       overtimeMinutes: json['overtime_minutes'] as int,
+      productiveCommuteMinutes: (json['productive_commute_minutes'] as int?) ?? 0,
       note: json['note'] as String?,
       createdAt: json['created_at'] as String?,
     );
@@ -62,6 +65,7 @@ class TimeLog {
       'expected_minutes': expectedMinutes,
       'lunch_minutes': lunchMinutes,
       'overtime_minutes': overtimeMinutes,
+      'productive_commute_minutes': productiveCommuteMinutes,
       'note': note,
       'created_at': createdAt,
     };
@@ -102,9 +106,11 @@ class TimeLog {
   /// Convenience: same as [calculateLeaveTime] but derived from the stored
   /// [date] + [startTime] fields (no external [dayStart] argument needed).
   /// Includes [lunchMinutes] because you must be present for lunch too.
+  /// Subtracts half of [productiveCommuteMinutes] (evening portion) because
+  /// that work happens after leaving the office.
   DateTime get leaveTime {
     final start = combineDateAndTime(date, startTime);
-    return start.add(Duration(minutes: expectedMinutes + overheadMinutes + lunchMinutes));
+    return start.add(Duration(minutes: expectedMinutes + overheadMinutes + lunchMinutes - (productiveCommuteMinutes ~/ 2)));
   }
 
   /// Elapsed minutes from start → now (or end if closed).
@@ -123,13 +129,13 @@ class TimeLog {
   /// **Morning Calculator** — Given the workday's exact start [DateTime],
   /// return the precise wall-clock moment the user is free to log off.
   ///
-  /// Formula: `[dayStart] + expectedMinutes + overheadMinutes + lunchMinutes`
+  /// Formula: `[dayStart] + expectedMinutes + overheadMinutes + lunchMinutes - productiveCommuteMinutes/2`
   ///
   /// Uses pure `Duration` arithmetic on the supplied [dayStart], so the
   /// result is always in the user's local wall-clock time.
   DateTime calculateLeaveTime(DateTime dayStart) {
     return dayStart.add(
-      Duration(minutes: expectedMinutes + overheadMinutes + lunchMinutes),
+      Duration(minutes: expectedMinutes + overheadMinutes + lunchMinutes - (productiveCommuteMinutes ~/ 2)),
     );
   }
 
@@ -173,6 +179,7 @@ class TimeLog {
     int? expectedMinutes,
     int? lunchMinutes,
     int? overtimeMinutes,
+    int? productiveCommuteMinutes,
     String? note,
     String? createdAt,
   }) {
@@ -186,6 +193,7 @@ class TimeLog {
       expectedMinutes: expectedMinutes ?? this.expectedMinutes,
       lunchMinutes: lunchMinutes ?? this.lunchMinutes,
       overtimeMinutes: overtimeMinutes ?? this.overtimeMinutes,
+      productiveCommuteMinutes: productiveCommuteMinutes ?? this.productiveCommuteMinutes,
       note: note ?? this.note,
       createdAt: createdAt ?? this.createdAt,
     );

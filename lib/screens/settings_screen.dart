@@ -58,7 +58,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           title: 'Travel Presets',
           subtitle: 'Commute scenarios with overhead buffer',
           items: _state.travelPresets,
-          itemBuilder: (p) => Text('${p.name}: +${p.defaultOverheadMinutes} min overhead'),
+          itemBuilder: (p) => Text('${p.name}: +${p.defaultOverheadMinutes} min overhead${p.productiveCommuteMinutes > 0 ? ', +${p.productiveCommuteMinutes} min productive commute' : ''}'),
           onEdit: (p) => _showEditPresetDialog(context, p),
           onDelete: (p) => _confirmDeletePreset(context, p),
           onAdd: () => _showAddPresetDialog(context),
@@ -207,6 +207,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }) async {
     final nameCtrl = TextEditingController(text: existing?.name ?? '');
     final minsCtrl = TextEditingController(text: existing?.defaultOverheadMinutes.toString() ?? '60');
+    final commuteCtrl = TextEditingController(text: existing?.productiveCommuteMinutes.toString() ?? '0');
 
     final result = await showDialog<bool>(
       context: ctx,
@@ -217,14 +218,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
           children: [
             TextField(controller: nameCtrl, decoration: const InputDecoration(labelText: 'Name')),
             const SizedBox(height: 8),
-            TextField(controller: minsCtrl, decoration: const InputDecoration(labelText: 'Overhead minutes'), keyboardType: const TextInputType.numberWithOptions()),
+            TextField(controller: minsCtrl, decoration: const InputDecoration(labelText: 'Overhead minutes (walking, prep)'), keyboardType: const TextInputType.numberWithOptions()),
+            const SizedBox(height: 8),
+            TextField(controller: commuteCtrl, decoration: const InputDecoration(labelText: 'Productive commute minutes (train work)'), keyboardType: const TextInputType.numberWithOptions(),),
           ],
         ),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
           FilledButton(
             onPressed: () {
-              if (nameCtrl.text.isNotEmpty && int.tryParse(minsCtrl.text) != null) {
+              if (nameCtrl.text.isNotEmpty && int.tryParse(minsCtrl.text) != null && int.tryParse(commuteCtrl.text) != null) {
                 Navigator.pop(ctx, true);
               }
             },
@@ -239,6 +242,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         id: existing?.id,
         name: nameCtrl.text,
         defaultOverheadMinutes: int.parse(minsCtrl.text),
+        productiveCommuteMinutes: int.parse(commuteCtrl.text),
       );
     }
     return null;

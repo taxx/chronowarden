@@ -157,6 +157,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
         expectedMinutes: result.expectedMinutes,
         overheadMinutes: result.overheadMinutes,
         lunchMinutes: result.lunchMinutes,
+        productiveCommuteMinutes: result.productiveCommuteMinutes,
         note: result.note,
       );
     }
@@ -199,6 +200,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
         expectedMinutes: result.expectedMinutes,
         overheadMinutes: result.overheadMinutes,
         lunchMinutes: result.lunchMinutes,
+        productiveCommuteMinutes: result.productiveCommuteMinutes,
         note: result.note,
       );
       await state.editDay(editedLog);
@@ -280,6 +282,7 @@ class _EditDayResult {
   final int expectedMinutes;
   final int overheadMinutes;
   final int lunchMinutes;
+  final int productiveCommuteMinutes;
   final String? note;
   _EditDayResult({
     required this.startTime,
@@ -287,6 +290,7 @@ class _EditDayResult {
     required this.expectedMinutes,
     required this.overheadMinutes,
     required this.lunchMinutes,
+    required this.productiveCommuteMinutes,
     this.note,
   });
 }
@@ -320,6 +324,7 @@ class _EditDayDialogState extends State<_EditDayDialog> {
 
   int get _expected => _selectedPeriod.expectedMinutes;
   int get _overhead => _selectedPreset.defaultOverheadMinutes;
+  int get _productiveCommute => _selectedPreset.productiveCommuteMinutes;
 
   @override
   void initState() {
@@ -443,6 +448,7 @@ class _EditDayDialogState extends State<_EditDayDialog> {
             expectedMinutes: _expected,
             overheadMinutes: _overhead,
             lunchMinutes: _lunch,
+            productiveCommuteMinutes: _productiveCommute,
             note: _note.isEmpty ? null : _note,
           )),
           child: const Text('Save'),
@@ -463,6 +469,7 @@ class _AddDayResult {
   final int expectedMinutes;
   final int overheadMinutes;
   final int lunchMinutes;
+  final int productiveCommuteMinutes;
   final String? note;
   _AddDayResult({
     required this.date,
@@ -471,6 +478,7 @@ class _AddDayResult {
     required this.expectedMinutes,
     required this.overheadMinutes,
     required this.lunchMinutes,
+    required this.productiveCommuteMinutes,
     this.note,
   });
 }
@@ -509,6 +517,7 @@ class _AddDayDialogState extends State<_AddDayDialog> {
 
   int get _expected => _selectedPeriod.expectedMinutes;
   int get _overhead => _selectedPreset.defaultOverheadMinutes;
+  int get _productiveCommute => _selectedPreset.productiveCommuteMinutes;
 
   @override
   void initState() {
@@ -628,6 +637,7 @@ class _AddDayDialogState extends State<_AddDayDialog> {
               }).toList(),
               onChanged: (v) { if (v != null) setState(() => _selectedPreset = v); },
             ),
+            if (_productiveCommute > 0) ...[const SizedBox(height: 8), Text('Includes $_productiveCommute min productive commute', style: theme.textTheme.bodySmall)],
             const SizedBox(height: 16),
             Text('Lunch break', style: theme.textTheme.titleSmall),
             const SizedBox(height: 4),
@@ -689,6 +699,7 @@ class _AddDayDialogState extends State<_AddDayDialog> {
             expectedMinutes: _expected,
             overheadMinutes: _overhead,
             lunchMinutes: _lunch,
+            productiveCommuteMinutes: _productiveCommute,
             note: _note.isEmpty ? null : _note,
           )),
           child: const Text('Add'),

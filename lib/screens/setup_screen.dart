@@ -13,6 +13,10 @@ const _kSetupSql = r'''
 -- Run this ONCE in your Supabase SQL Editor
 -- ============================================================
 
+-- === MIGRATION (existing databases only — run once) ===
+alter table travel_presets add column if not exists productive_commute_minutes int not null default 0;
+alter table time_logs add column if not exists productive_commute_minutes int not null default 0;
+
 -- 0. Clean slate — drop tables (cascade removes their policies automatically)
 drop table if exists time_logs cascade;
 drop table if exists work_period_settings cascade;
@@ -65,6 +69,7 @@ create table travel_presets (
   user_id uuid references auth.users on delete cascade not null,
   name text not null,
   default_overhead_minutes int not null,
+  productive_commute_minutes int not null default 0,
   created_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
 
@@ -79,6 +84,7 @@ create table time_logs (
   expected_minutes int not null,
   lunch_minutes int not null default 0,
   overtime_minutes int not null default 0,
+  productive_commute_minutes int not null default 0,
   note text,
   created_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
