@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../app_state.dart';
+import '../services/notification_service.dart';
 
 /// Full-screen overlay shown while the day is actively running.
 class ActiveDayScreen extends StatefulWidget {
@@ -15,12 +16,17 @@ class ActiveDayScreen extends StatefulWidget {
 class _ActiveDayScreenState extends State<ActiveDayScreen> with SingleTickerProviderStateMixin {
   late Timer _ticker;
   final _state = AppState();
+  final _notifications = NotificationService();
 
   @override
   void initState() {
     super.initState();
+    _notifications.init();
     _ticker = Timer.periodic(const Duration(seconds: 1), (_) {
-      if (mounted) setState(() {});
+      if (mounted) {
+        _checkNotification();
+        setState(() {});
+      }
     });
   }
 
@@ -28,6 +34,34 @@ class _ActiveDayScreenState extends State<ActiveDayScreen> with SingleTickerProv
   void dispose() {
     _ticker.cancel();
     super.dispose();
+  }
+
+  /// Check if we should fire a leave-time notification.
+  void _checkNotification() {
+    final log = _state.todayLog;
+    if (log == null || log.endTime != null) return;
+    if (!_notifications.enabled) return;
+
+    final dateStr = log.date;
+    if (_notifications.wasNotifiedToday(dateStr)) return;
+
+    final now = DateTime.now();
+    final leaveTime = log.leaveTime;
+    final remaining = leaveTime.difference(now);
+
+    if (remaining.isNegative) return;
+
+    final threshold = _notifications.thresholdMinutes;
+    if (remaining.inMinutes <= threshold) {
+      final h = remaining.inHours;
+      final m = remaining.inMinutes % 60;
+      final timeStr = h > 0 ? '${h}h ${m}m' : '$m min';
+      _notifications.showNotification(
+        'ChronoWarden ⏰',
+        'Leave in $timeStr — time to wrap up!',
+      );
+      _notifications.markNotified(dateStr);
+    }
   }
 
   @override

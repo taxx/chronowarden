@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../app_state.dart';
+import '../services/notification_service.dart';
 
 /// The "My Day" content widget — shows today's time tracking.
 /// This is a standalone widget (no Scaffold) meant for use inside MainShell.
@@ -16,12 +17,17 @@ class MyDayTab extends StatefulWidget {
 class _MyDayTabState extends State<MyDayTab> with SingleTickerProviderStateMixin {
   late Timer _ticker;
   final _state = AppState();
+  final _notifications = NotificationService();
 
   @override
   void initState() {
     super.initState();
+    _notifications.init();
     _ticker = Timer.periodic(const Duration(seconds: 1), (_) {
-      if (mounted) setState(() {});
+      if (mounted) {
+        _checkNotification();
+        setState(() {});
+      }
     });
   }
 
@@ -49,6 +55,34 @@ class _MyDayTabState extends State<MyDayTab> with SingleTickerProviderStateMixin
         ),
       ),
     );
+  }
+
+  /// Check if we should fire a leave-time notification.
+  void _checkNotification() {
+    final log = _state.todayLog;
+    if (log == null || log.endTime != null) return;
+    if (!_notifications.enabled) return;
+
+    final dateStr = _state.todayLog!.date;
+    if (_notifications.wasNotifiedToday(dateStr)) return;
+
+    final now = DateTime.now();
+    final leaveTime = log.leaveTime;
+    final remaining = leaveTime.difference(now);
+
+    if (remaining.isNegative) return; // already past leave time
+
+    final threshold = _notifications.thresholdMinutes;
+    if (remaining.inMinutes <= threshold) {
+      final h = remaining.inHours;
+      final m = remaining.inMinutes % 60;
+      final timeStr = h > 0 ? '${h}h ${m}m' : '$m min';
+      _notifications.showNotification(
+        'ChronoWarden ⏰',
+        'Leave in $timeStr — time to wrap up!',
+      );
+      _notifications.markNotified(dateStr);
+    }
   }
 
   Widget _buildBalanceCard(ThemeData theme) {

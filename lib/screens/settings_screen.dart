@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../app_state.dart';
 import '../models/travel_preset.dart';
 import '../models/work_period_setting.dart';
+import '../services/notification_service.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -277,6 +278,99 @@ class _SettingsScreenState extends State<SettingsScreen> {
     if (confirmed == true) {
       await _state.deleteTravelPreset(p.id!);
     }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Notification settings card
+// ---------------------------------------------------------------------------
+
+class _NotificationSettings extends StatefulWidget {
+  @override
+  State<_NotificationSettings> createState() => _NotificationSettingsState();
+}
+
+class _NotificationSettingsState extends State<_NotificationSettings> {
+  final _notifications = NotificationService();
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    await _notifications.init();
+    if (mounted) setState(() => _loading = false);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    if (_loading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.notifications_outlined, color: theme.colorScheme.primary),
+                const SizedBox(width: 12),
+                Expanded(child: Text('Notifications', style: theme.textTheme.titleLarge)),
+                Switch(
+                  value: _notifications.enabled,
+                  onChanged: (value) async {
+                    await _notifications.setEnabled(value);
+                    if (mounted) setState(() {});
+                  },
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Get notified before it\'s time to leave work.',
+              style: theme.textTheme.bodySmall,
+            ),
+            if (_notifications.enabled) ...[const SizedBox(height: 16), _thresholdSlider(theme)],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _thresholdSlider(ThemeData theme) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('Minutes before leave', style: theme.textTheme.titleSmall),
+        const SizedBox(height: 4),
+        Row(
+          children: [
+            Expanded(
+              child: Slider(
+                value: _notifications.thresholdMinutes.toDouble(),
+                min: 5,
+                max: 60,
+                divisions: 11,
+                label: '${_notifications.thresholdMinutes} min',
+                onChanged: (v) {
+                  final value = v.round();
+                  _notifications.setThresholdMinutes(value);
+                  setState(() {});
+                },
+              ),
+            ),
+            Text('${_notifications.thresholdMinutes} min',
+                style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600)),
+          ],
+        ),
+      ],
+    );
   }
 }
 
