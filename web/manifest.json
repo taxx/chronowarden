@@ -1,11 +1,11 @@
 {
-    "name": "chronowarden",
-    "short_name": "chronowarden",
+    "name": "ChronoWarden",
+    "short_name": "ChronoWarden",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "background_color": "#ffffff",
+    "theme_color": "#4C76A4",
+    "description": "Personal time-tracking and overtime protection",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [
