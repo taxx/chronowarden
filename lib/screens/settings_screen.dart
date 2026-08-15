@@ -64,6 +64,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
           onDelete: (p) => _confirmDeletePreset(context, p),
           onAdd: () => _showAddPresetDialog(context),
         ),
+        const SizedBox(height: 24),
+        _NotificationSettings(),
       ],
     );
   }
