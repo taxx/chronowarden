@@ -107,15 +107,17 @@ class NotificationService {
     try {
       context.callMethod('eval', ['window._beep = function(count) {'
         'var ctx = new AudioContext();'
+        'ctx.resume();'
         'for (var i = 0; i < count; i++) {'
+          'var now = ctx.currentTime;'
           'var osc = ctx.createOscillator();'
           'osc.frequency.value = 440;'
           'var gain = ctx.createGain();'
           'gain.gain.value = 0.3;'
           'osc.connect(gain);'
           'gain.connect(ctx.destination);'
-          'osc.start(i * 0.5);'
-          'osc.stop(i * 0.5 + 0.3);'
+          'osc.start(now + i * 0.5);'
+          'osc.stop(now + i * 0.5 + 0.3);'
         '}'
       '}']);
       _audioInitialized = true;
