@@ -1,5 +1,6 @@
 // ignore_for_file: avoid_web_libraries_in_flutter, deprecated_member_use
 
+import 'dart:html' as html;
 import 'dart:js';
 
 import 'package:flutter/foundation.dart';
@@ -8,8 +9,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 /// Manages notification settings and the browser Notification API.
 ///
 /// Settings are persisted in SharedPreferences (localStorage on web).
-/// Supports two-phase alerts: wrap-up (before leave) and over-time (after leave).
-/// Uses Web Audio API for sound and vibration for mobile buzz.
+/// Uses dart:html for notifications (proven working wrapper) and
+/// dart:js for Web Audio API (oscillator beep).
 class NotificationService {
   NotificationService._();
   static final NotificationService _instance = NotificationService._();
@@ -76,10 +77,7 @@ class NotificationService {
 
   void _checkExistingPermission() {
     try {
-      final notif = context['Notification'] as JsObject?;
-      if (notif == null) { _permissionGranted = false; return; }
-      final permission = notif['permission'];
-      _permissionGranted = permission == 'granted';
+      _permissionGranted = html.Notification.permission == 'granted';
     } catch (_) {
       _permissionGranted = false;
     }
@@ -87,17 +85,12 @@ class NotificationService {
 
   void _requestPermissionSync() {
     try {
-      final notif = context['Notification'] as JsObject?;
-      if (notif == null) return;
-      final promise = notif.callMethod('requestPermission', []);
-      if (promise is JsObject) {
-        promise.callMethod('then', [
-          JsFunction.withThis((thisArg, args) {
-            final result = args?[0];
-            _permissionGranted = result == 'granted';
-          })
-        ]);
-      }
+      final promise = html.Notification.requestPermission();
+      promise.then((result) {
+        _permissionGranted = result == 'granted';
+      }).catchError((_) {
+        _permissionGranted = false;
+      });
     } catch (_) {
       _permissionGranted = false;
     }
@@ -105,14 +98,12 @@ class NotificationService {
 
   // -- Show notification ----------------------------------------------------
 
-  /// Show a browser notification with optional sound and vibration.
-  /// [isUrgent] controls whether the notification uses requireInteraction.
+  /// Show a browser notification via dart:js (supports all options).
   bool showNotification(String title, String body, {bool isUrgent = false}) {
     if (!_enabled || !kIsWeb) return false;
     try {
       final constructor = context['Notification'] as JsFunction?;
       if (constructor == null) return false;
-
       final opts = <String, dynamic>{
         'body': body,
         'icon': 'icons/Icon-192.png',
@@ -126,14 +117,15 @@ class NotificationService {
         opts['vibrate'] = [200, 100, 200];
       }
       final options = JsObject.jsify(opts);
-      JsObject(constructor, [title, options]);
+      // Use apply() to call the constructor with thisArg: null
+      constructor.apply([title, options], thisArg: null);
       return true;
     } catch (_) {
       return false;
     }
   }
 
-  // -- Audio alert (Web Audio API oscillator beep) ---------------------------
+  // -- Audio alert (Web Audio API via dart:js) --------------------------------
 
   /// Play a short beep using the Web Audio API.
   /// Uses an OscillatorNode — no audio file needed.
@@ -144,8 +136,7 @@ class NotificationService {
       if (audioCtx == null) return;
       final ctx = JsObject(audioCtx, []);
       for (int i = 0; i < count; i++) {
-        final startTime = i * 0.5; // beeps spaced 0.5s apart
-        // Create oscillator at 440Hz (A4 note)
+        final startTime = i * 0.5;
         final oscillator = ctx.callMethod('createOscillator', []);
         oscillator['frequency'] = 440;
         final gain = ctx.callMethod('createGain', []);
@@ -161,7 +152,6 @@ class NotificationService {
 
   // -- Tracking -------------------------------------------------------------
 
-  /// Mark today as notified so we don't spam.
   Future<void> markNotified(String date) async {
     _lastNotifiedDate = date;
     final prefs = await SharedPreferences.getInstance();
