@@ -57,30 +57,46 @@ class _MyDayTabState extends State<MyDayTab> with SingleTickerProviderStateMixin
     );
   }
 
-  /// Check if we should fire a leave-time notification.
+  /// Check if we should fire a notification.
+  /// Two-phase: wrap-up alert before leave, over-time alert after leave.
   void _checkNotification() {
     final log = _state.todayLog;
     if (log == null || log.endTime != null) return;
     if (!_notifications.enabled) return;
 
-    final dateStr = _state.todayLog!.date;
+    final dateStr = log.date;
     if (_notifications.wasNotifiedToday(dateStr)) return;
 
     final now = DateTime.now();
     final leaveTime = log.leaveTime;
     final remaining = leaveTime.difference(now);
-
-    if (remaining.isNegative) return; // already past leave time
-
     final threshold = _notifications.thresholdMinutes;
-    if (remaining.inMinutes <= threshold) {
+
+    // Phase 1 — wrap-up alert (before leave time)
+    if (!remaining.isNegative && remaining.inMinutes <= threshold) {
       final h = remaining.inHours;
       final m = remaining.inMinutes % 60;
       final timeStr = h > 0 ? '${h}h ${m}m' : '$m min';
       _notifications.showNotification(
         'ChronoWarden ⏰',
-        'Leave in $timeStr — time to wrap up!',
+        '⏰ $timeStr left — wrap up and head out!',
       );
+      _notifications.playAlertSound(count: 1);
+      _notifications.markNotified(dateStr);
+      return;
+    }
+
+    // Phase 2 — over-time alert (past leave time, day still active)
+    // This catches the case where you're on the evening commute working
+    // but haven't stopped the day yet.
+    if (remaining.isNegative && remaining.inMinutes.abs() <= 60) {
+      final over = remaining.inMinutes.abs();
+      _notifications.showNotification(
+        'ChronoWarden 🚨',
+        '🚨 $over min past your time — finish up and stop the day!',
+        isUrgent: true,
+      );
+      _notifications.playAlertSound(count: 3);
       _notifications.markNotified(dateStr);
     }
   }

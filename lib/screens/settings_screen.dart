@@ -338,7 +338,43 @@ class _NotificationSettingsState extends State<_NotificationSettings> {
               'Get notified before it\'s time to leave work.',
               style: theme.textTheme.bodySmall,
             ),
-            if (_notifications.enabled) ...[const SizedBox(height: 16), _thresholdSlider(theme)],
+            if (_notifications.enabled) ...[
+              const SizedBox(height: 16),
+              _thresholdSlider(theme),
+              const SizedBox(height: 16),
+              _ToggleRow(
+                icon: Icons.spatial_audio_outlined,
+                label: 'Sound alert',
+                value: _notifications.soundEnabled,
+                onChanged: (v) async {
+                  await _notifications.setSoundEnabled(v);
+                  if (mounted) setState(() {});
+                },
+              ),
+              const SizedBox(height: 8),
+              _ToggleRow(
+                icon: Icons.vibration_rounded,
+                label: 'Vibration',
+                value: _notifications.vibrateEnabled,
+                onChanged: (v) async {
+                  await _notifications.setVibrateEnabled(v);
+                  if (mounted) setState(() {});
+                },
+              ),
+              const SizedBox(height: 16),
+              OutlinedButton.icon(
+                onPressed: () {
+                  _notifications.showNotification(
+                    'ChronoWarden ⏰',
+                    'Test notification — you\'d be alerted here!',
+                    isUrgent: true,
+                  );
+                  _notifications.playAlertSound(count: 3);
+                },
+                icon: const Icon(Icons.send_outlined, size: 18),
+                label: const Text('Send test'),
+              ),
+            ],
           ],
         ),
       ),
@@ -370,6 +406,41 @@ class _NotificationSettingsState extends State<_NotificationSettings> {
             Text('${_notifications.thresholdMinutes} min',
                 style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600)),
           ],
+        ),
+      ],
+    );
+  }
+}
+
+/// Small reusable toggle row used in notification settings.
+class _ToggleRow extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final bool value;
+  final Future<void> Function(bool) onChanged;
+
+  const _ToggleRow({
+    required this.icon,
+    required this.label,
+    required this.value,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Row(
+      children: [
+        Icon(icon, size: 20, color: theme.colorScheme.primary),
+        const SizedBox(width: 12),
+        Text(label, style: theme.textTheme.bodyMedium),
+        const Spacer(),
+        Switch(
+          value: value,
+          onChanged: (v) async {
+            await onChanged(v);
+            if (context.mounted) {} // rebuild handled upstream
+          },
         ),
       ],
     );
