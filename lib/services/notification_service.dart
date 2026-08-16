@@ -47,6 +47,7 @@ class NotificationService {
   Future<void> setEnabled(bool value) async {
     _enabled = value;
     if (value && kIsWeb) {
+      // Call BEFORE any await to preserve browser gesture context
       _requestPermissionIfNeeded();
       ensureAudio();
     }
@@ -107,10 +108,12 @@ class NotificationService {
   bool _audioInitialized = false;
 
   /// Create a persistent AudioContext during a user gesture.
+  /// Tries AudioContext first, then webkitAudioContext for older browsers.
   void ensureAudio() {
     if (_audioInitialized || !kIsWeb) return;
     try {
-      final audioCtxCtor = context['AudioContext'] as JsFunction?;
+      var audioCtxCtor = context['AudioContext'] as JsFunction?;
+      audioCtxCtor ??= context['webkitAudioContext'] as JsFunction?;
       if (audioCtxCtor == null) return;
       _audioCtx = JsObject(audioCtxCtor, []);
       _audioInitialized = true;
