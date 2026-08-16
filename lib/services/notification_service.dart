@@ -1,6 +1,6 @@
-// ignore_for_file: deprecated_member_use, avoid_web_libraries_in_flutter
+// ignore_for_file: avoid_web_libraries_in_flutter, deprecated_member_use
 
-import 'dart:html' as html;
+import 'dart:js';
 
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -31,38 +31,18 @@ class NotificationService {
     _enabled = prefs.getBool(_kEnabledKey) ?? false;
     _thresholdMinutes = prefs.getInt(_kThresholdKey) ?? 30;
     _lastNotifiedDate = prefs.getString('notified_date');
-    // Check current permission state
     if (kIsWeb) _checkExistingPermission();
   }
 
   /// Enable or disable notifications.
-  /// Requests browser permission synchronously (before any awaits) so the
-  /// user-gesture chain required by browsers is preserved.
   Future<void> setEnabled(bool value) async {
     _enabled = value;
     // Request permission IMMEDIATELY while the user gesture is active.
-    // Browser gesture activation is lost if we await anything first.
     if (value && kIsWeb && !_permissionGranted) {
       _requestPermissionSync();
     }
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_kEnabledKey, value);
-  }
-
-  /// Request permission synchronously (no awaits) to preserve gesture context.
-  void _requestPermissionSync() {
-    try {
-      final state = html.Notification.requestPermission();
-      // requestPermission returns a Future, but we need to check the result.
-      // We'll handle the async result separately.
-      state.then((result) {
-        _permissionGranted = result == 'granted';
-      }).catchError((_) {
-        _permissionGranted = false;
-      });
-    } catch (_) {
-      _permissionGranted = false;
-    }
   }
 
   /// Set the threshold in minutes.
@@ -72,10 +52,32 @@ class NotificationService {
     await prefs.setInt(_kThresholdKey, value);
   }
 
-  /// Check if permission is already granted without prompting.
+  /// Check current permission without prompting.
   void _checkExistingPermission() {
     try {
-      _permissionGranted = html.Notification.permission == 'granted';
+      final notif = context['Notification'] as JsObject?;
+      if (notif == null) { _permissionGranted = false; return; }
+      final permission = notif['permission'];
+      _permissionGranted = permission == 'granted';
+    } catch (_) {
+      _permissionGranted = false;
+    }
+  }
+
+  /// Request permission synchronously (no awaits) to preserve gesture context.
+  void _requestPermissionSync() {
+    try {
+      final notif = context['Notification'] as JsObject?;
+      if (notif == null) return;
+      final promise = notif.callMethod('requestPermission', []);
+      if (promise is JsObject) {
+        promise.callMethod('then', [
+          JsFunction.withThis((thisArg, args) {
+            final result = args?[0];
+            _permissionGranted = result == 'granted';
+          })
+        ]);
+      }
     } catch (_) {
       _permissionGranted = false;
     }
@@ -85,7 +87,13 @@ class NotificationService {
   bool showNotification(String title, String body) {
     if (!_enabled || !kIsWeb) return false;
     try {
-      html.Notification(title, body: body, icon: 'icons/Icon-192.png');
+      final constructor = context['Notification'] as JsFunction?;
+      if (constructor == null) return false;
+      final options = JsObject.jsify({
+        'body': body,
+        'icon': 'icons/Icon-192.png',
+      });
+      JsObject(constructor, [title, options]);
       return true;
     } catch (_) {
       return false;
