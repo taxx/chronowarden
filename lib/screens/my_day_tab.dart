@@ -18,6 +18,7 @@ class _MyDayTabState extends State<MyDayTab> with SingleTickerProviderStateMixin
   late Timer _ticker;
   final _state = AppState();
   final _notifications = NotificationService();
+  String? _alertMessage;
 
   @override
   void initState() {
@@ -53,6 +54,10 @@ class _MyDayTabState extends State<MyDayTab> with SingleTickerProviderStateMixin
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            if (_alertMessage != null)
+              _AlertBanner(message: _alertMessage!, onDismiss: () {
+                setState(() => _alertMessage = null);
+              }),
             _buildBalanceCard(theme),
             const SizedBox(height: 24),
             _buildTodayCard(theme),
@@ -86,22 +91,12 @@ class _MyDayTabState extends State<MyDayTab> with SingleTickerProviderStateMixin
         'ChronoWarden ⏰',
         '⏰ $timeStr left — wrap up and head out!',
       );
-      if (msg.isNotEmpty && mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(msg),
-            duration: const Duration(seconds: 10),
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
-      }
+      _alertMessage = msg;
       _notifications.markNotified(dateStr);
       return;
     }
 
     // Phase 2 — over-time alert (past leave time, day still active)
-    // This catches the case where you're on the evening commute working
-    // but haven't stopped the day yet.
     if (remaining.isNegative && remaining.inMinutes.abs() <= 60) {
       final over = remaining.inMinutes.abs();
       final msg = _notifications.alertMessage(
@@ -109,15 +104,7 @@ class _MyDayTabState extends State<MyDayTab> with SingleTickerProviderStateMixin
         '🚨 $over min past your time — finish up and stop the day!',
         isUrgent: true,
       );
-      if (msg.isNotEmpty && mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(msg),
-            duration: const Duration(seconds: 10),
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
-      }
+      _alertMessage = msg;
       _notifications.markNotified(dateStr);
     }
   }
@@ -968,6 +955,42 @@ class _EditDayDialogState extends State<_EditDayDialog> {
           child: const Text('Save'),
         ),
       ],
+    );
+  }
+}
+
+/// A colored banner that appears at the top of MyDayTab when an alert fires.
+class _AlertBanner extends StatelessWidget {
+  final String message;
+  final VoidCallback onDismiss;
+
+  const _AlertBanner({required this.message, required this.onDismiss});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isUrgent = message.contains('🚨');
+    return Card(
+      color: isUrgent ? theme.colorScheme.errorContainer : theme.colorScheme.tertiaryContainer,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        child: Row(
+          children: [
+            Icon(
+              isUrgent ? Icons.warning_rounded : Icons.info_outlined,
+              color: isUrgent ? theme.colorScheme.onErrorContainer : theme.colorScheme.onTertiaryContainer,
+            ),
+            const SizedBox(width: 12),
+            Expanded(child: Text(message, style: theme.textTheme.bodyMedium)),
+            IconButton(
+              icon: const Icon(Icons.close, size: 18),
+              onPressed: onDismiss,
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

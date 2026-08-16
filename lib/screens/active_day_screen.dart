@@ -17,6 +17,7 @@ class _ActiveDayScreenState extends State<ActiveDayScreen> with SingleTickerProv
   late Timer _ticker;
   final _state = AppState();
   final _notifications = NotificationService();
+  String? _alertMessage;
 
   @override
   void initState() {
@@ -65,15 +66,7 @@ class _ActiveDayScreenState extends State<ActiveDayScreen> with SingleTickerProv
         'ChronoWarden ⏰',
         '⏰ $timeStr left — wrap up and head out!',
       );
-      if (msg.isNotEmpty && mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(msg),
-            duration: const Duration(seconds: 10),
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
-      }
+      _alertMessage = msg;
       _notifications.markNotified(dateStr);
       return;
     }
@@ -86,15 +79,7 @@ class _ActiveDayScreenState extends State<ActiveDayScreen> with SingleTickerProv
         '🚨 $over min past your time — finish up and stop the day!',
         isUrgent: true,
       );
-      if (msg.isNotEmpty && mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(msg),
-            duration: const Duration(seconds: 10),
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
-      }
+      _alertMessage = msg;
       _notifications.markNotified(dateStr);
     }
   }
@@ -136,6 +121,10 @@ class _ActiveDayScreenState extends State<ActiveDayScreen> with SingleTickerProv
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
           child: Column(
             children: [
+              if (_alertMessage != null)
+                _AlertBanner(message: _alertMessage!, onDismiss: () {
+                  setState(() => _alertMessage = null);
+                }),
               Text('Elapsed', style: theme.textTheme.titleMedium?.copyWith(color: theme.textTheme.bodySmall?.color)),
               const SizedBox(height: 8),
               Text(
@@ -262,6 +251,42 @@ class _StopDialogState extends State<_StopDialog> {
         TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
         FilledButton(onPressed: () => Navigator.pop(context, _time), child: const Text('Stop')),
       ],
+    );
+  }
+}
+
+/// A colored banner that appears at the top when an alert fires.
+class _AlertBanner extends StatelessWidget {
+  final String message;
+  final VoidCallback onDismiss;
+
+  const _AlertBanner({required this.message, required this.onDismiss});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isUrgent = message.contains('🚨');
+    return Card(
+      color: isUrgent ? theme.colorScheme.errorContainer : theme.colorScheme.tertiaryContainer,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        child: Row(
+          children: [
+            Icon(
+              isUrgent ? Icons.warning_rounded : Icons.info_outlined,
+              color: isUrgent ? theme.colorScheme.onErrorContainer : theme.colorScheme.onTertiaryContainer,
+            ),
+            const SizedBox(width: 12),
+            Expanded(child: Text(message, style: theme.textTheme.bodyMedium)),
+            IconButton(
+              icon: const Icon(Icons.close, size: 18),
+              onPressed: onDismiss,
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
