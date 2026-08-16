@@ -107,6 +107,10 @@ class _MyDayTabState extends State<MyDayTab> with SingleTickerProviderStateMixin
       _alertMessage = msg;
       _notifications.markNotified(dateStr);
     }
+
+    // DEBUG: always set message on first call so we can verify banner works
+    _alertMessage ??= 'DEBUG: _checkNotification() is running — remaining=${
+        remaining.inMinutes}min, threshold=$threshold';
   }
 
   Widget _buildBalanceCard(ThemeData theme) {
