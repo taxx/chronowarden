@@ -21,7 +21,12 @@ class _ActiveDayScreenState extends State<ActiveDayScreen> with SingleTickerProv
   @override
   void initState() {
     super.initState();
-    _notifications.init();
+    _initTicker();
+  }
+
+  Future<void> _initTicker() async {
+    await _notifications.init();
+    if (!mounted) return;
     _ticker = Timer.periodic(const Duration(seconds: 1), (_) {
       if (mounted) {
         _checkNotification();
