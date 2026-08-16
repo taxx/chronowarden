@@ -40,7 +40,8 @@ class NotificationService {
     _thresholdMinutes = prefs.getInt(_kThresholdKey) ?? 30;
     _soundEnabled = prefs.getBool(_kSoundKey) ?? true;
     _vibrateEnabled = prefs.getBool(_kVibrateKey) ?? true;
-    _lastNotifiedDate = prefs.getString('notified_date');
+    // Reset notified state so alerts can fire fresh during testing
+    _lastNotifiedDate = null;
   }
 
   /// Enable or disable notifications.
