@@ -26,6 +26,8 @@ class NotificationService {
   bool _soundEnabled = true;
   bool _vibrateEnabled = true;
   String? _lastNotifiedDate;
+  JsObject? _audioCtx;
+  bool _audioInitialized = false;
 
   bool get enabled => _enabled;
   int get thresholdMinutes => _thresholdMinutes;
@@ -47,6 +49,7 @@ class NotificationService {
     _enabled = value;
     if (value && kIsWeb) {
       _requestPermissionIfNeeded();
+      ensureAudio();
     }
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_kEnabledKey, value);
@@ -99,17 +102,30 @@ class NotificationService {
     return body;
   }
 
-  /// Play a short beep using the Web Audio API (no permission needed).
+  /// Initialize the Web Audio context during a user gesture.
+  /// Must be called from a button press or switch toggle to satisfy browser
+  /// autoplay policy (AudioContext creation is blocked outside gestures).
+  void ensureAudio() {
+    if (_audioInitialized || !kIsWeb) return;
+    try {
+      final audioCtxCtor = context['AudioContext'] as JsFunction?;
+      if (audioCtxCtor == null) return;
+      _audioCtx = JsObject(audioCtxCtor, []);
+      _audioInitialized = true;
+    } catch (_) {}
+  }
+
+  /// Play a short beep using the Web Audio API.
   void playAlertSound({int count = 1}) {
     if (!_soundEnabled || !kIsWeb) return;
+    if (_audioCtx == null) return;
     try {
-      final audioCtx = context['AudioContext'] as JsFunction?;
-      if (audioCtx == null) return;
-      final ctx = JsObject(audioCtx, []);
+      final ctx = _audioCtx!;
       for (int i = 0; i < count; i++) {
         final startTime = i * 0.5;
         final oscillator = ctx.callMethod('createOscillator', []);
-        oscillator['frequency'] = 440;
+        final freqParam = oscillator['frequency'];
+        freqParam['value'] = 440;
         final gain = ctx.callMethod('createGain', []);
         final gainNode = gain.callMethod('gain', []);
         gainNode['value'] = 0.3;

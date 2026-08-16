@@ -364,6 +364,7 @@ class _NotificationSettingsState extends State<_NotificationSettings> {
               const SizedBox(height: 16),
               OutlinedButton.icon(
                 onPressed: () {
+                  _notifications.ensureAudio();
                   final msg = _notifications.alertMessage(
                     'ChronoWarden ⏰',
                     'Test alert — you\'d be notified here!',
