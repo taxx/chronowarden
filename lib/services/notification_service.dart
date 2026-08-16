@@ -104,39 +104,35 @@ class NotificationService {
     return body;
   }
 
-  JsObject? _audioCtx;
   bool _audioInitialized = false;
 
-  /// Create a persistent AudioContext during a user gesture.
-  /// Tries AudioContext first, then webkitAudioContext for older browsers.
+  /// Register a JS beep function via eval (avoids all dart:js type issues).
   void ensureAudio() {
     if (_audioInitialized || !kIsWeb) return;
     try {
-      var audioCtxCtor = context['AudioContext'] as JsFunction?;
-      audioCtxCtor ??= context['webkitAudioContext'] as JsFunction?;
-      if (audioCtxCtor == null) return;
-      _audioCtx = JsObject(audioCtxCtor, []);
+      context.callMethod('eval', ['window._cwBeep = function(count) {'
+        'var ctx = new (window.AudioContext || window.webkitAudioContext)();'
+        'for (var i = 0; i < count; i++) {'
+          'var now = ctx.currentTime;'
+          'var osc = ctx.createOscillator();'
+          'osc.frequency.value = 440;'
+          'var gain = ctx.createGain();'
+          'gain.gain.value = 0.3;'
+          'osc.connect(gain);'
+          'gain.connect(ctx.destination);'
+          'osc.start(now + i * 0.5);'
+          'osc.stop(now + i * 0.5 + 0.3);'
+        '}'
+      '}']);
       _audioInitialized = true;
     } catch (_) {}
   }
 
-  /// Play a short beep using Web Audio API via dart:js (correct property access).
+  /// Play a short beep via the JS beep function.
   void playAlertSound({int count = 1}) {
     if (!_soundEnabled || !kIsWeb) return;
-    if (_audioCtx == null) return;
     try {
-      final ctx = _audioCtx!;
-      for (int i = 0; i < count; i++) {
-        final startTime = i * 0.5;
-        final osc = ctx.callMethod('createOscillator', []);
-        osc['frequency']['value'] = 440;
-        final gain = ctx.callMethod('createGain', []);
-        gain['gain']['value'] = 0.3;
-        osc.callMethod('connect', [gain]);
-        gain.callMethod('connect', [ctx['destination']]);
-        osc.callMethod('start', [startTime]);
-        osc.callMethod('stop', [startTime + 0.3]);
-      }
+      context.callMethod('eval', ['window._cwBeep($count)']);
     } catch (_) {}
   }
 
