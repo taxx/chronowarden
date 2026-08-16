@@ -364,12 +364,20 @@ class _NotificationSettingsState extends State<_NotificationSettings> {
               const SizedBox(height: 16),
               OutlinedButton.icon(
                 onPressed: () {
-                  _notifications.showNotification(
+                  final msg = _notifications.alertMessage(
                     'ChronoWarden ⏰',
-                    'Test notification — you\'d be alerted here!',
+                    'Test alert — you\'d be notified here!',
                     isUrgent: true,
                   );
-                  _notifications.playAlertSound(count: 3);
+                  if (msg.isNotEmpty && context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(msg),
+                        duration: const Duration(seconds: 5),
+                        behavior: SnackBarBehavior.floating,
+                      ),
+                    );
+                  }
                 },
                 icon: const Icon(Icons.send_outlined, size: 18),
                 label: const Text('Send test'),

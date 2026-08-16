@@ -77,11 +77,19 @@ class _MyDayTabState extends State<MyDayTab> with SingleTickerProviderStateMixin
       final h = remaining.inHours;
       final m = remaining.inMinutes % 60;
       final timeStr = h > 0 ? '${h}h ${m}m' : '$m min';
-      _notifications.showNotification(
+      final msg = _notifications.alertMessage(
         'ChronoWarden ⏰',
         '⏰ $timeStr left — wrap up and head out!',
       );
-      _notifications.playAlertSound(count: 1);
+      if (msg.isNotEmpty && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(msg),
+            duration: const Duration(seconds: 10),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
       _notifications.markNotified(dateStr);
       return;
     }
@@ -91,12 +99,20 @@ class _MyDayTabState extends State<MyDayTab> with SingleTickerProviderStateMixin
     // but haven't stopped the day yet.
     if (remaining.isNegative && remaining.inMinutes.abs() <= 60) {
       final over = remaining.inMinutes.abs();
-      _notifications.showNotification(
+      final msg = _notifications.alertMessage(
         'ChronoWarden 🚨',
         '🚨 $over min past your time — finish up and stop the day!',
         isUrgent: true,
       );
-      _notifications.playAlertSound(count: 3);
+      if (msg.isNotEmpty && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(msg),
+            duration: const Duration(seconds: 10),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
       _notifications.markNotified(dateStr);
     }
   }
