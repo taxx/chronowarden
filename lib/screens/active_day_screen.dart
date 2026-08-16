@@ -45,8 +45,8 @@ class _ActiveDayScreenState extends State<ActiveDayScreen> with SingleTickerProv
   /// Check if we should fire a notification.
   /// Two-phase: wrap-up alert before leave, over-time alert after leave.
   void _checkNotification() {
-    // DEBUG: always set message on first call so we can verify banner works
-    _alertMessage ??= 'DEBUG: ticker is running';
+    // DEBUG: show current state
+    _alertMessage ??= 'DEBUG: log=${_state.todayLog != null}, end=${_state.todayLog?.endTime != null}, enabled=${_notifications.enabled}, notified=${_state.todayLog != null ? _notifications.wasNotifiedToday(_state.todayLog!.date) : 'N/A'}, threshold=${_notifications.thresholdMinutes}';
 
     final log = _state.todayLog;
     if (log == null || log.endTime != null) return;
