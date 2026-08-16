@@ -26,7 +26,6 @@ class NotificationService {
   bool _soundEnabled = true;
   bool _vibrateEnabled = true;
   String? _lastNotifiedDate;
-  bool _audioInitialized = false;
 
   bool get enabled => _enabled;
   int get thresholdMinutes => _thresholdMinutes;
@@ -51,6 +50,8 @@ class NotificationService {
       _requestPermissionIfNeeded();
       ensureAudio();
     }
+    // Reset notified state on toggle so alerts can fire fresh
+    _lastNotifiedDate = null;
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_kEnabledKey, value);
   }
@@ -102,36 +103,37 @@ class NotificationService {
     return body;
   }
 
-  /// Register a tiny JS helper for audio beeps (pure JS, no dart:js type issues).
+  JsObject? _audioCtx;
+  bool _audioInitialized = false;
+
+  /// Create a persistent AudioContext during a user gesture.
   void ensureAudio() {
     if (_audioInitialized || !kIsWeb) return;
     try {
-      context.callMethod('eval', ['window._beep = function(count) {'
-        'var ctx = new AudioContext();'
-        'ctx.resume();'
-        'for (var i = 0; i < count; i++) {'
-          'var now = ctx.currentTime;'
-          'var osc = ctx.createOscillator();'
-          'osc.frequency.value = 440;'
-          'var gain = ctx.createGain();'
-          'gain.gain.value = 0.3;'
-          'osc.connect(gain);'
-          'gain.connect(ctx.destination);'
-          'osc.start(now + i * 0.5);'
-          'osc.stop(now + i * 0.5 + 0.3);'
-        '}'
-      '}']);
+      final audioCtxCtor = context['AudioContext'] as JsFunction?;
+      if (audioCtxCtor == null) return;
+      _audioCtx = JsObject(audioCtxCtor, []);
       _audioInitialized = true;
     } catch (_) {}
   }
 
-  /// Play a short beep via the JS helper.
+  /// Play a short beep using Web Audio API via dart:js (correct property access).
   void playAlertSound({int count = 1}) {
     if (!_soundEnabled || !kIsWeb) return;
+    if (_audioCtx == null) return;
     try {
-      final beep = context['_beep'] as JsFunction?;
-      if (beep == null) return;
-      beep.apply([count]);
+      final ctx = _audioCtx!;
+      for (int i = 0; i < count; i++) {
+        final startTime = i * 0.5;
+        final osc = ctx.callMethod('createOscillator', []);
+        osc['frequency']['value'] = 440;
+        final gain = ctx.callMethod('createGain', []);
+        gain['gain']['value'] = 0.3;
+        osc.callMethod('connect', [gain]);
+        gain.callMethod('connect', [ctx['destination']]);
+        osc.callMethod('start', [startTime]);
+        osc.callMethod('stop', [startTime + 0.3]);
+      }
     } catch (_) {}
   }
 
