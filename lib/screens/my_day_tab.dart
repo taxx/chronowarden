@@ -23,12 +23,7 @@ class _MyDayTabState extends State<MyDayTab> with SingleTickerProviderStateMixin
   @override
   void initState() {
     super.initState();
-    _initTicker();
-  }
-
-  Future<void> _initTicker() async {
-    await _notifications.init();
-    if (!mounted) return;
+    _notifications.init(); // fire-and-forget; _enabled stays false until ready
     _ticker = Timer.periodic(const Duration(seconds: 1), (_) {
       if (mounted) {
         _checkNotification();
@@ -70,6 +65,9 @@ class _MyDayTabState extends State<MyDayTab> with SingleTickerProviderStateMixin
   /// Check if we should fire a notification.
   /// Two-phase: wrap-up alert before leave, over-time alert after leave.
   void _checkNotification() {
+    // DEBUG: always set message on first call so we can verify banner works
+    _alertMessage ??= 'DEBUG: ticker is running';
+
     final log = _state.todayLog;
     if (log == null || log.endTime != null) return;
     if (!_notifications.enabled) return;
@@ -107,10 +105,6 @@ class _MyDayTabState extends State<MyDayTab> with SingleTickerProviderStateMixin
       _alertMessage = msg;
       _notifications.markNotified(dateStr);
     }
-
-    // DEBUG: always set message on first call so we can verify banner works
-    _alertMessage ??= 'DEBUG: _checkNotification() is running — remaining=${
-        remaining.inMinutes}min, threshold=$threshold';
   }
 
   Widget _buildBalanceCard(ThemeData theme) {
