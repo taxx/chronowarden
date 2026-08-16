@@ -42,7 +42,10 @@ class NotificationService {
     _soundEnabled = prefs.getBool(_kSoundKey) ?? true;
     _vibrateEnabled = prefs.getBool(_kVibrateKey) ?? true;
     _lastNotifiedDate = prefs.getString('notified_date');
-    if (kIsWeb) _checkExistingPermission();
+    if (kIsWeb) {
+      _checkExistingPermission();
+      _registerJsHelper();
+    }
   }
 
   /// Enable or disable notifications.
@@ -98,31 +101,35 @@ class NotificationService {
 
   // -- Show notification ----------------------------------------------------
 
-  /// Show a browser notification via dart:js (supports all options).
+  /// Show a browser notification via a registered JS helper.
+  /// The helper `window._notify` is registered during init() so we avoid
+  /// any dart:html / dart:js wrapper issues with the Notification constructor.
   bool showNotification(String title, String body, {bool isUrgent = false}) {
     if (!_enabled || !kIsWeb) return false;
     try {
-      final constructor = context['Notification'] as JsFunction?;
-      if (constructor == null) return false;
       final opts = <String, dynamic>{
         'body': body,
         'icon': 'icons/Icon-192.png',
         'tag': 'chronowarden-leave',
         'renotify': true,
       };
-      if (isUrgent) {
-        opts['requireInteraction'] = true;
-      }
-      if (_vibrateEnabled) {
-        opts['vibrate'] = [200, 100, 200];
-      }
+      if (isUrgent) opts['requireInteraction'] = true;
+      if (_vibrateEnabled) opts['vibrate'] = [200, 100, 200];
       final options = JsObject.jsify(opts);
-      // Use apply() to call the constructor with thisArg: null
-      constructor.apply([title, options], thisArg: null);
+      final helper = context['_notify'] as JsFunction?;
+      if (helper == null) return false;
+      helper.apply([title, options], thisArg: null);
       return true;
     } catch (_) {
       return false;
     }
+  }
+
+  /// Register a tiny JS helper so we can call `new Notification()` cleanly.
+  void _registerJsHelper() {
+    try {
+      context.callMethod('eval', ['window._notify = function(t, o) { new Notification(t, o); }']);
+    } catch (_) {}
   }
 
   // -- Audio alert (Web Audio API via dart:js) --------------------------------
