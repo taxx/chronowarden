@@ -26,7 +26,6 @@ class NotificationService {
   bool _soundEnabled = true;
   bool _vibrateEnabled = true;
   String? _lastNotifiedDate;
-  JsObject? _audioCtx;
   bool _audioInitialized = false;
 
   bool get enabled => _enabled;
@@ -102,38 +101,34 @@ class NotificationService {
     return body;
   }
 
-  /// Initialize the Web Audio context during a user gesture.
-  /// Must be called from a button press or switch toggle to satisfy browser
-  /// autoplay policy (AudioContext creation is blocked outside gestures).
+  /// Register a tiny JS helper for audio beeps (pure JS, no dart:js type issues).
   void ensureAudio() {
     if (_audioInitialized || !kIsWeb) return;
     try {
-      final audioCtxCtor = context['AudioContext'] as JsFunction?;
-      if (audioCtxCtor == null) return;
-      _audioCtx = JsObject(audioCtxCtor, []);
+      context.callMethod('eval', ['window._beep = function(count) {'
+        'var ctx = new AudioContext();'
+        'for (var i = 0; i < count; i++) {'
+          'var osc = ctx.createOscillator();'
+          'osc.frequency.value = 440;'
+          'var gain = ctx.createGain();'
+          'gain.gain.value = 0.3;'
+          'osc.connect(gain);'
+          'gain.connect(ctx.destination);'
+          'osc.start(i * 0.5);'
+          'osc.stop(i * 0.5 + 0.3);'
+        '}'
+      '}']);
       _audioInitialized = true;
     } catch (_) {}
   }
 
-  /// Play a short beep using the Web Audio API.
+  /// Play a short beep via the JS helper.
   void playAlertSound({int count = 1}) {
     if (!_soundEnabled || !kIsWeb) return;
-    if (_audioCtx == null) return;
     try {
-      final ctx = _audioCtx!;
-      for (int i = 0; i < count; i++) {
-        final startTime = i * 0.5;
-        final oscillator = ctx.callMethod('createOscillator', []);
-        final freqParam = oscillator['frequency'];
-        freqParam['value'] = 440;
-        final gain = ctx.callMethod('createGain', []);
-        final gainNode = gain.callMethod('gain', []);
-        gainNode['value'] = 0.3;
-        oscillator.callMethod('connect', [gain]);
-        gain.callMethod('connect', [ctx['destination']]);
-        oscillator.callMethod('start', [startTime]);
-        oscillator.callMethod('stop', [startTime + 0.3]);
-      }
+      final beep = context['_beep'] as JsFunction?;
+      if (beep == null) return;
+      beep.apply([count]);
     } catch (_) {}
   }
 
