@@ -65,9 +65,6 @@ class _MyDayTabState extends State<MyDayTab> with SingleTickerProviderStateMixin
   /// Check if we should fire a notification.
   /// Two-phase: wrap-up alert before leave, over-time alert after leave.
   void _checkNotification() {
-    // DEBUG: show current state
-    _alertMessage ??= 'DEBUG: log=${_state.todayLog != null}, end=${_state.todayLog?.endTime != null}, enabled=${_notifications.enabled}, notified=${_state.todayLog != null ? _notifications.wasNotifiedToday(_state.todayLog!.date) : 'N/A'}, threshold=${_notifications.thresholdMinutes}';
-
     final log = _state.todayLog;
     if (log == null || log.endTime != null) return;
     if (!_notifications.enabled) return;

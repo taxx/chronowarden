@@ -106,7 +106,7 @@ class NotificationService {
 
   bool _audioInitialized = false;
 
-  /// Register a JS beep function via eval (avoids all dart:js type issues).
+  /// Register a JS beep function via eval.
   void ensureAudio() {
     if (_audioInitialized || !kIsWeb) return;
     try {

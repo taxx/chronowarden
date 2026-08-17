@@ -365,16 +365,16 @@ class _NotificationSettingsState extends State<_NotificationSettings> {
               OutlinedButton.icon(
                 onPressed: () {
                   _notifications.ensureAudio();
-                  final msg = _notifications.alertMessage(
+                  _notifications.alertMessage(
                     'ChronoWarden ⏰',
                     'Test alert — you\'d be notified here!',
                     isUrgent: true,
                   );
-                  if (msg.isNotEmpty && context.mounted) {
+                  if (context.mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
-                        content: Text(msg),
-                        duration: const Duration(seconds: 5),
+                        content: const Text('Test alert fired — check for sound & vibration'),
+                        duration: const Duration(seconds: 3),
                         behavior: SnackBarBehavior.floating,
                       ),
                     );
