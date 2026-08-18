@@ -4,6 +4,7 @@ import '../app_state.dart';
 import '../models/travel_preset.dart';
 import '../models/work_period_setting.dart';
 import '../services/notification_service.dart';
+import '../utils/csv_export.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -66,6 +67,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
         ),
         const SizedBox(height: 24),
         _NotificationSettings(),
+        const SizedBox(height: 24),
+        _ExportSection(),
       ],
     );
   }
@@ -516,6 +519,59 @@ class _Section<T> extends StatelessWidget {
           label: Text('Add ${title.split(' ').first.toLowerCase()}'),
         ),
       ],
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Export section
+// ---------------------------------------------------------------------------
+
+class _ExportSection extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    final state = AppState();
+    final theme = Theme.of(context);
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.download_outlined, color: theme.colorScheme.primary),
+                const SizedBox(width: 12),
+                Expanded(child: Text('Export / Import', style: theme.textTheme.titleLarge)),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Download all your time logs as CSV (compatible with the import feature).',
+              style: theme.textTheme.bodySmall,
+            ),
+            const SizedBox(height: 12),
+            OutlinedButton.icon(
+              onPressed: () {
+                final csv = timeLogsToCsv(state.allLogs);
+                final dateStr = DateTime.now().toIso8601String().split('T').first;
+                downloadCsv(csv, 'chronowarden_export_$dateStr.csv');
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Exported ${state.allLogs.length} logs'),
+                      duration: const Duration(seconds: 3),
+                      behavior: SnackBarBehavior.floating,
+                    ),
+                  );
+                }
+              },
+              icon: const Icon(Icons.file_download_outlined, size: 18),
+              label: const Text('Export CSV'),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

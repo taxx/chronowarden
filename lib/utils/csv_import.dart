@@ -4,7 +4,7 @@
 library;
 ///
 /// ```
-/// date,start_time,end_time,expected_minutes,overhead_minutes,lunch_minutes,note
+/// date,start_time,end_time,expected_minutes,overhead_minutes,lunch_minutes,productive_commute_minutes,note
 /// ```
 ///
 /// ### Column reference
@@ -17,6 +17,7 @@ library;
 /// | `expected_minutes` | integer  | ✅       | Contractual work minutes (e.g. 480 for 8h)      |
 /// | `overhead_minutes` | integer  | ✅       | Commute / prep overhead minutes                 |
 /// | `lunch_minutes`    | integer  | —       | Unpaid lunch break duration (default = 0)       |
+/// | `productive_commute_minutes` | integer | —       | Minutes worked during commute (train work)     |
 /// | `note`             | string   | —       | Optional free-text note                         |
 ///
 /// ### Example
@@ -39,7 +40,7 @@ library;
 /// commas allowed for empty optional fields). Whitespace is stripped.
 ///
 /// ```
-/// date,start,end,expected_min,overhead_min,lunch_min,note
+/// date,start,end,expected_min,overhead_min,lunch_min,prod_commute_min,note
 /// ```
 ///
 /// **Rules:**
@@ -150,7 +151,8 @@ _RowResult _parseRow(String line, String? userId, Set<String> existingDates) {
   final expectedStr = fields.length > 3 ? fields[3].trim() : '';
   final overheadStr = fields.length > 4 ? fields[4].trim() : '';
   final lunchStr = fields.length > 5 ? fields[5].trim() : '';
-  final note = fields.length > 6 ? fields[6].trim() : '';
+  final commuteStr = fields.length > 6 ? fields[6].trim() : '';
+  final note = fields.length > 7 ? fields[7].trim() : '';
 
   // Validate date format
   if (date.isEmpty) return _RowResult(error: 'Date is empty');
@@ -195,7 +197,7 @@ _RowResult _parseRow(String line, String? userId, Set<String> existingDates) {
     overheadMinutes: overhead,
     lunchMinutes: lunch,
     overtimeMinutes: 0, // recalculated on insert
-    productiveCommuteMinutes: 0, // CSV import doesn't support this yet
+    productiveCommuteMinutes: _parseInt(commuteStr, 'productive_commute_minutes') ?? 0,
     note: note.isEmpty ? null : note,
   );
 
