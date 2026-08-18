@@ -1264,7 +1264,7 @@ class _TimeBankChart extends StatelessWidget {
             Text('Time Bank', style: theme.textTheme.titleMedium),
             const SizedBox(height: 4),
             SizedBox(
-              height: 160,
+              height: 220,
               child: CustomPaint(painter: _ChartPainter(
                 balances: data.balances,
                 labels: data.labels,
@@ -1433,7 +1433,7 @@ class _ChartPainter extends CustomPainter {
     final min = balances.reduce((a, b) => a < b ? a : b).toDouble();
     final range = (max - min).clamp(1.0, double.infinity);
 
-    const pad = 20.0;
+    const pad = 12.0;
     final graphWidth = size.width - pad * 2;
     final graphHeight = size.height - pad * 2;
     final stepX = graphWidth / (balances.length - 1).clamp(1, double.infinity);
