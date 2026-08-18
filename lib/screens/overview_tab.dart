@@ -1256,15 +1256,28 @@ class _TimeBankChart extends StatelessWidget {
     if (data.balances.isEmpty) return const SizedBox.shrink();
 
     return Card(
+      margin: const EdgeInsets.symmetric(vertical: 4),
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Time Bank', style: theme.textTheme.titleMedium),
-            const SizedBox(height: 4),
+            Row(
+              children: [
+                Icon(Icons.trending_up, size: 20, color: theme.colorScheme.primary),
+                const SizedBox(width: 8),
+                Text('Time Bank', style: theme.textTheme.titleMedium),
+              ],
+            ),
+            const SizedBox(height: 2),
+            Text(
+              'Running overtime balance — positive means you\'ve earned time back.',
+              style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+            ),
+            const SizedBox(height: 8),
             SizedBox(
-              height: 220,
+              height: 260,
+              width: double.infinity,
               child: CustomPaint(painter: _ChartPainter(
                 balances: data.balances,
                 labels: data.labels,
@@ -1283,31 +1296,50 @@ class _TimeBankChart extends StatelessWidget {
 
   Widget _balanceLabel(ThemeData theme, _ChartData data) {
     final balance = data.balances.last;
+    if (data.balances.isEmpty) return const SizedBox.shrink();
+    final first = data.balances.first;
+    final change = balance - first;
     final sign = balance >= 0 ? '+' : '';
     final h = balance.abs() ~/ 60;
     final m = balance.abs() % 60;
     final timeStr = h > 0 ? '${h}h ${m}m' : '$m min';
     final color = balance >= 0 ? theme.colorScheme.primary : theme.colorScheme.error;
-    return Row(
+    final changeSign = change >= 0 ? '+' : '';
+    final changeH = change.abs() ~/ 60;
+    final changeM = change.abs() % 60;
+    final changeStr = changeH > 0 ? '${changeH}h ${changeM}m' : '$changeM min';
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('End balance: ', style: theme.textTheme.bodySmall),
-        Text(
-          '$sign$timeStr',
-          style: theme.textTheme.titleSmall?.copyWith(
-            fontWeight: FontWeight.bold,
-            color: color,
-          ),
+        Row(
+          children: [
+            Text('Balance: ', style: theme.textTheme.bodyMedium),
+            Text(
+              '$sign$timeStr',
+              style: theme.textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.bold,
+                color: color,
+              ),
+            ),
+          ],
         ),
-        if (balance >= 0)
-          Padding(
-            padding: const EdgeInsets.only(left: 4),
-            child: Icon(Icons.trending_up, size: 16, color: color),
-          )
-        else
-          Padding(
-            padding: const EdgeInsets.only(left: 4),
-            child: Icon(Icons.trending_down, size: 16, color: color),
-          ),
+        Row(
+          children: [
+            Text('Change: ', style: theme.textTheme.bodySmall),
+            Text(
+              '$changeSign$changeStr',
+              style: theme.textTheme.bodySmall?.copyWith(
+                fontWeight: FontWeight.w600,
+                color: change >= 0 ? Colors.green : theme.colorScheme.error,
+              ),
+            ),
+            Icon(
+              change >= 0 ? Icons.trending_up : Icons.trending_down,
+              size: 16,
+              color: change >= 0 ? Colors.green : theme.colorScheme.error,
+            ),
+          ],
+        ),
       ],
     );
   }
@@ -1426,74 +1458,98 @@ class _ChartPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     if (balances.isEmpty) return;
 
-    final linePaint = Paint()..strokeWidth = 2;
+    final linePaint = Paint()..strokeWidth = 2.5;
     final fillPaint = Paint();
+    final dotPaint = Paint()..style = PaintingStyle.fill;
 
     final max = balances.reduce((a, b) => a > b ? a : b).toDouble();
     final min = balances.reduce((a, b) => a < b ? a : b).toDouble();
     final range = (max - min).clamp(1.0, double.infinity);
 
-    const pad = 12.0;
-    final graphWidth = size.width - pad * 2;
-    final graphHeight = size.height - pad * 2;
+    // Layout: left margin for Y-axis labels, right+bottom for X-axis labels
+    const leftPad = 44.0;
+    const bottomPad = 18.0;
+    const topPad = 8.0;
+    const rightPad = 12.0;
+
+    final graphWidth = size.width - leftPad - rightPad;
+    final graphHeight = size.height - topPad - bottomPad;
     final stepX = graphWidth / (balances.length - 1).clamp(1, double.infinity);
 
-    // Helper: map value to y coordinate
-    double yOf(double v) => pad + graphHeight - ((v - min) / range) * graphHeight;
+    double yOf(double v) => topPad + graphHeight - ((v - min) / range) * graphHeight;
 
-    // Draw grid lines
+    // ---- Y-axis labels (4 evenly spaced values + zero) ----
+    void drawYLabel(String text, double y) {
+      final tp = TextPainter(
+        text: TextSpan(text: text, style: TextStyle(fontSize: 10, color: gridColor)),
+        textDirection: TextDirection.ltr,
+      )..layout();
+      tp.paint(canvas, Offset(leftPad - tp.width - 4, y - tp.height / 2));
+    }
+
+    final mid = (min + max) / 2;
+    drawYLabel(_minLabel(max, min, max), topPad);
+    drawYLabel(_minLabel(max, min, mid), topPad + graphHeight / 2);
+    drawYLabel(_minLabel(max, min, min), topPad + graphHeight);
+
+    // ---- Zero label ----
+    final zeroY = yOf(0).clamp(topPad, size.height - bottomPad);
+    drawYLabel('0', zeroY);
+
+    // ---- Grid lines ----
     final gridPaint = Paint()
       ..color = gridColor
       ..strokeWidth = 0.5;
     for (int i = 0; i <= 4; i++) {
-      final y = pad + (graphHeight * i / 4);
-      canvas.drawLine(Offset(pad, y), Offset(size.width - pad, y), gridPaint);
+      final y = topPad + (graphHeight * i / 4);
+      canvas.drawLine(Offset(leftPad, y), Offset(size.width - rightPad, y), gridPaint);
     }
 
-    // Draw zero reference line
-    final zeroY = yOf(0).clamp(pad, size.height - pad);
+    // ---- Zero reference line ----
     canvas.drawLine(
-      Offset(pad, zeroY),
-      Offset(size.width - pad, zeroY),
-      Paint()..color = negativeColor.withValues(alpha: 0.3)..strokeWidth = 1,
+      Offset(leftPad, zeroY),
+      Offset(size.width - rightPad, zeroY),
+      Paint()..color = negativeColor.withValues(alpha: 0.35)..strokeWidth = 1.5,
     );
 
-    // Build data path + fill path
+    // ---- Data path + fill ----
     final path = Path();
     final fillPath = Path();
     final points = <Offset>[];
 
     for (int i = 0; i < balances.length; i++) {
-      final x = pad + i * stepX;
+      final x = leftPad + i * stepX;
       final y = yOf(balances[i].toDouble());
       points.add(Offset(x, y));
       if (i == 0) {
         path.moveTo(x, y);
-        fillPath.moveTo(x, pad + graphHeight);
+        fillPath.moveTo(x, topPad + graphHeight);
         fillPath.lineTo(x, y);
       } else {
         path.lineTo(x, y);
         fillPath.lineTo(x, y);
       }
     }
-    fillPath.lineTo(points.last.dx, pad + graphHeight);
+    fillPath.lineTo(points.last.dx, topPad + graphHeight);
     fillPath.close();
 
-    // Fill below line
+    // ---- Fill below line ----
     final isPos = balances.last >= 0;
     fillPaint.color = (isPos ? color : negativeColor).withValues(alpha: 0.15);
     canvas.drawPath(fillPath, fillPaint);
 
-    // Draw line
+    // ---- Line ----
     linePaint.color = isPos ? color : negativeColor;
+    linePaint.strokeCap = StrokeCap.round;
     canvas.drawPath(path, linePaint);
 
-    // Draw data points
+    // ---- Data points ----
+    dotPaint.color = linePaint.color;
     for (final pt in points) {
-      canvas.drawCircle(pt, 2.5, Paint()..color = linePaint.color..style = PaintingStyle.fill);
+      canvas.drawCircle(pt, 3, dotPaint);
     }
 
-    // Draw x-axis labels
+    // ---- X-axis labels ----
     for (int i = 0; i < labels.length; i++) {
       final label = labels[i];
       if (label.isEmpty) continue;
@@ -1501,9 +1557,21 @@ class _ChartPainter extends CustomPainter {
         text: TextSpan(text: label, style: TextStyle(fontSize: 10, color: gridColor)),
         textDirection: TextDirection.ltr,
       )..layout();
-      final x = (pad + i * stepX - tp.width / 2).clamp(pad, size.width - pad - tp.width);
-      tp.paint(canvas, Offset(x, size.height - pad + 4));
+      final x = (leftPad + i * stepX - tp.width / 2).clamp(leftPad, size.width - rightPad - tp.width);
+      tp.paint(canvas, Offset(x, size.height - bottomPad + 4));
     }
+  }
+
+  /// Format a value as hours/minutes for Y-axis labels.
+  String _minLabel(double max, double min, double v) {
+    final mins = v.round();
+    final sign = mins >= 0 ? '+' : '';
+    final abs = mins.abs();
+    final h = abs ~/ 60;
+    final m = abs % 60;
+    if (h == 0) return '$sign${m}min';
+    if (m == 0) return '$sign${h}h';
+    return '$sign${h}h${m}m';
   }
 
   @override
