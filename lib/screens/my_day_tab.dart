@@ -394,6 +394,7 @@ class _MyDayTabState extends State<MyDayTab> with SingleTickerProviderStateMixin
         expectedMinutes: result.expectedMinutes,
         overheadMinutes: result.overheadMinutes,
         lunchMinutes: result.lunchMinutes,
+        productiveCommuteMinutes: result.productiveCommuteMinutes,
       );
     }
   }
@@ -514,7 +515,8 @@ class _StartDayResult {
   final int expectedMinutes;
   final int overheadMinutes;
   final int lunchMinutes;
-  _StartDayResult(this.time, this.expectedMinutes, this.overheadMinutes, this.lunchMinutes);
+  final int productiveCommuteMinutes;
+  _StartDayResult(this.time, this.expectedMinutes, this.overheadMinutes, this.lunchMinutes, this.productiveCommuteMinutes);
 }
 
 class _StopDayResult {
@@ -686,7 +688,7 @@ class _StartDayDialogState extends State<_StartDayDialog> {
       actions: [
         TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
         FilledButton(
-          onPressed: () => Navigator.pop(context, _StartDayResult(_startTime, _expected, _overhead, _lunchMinutes)),
+          onPressed: () => Navigator.pop(context, _StartDayResult(_startTime, _expected, _overhead, _lunchMinutes, _productiveCommute)),
           child: const Text('Start'),
         ),
       ],
