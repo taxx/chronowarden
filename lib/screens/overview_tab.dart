@@ -165,7 +165,7 @@ class _PeriodTabState extends State<_PeriodTab> {
                         ),
                       ),
                     )
-                  : _buildContent(theme, filtered),
+                  : _buildContent(theme, filtered, _offsetDate()),
             ),
           ],
         );
@@ -247,7 +247,7 @@ class _PeriodTabState extends State<_PeriodTab> {
   // Content
   // ------------------------------------------------------------------
 
-  Widget _buildContent(ThemeData theme, List<TimeLog> filtered) {
+  Widget _buildContent(ThemeData theme, List<TimeLog> filtered, DateTime refDate) {
     final totalExpected = filtered.fold<int>(0, (sum, l) => sum + l.expectedMinutes);
     final totalOverhead = filtered.fold<int>(0, (sum, l) => sum + l.overheadMinutes);
     final totalActual = filtered.fold<int>(0, (sum, l) => sum + (l.endTime != null ? l.elapsed.inMinutes : 0));
@@ -275,6 +275,9 @@ class _PeriodTabState extends State<_PeriodTab> {
             isOvertime: true,
             valueMinutes: totalOvertime,
           ),
+          const SizedBox(height: 16),
+          // Time bank chart — running overtime balance
+          _TimeBankChart(logs: filtered, period: widget.period, refDate: refDate),
           const SizedBox(height: 16),
           // Calendar view depending on period
           _buildCalendar(theme, logByDate),
@@ -1229,4 +1232,280 @@ class _AddDayDialogState extends State<_AddDayDialog> {
       ],
     );
   }
+}
+
+// ---------------------------------------------------------------------------
+// Time Bank Chart — running overtime balance across a period
+// ---------------------------------------------------------------------------
+
+class _TimeBankChart extends StatelessWidget {
+  final List<TimeLog> logs;
+  final Period period;
+  final DateTime refDate;
+
+  const _TimeBankChart({
+    required this.logs,
+    required this.period,
+    required this.refDate,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final data = _buildData();
+    if (data.balances.isEmpty) return const SizedBox.shrink();
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Time Bank', style: theme.textTheme.titleMedium),
+            const SizedBox(height: 4),
+            SizedBox(
+              height: 160,
+              child: CustomPaint(painter: _ChartPainter(
+                balances: data.balances,
+                labels: data.labels,
+                color: theme.colorScheme.primary,
+                negativeColor: theme.colorScheme.error,
+                gridColor: theme.dividerColor,
+              )),
+            ),
+            const SizedBox(height: 8),
+            _balanceLabel(theme, data),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _balanceLabel(ThemeData theme, _ChartData data) {
+    final balance = data.balances.last;
+    final sign = balance >= 0 ? '+' : '';
+    final h = balance.abs() ~/ 60;
+    final m = balance.abs() % 60;
+    final timeStr = h > 0 ? '${h}h ${m}m' : '$m min';
+    final color = balance >= 0 ? theme.colorScheme.primary : theme.colorScheme.error;
+    return Row(
+      children: [
+        Text('End balance: ', style: theme.textTheme.bodySmall),
+        Text(
+          '$sign$timeStr',
+          style: theme.textTheme.titleSmall?.copyWith(
+            fontWeight: FontWeight.bold,
+            color: color,
+          ),
+        ),
+        if (balance >= 0)
+          Padding(
+            padding: const EdgeInsets.only(left: 4),
+            child: Icon(Icons.trending_up, size: 16, color: color),
+          )
+        else
+          Padding(
+            padding: const EdgeInsets.only(left: 4),
+            child: Icon(Icons.trending_down, size: 16, color: color),
+          ),
+      ],
+    );
+  }
+
+  _ChartData _buildData() {
+    final logByDate = <String, TimeLog>{};
+    for (final l in logs) {
+      logByDate[l.date] = l;
+    }
+
+    switch (period) {
+      case Period.week:
+        return _buildWeekData(logByDate);
+      case Period.month:
+        return _buildMonthData(logByDate);
+      case Period.year:
+        return _buildYearData(logByDate);
+    }
+  }
+
+  _ChartData _buildWeekData(Map<String, TimeLog> logByDate) {
+    final weekStart = refDate.subtract(Duration(days: refDate.weekday - 1));
+    const dayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    final balances = <int>[];
+    final labels = <String>[];
+    var cum = 0;
+
+    for (int i = 0; i < 7; i++) {
+      final day = weekStart.add(Duration(days: i));
+      final dateStr = _dateStr(day);
+      final log = logByDate[dateStr];
+      if (log != null && log.endTime != null) {
+        cum += log.overtimeMinutes;
+      }
+      balances.add(cum);
+      labels.add(dayNames[i]);
+    }
+
+    return _ChartData(balances: balances, labels: labels);
+  }
+
+  _ChartData _buildMonthData(Map<String, TimeLog> logByDate) {
+    final daysInMonth = DateTime(refDate.year, refDate.month + 1, 0).day;
+    final balances = <int>[];
+    final labels = <String>[];
+    var cum = 0;
+
+    for (int day = 1; day <= daysInMonth; day++) {
+      final date = DateTime(refDate.year, refDate.month, day);
+      final dateStr = _dateStr(date);
+      final log = logByDate[dateStr];
+      if (log != null && log.endTime != null) {
+        cum += log.overtimeMinutes;
+      }
+      balances.add(cum);
+      // Label every 5th day or first/last
+      if (day == 1 || day == daysInMonth || day % 5 == 0) {
+        labels.add('$day');
+      } else {
+        labels.add('');
+      }
+    }
+
+    return _ChartData(balances: balances, labels: labels);
+  }
+
+  _ChartData _buildYearData(Map<String, TimeLog> logByDate) {
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+                    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    final balances = <int>[];
+    final labels = <String>[];
+    var cum = 0;
+
+    for (int i = 0; i < 12; i++) {
+      final monthStr = '${refDate.year}-${(i+1).toString().padLeft(2, '0')}';
+      final logsThisMonth = logByDate.entries
+          .where((e) => e.key.startsWith(monthStr))
+          .map((e) => e.value)
+          .toList();
+      final monthOt = logsThisMonth.fold<int>(0, (s, l) => s + l.overtimeMinutes);
+      cum += monthOt;
+      balances.add(cum);
+      labels.add(months[i]);
+    }
+
+    return _ChartData(balances: balances, labels: labels);
+  }
+}
+
+class _ChartData {
+  final List<int> balances;
+  final List<String> labels;
+  const _ChartData({required this.balances, required this.labels});
+}
+
+// ---------------------------------------------------------------------------
+// CustomPainter for the time bank line chart
+// ---------------------------------------------------------------------------
+
+class _ChartPainter extends CustomPainter {
+  final List<int> balances;
+  final List<String> labels;
+  final Color color;
+  final Color negativeColor;
+  final Color gridColor;
+
+  _ChartPainter({
+    required this.balances,
+    required this.labels,
+    required this.color,
+    required this.negativeColor,
+    required this.gridColor,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (balances.isEmpty) return;
+
+    final linePaint = Paint()..strokeWidth = 2;
+    final fillPaint = Paint();
+
+    final max = balances.reduce((a, b) => a > b ? a : b).toDouble();
+    final min = balances.reduce((a, b) => a < b ? a : b).toDouble();
+    final range = (max - min).clamp(1.0, double.infinity);
+
+    const pad = 20.0;
+    final graphWidth = size.width - pad * 2;
+    final graphHeight = size.height - pad * 2;
+    final stepX = graphWidth / (balances.length - 1).clamp(1, double.infinity);
+
+    // Helper: map value to y coordinate
+    double yOf(double v) => pad + graphHeight - ((v - min) / range) * graphHeight;
+
+    // Draw grid lines
+    final gridPaint = Paint()
+      ..color = gridColor
+      ..strokeWidth = 0.5;
+    for (int i = 0; i <= 4; i++) {
+      final y = pad + (graphHeight * i / 4);
+      canvas.drawLine(Offset(pad, y), Offset(size.width - pad, y), gridPaint);
+    }
+
+    // Draw zero reference line
+    final zeroY = yOf(0).clamp(pad, size.height - pad);
+    canvas.drawLine(
+      Offset(pad, zeroY),
+      Offset(size.width - pad, zeroY),
+      Paint()..color = negativeColor.withValues(alpha: 0.3)..strokeWidth = 1,
+    );
+
+    // Build data path + fill path
+    final path = Path();
+    final fillPath = Path();
+    final points = <Offset>[];
+
+    for (int i = 0; i < balances.length; i++) {
+      final x = pad + i * stepX;
+      final y = yOf(balances[i].toDouble());
+      points.add(Offset(x, y));
+      if (i == 0) {
+        path.moveTo(x, y);
+        fillPath.moveTo(x, pad + graphHeight);
+        fillPath.lineTo(x, y);
+      } else {
+        path.lineTo(x, y);
+        fillPath.lineTo(x, y);
+      }
+    }
+    fillPath.lineTo(points.last.dx, pad + graphHeight);
+    fillPath.close();
+
+    // Fill below line
+    final isPos = balances.last >= 0;
+    fillPaint.color = (isPos ? color : negativeColor).withValues(alpha: 0.15);
+    canvas.drawPath(fillPath, fillPaint);
+
+    // Draw line
+    linePaint.color = isPos ? color : negativeColor;
+    canvas.drawPath(path, linePaint);
+
+    // Draw data points
+    for (final pt in points) {
+      canvas.drawCircle(pt, 2.5, Paint()..color = linePaint.color..style = PaintingStyle.fill);
+    }
+
+    // Draw x-axis labels
+    for (int i = 0; i < labels.length; i++) {
+      final label = labels[i];
+      if (label.isEmpty) continue;
+      final tp = TextPainter(
+        text: TextSpan(text: label, style: TextStyle(fontSize: 10, color: gridColor)),
+        textDirection: TextDirection.ltr,
+      )..layout();
+      final x = (pad + i * stepX - tp.width / 2).clamp(pad, size.width - pad - tp.width);
+      tp.paint(canvas, Offset(x, size.height - pad + 4));
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _ChartPainter oldDelegate) => true;
 }
