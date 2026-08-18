@@ -238,7 +238,9 @@ class _MyDayTabState extends State<MyDayTab> with SingleTickerProviderStateMixin
             const SizedBox(height: 24),
             _statRow(theme, 'Expected', '${log.expectedMinutes} min work'),
             _statRow(theme, 'Overhead', '${log.overheadMinutes} min buffer'),
-            _statRow(theme, 'Total', '${log.expectedMinutes + log.overheadMinutes} min'),
+            if (log.productiveCommuteMinutes > 0)
+              _statRow(theme, 'Productive commute', '${log.productiveCommuteMinutes} min train work'),
+            _statRow(theme, 'Total', '${log.expectedMinutes + log.overheadMinutes + log.productiveCommuteMinutes} min'),
             InkWell(
               onTap: () => _showEditLunchDialog(context, lunch),
               borderRadius: BorderRadius.circular(8),
