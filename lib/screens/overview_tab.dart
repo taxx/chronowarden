@@ -1281,8 +1281,8 @@ class _TimeBankChart extends StatelessWidget {
               child: CustomPaint(painter: _ChartPainter(
                 balances: data.balances,
                 labels: data.labels,
-                color: theme.colorScheme.primary,
-                negativeColor: theme.colorScheme.error,
+                greenColor: Colors.green.shade700,
+                redColor: Colors.red.shade700,
                 gridColor: theme.dividerColor,
               )),
             ),
@@ -1330,13 +1330,13 @@ class _TimeBankChart extends StatelessWidget {
               '$changeSign$changeStr',
               style: theme.textTheme.bodySmall?.copyWith(
                 fontWeight: FontWeight.w600,
-                color: change >= 0 ? Colors.green : theme.colorScheme.error,
+                color: change >= 0 ? Colors.red.shade700 : Colors.green.shade700,
               ),
             ),
             Icon(
               change >= 0 ? Icons.trending_up : Icons.trending_down,
               size: 16,
-              color: change >= 0 ? Colors.green : theme.colorScheme.error,
+              color: change >= 0 ? Colors.red.shade700 : Colors.green.shade700,
             ),
           ],
         ),
@@ -1442,15 +1442,15 @@ class _ChartData {
 class _ChartPainter extends CustomPainter {
   final List<int> balances;
   final List<String> labels;
-  final Color color;
-  final Color negativeColor;
+  final Color greenColor;
+  final Color redColor;
   final Color gridColor;
 
   _ChartPainter({
     required this.balances,
     required this.labels,
-    required this.color,
-    required this.negativeColor,
+    required this.greenColor,
+    required this.redColor,
     required this.gridColor,
   });
 
@@ -1509,7 +1509,7 @@ class _ChartPainter extends CustomPainter {
     canvas.drawLine(
       Offset(leftPad, zeroY),
       Offset(size.width - rightPad, zeroY),
-      Paint()..color = negativeColor.withValues(alpha: 0.35)..strokeWidth = 1.5,
+      Paint()..color = redColor.withValues(alpha: 0.35)..strokeWidth = 1.5,
     );
 
     // ---- Data path + fill ----
@@ -1534,17 +1534,20 @@ class _ChartPainter extends CustomPainter {
     fillPath.close();
 
     // ---- Fill below line ----
-    final isPos = balances.last >= 0;
-    fillPaint.color = (isPos ? color : negativeColor).withValues(alpha: 0.15);
+    final startBalance = balances.first;
+    final endBalance = balances.last;
+    final isImproving = endBalance <= startBalance;
+    final lineColor = isImproving ? greenColor : redColor;
+    fillPaint.color = lineColor.withValues(alpha: 0.15);
     canvas.drawPath(fillPath, fillPaint);
 
     // ---- Line ----
-    linePaint.color = isPos ? color : negativeColor;
+    linePaint.color = lineColor;
     linePaint.strokeCap = StrokeCap.round;
     canvas.drawPath(path, linePaint);
 
     // ---- Data points ----
-    dotPaint.color = linePaint.color;
+    dotPaint.color = lineColor;
     for (final pt in points) {
       canvas.drawCircle(pt, 3, dotPaint);
     }
