@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../app_state.dart';
 import '../models/time_log.dart';
+import '../services/preferences_service.dart';
 
 /// Aggregated overview: week / month / year summaries with period navigation.
 class OverviewTab extends StatefulWidget {
@@ -333,7 +334,7 @@ class _PeriodTabState extends State<_PeriodTab> {
 
   // -- Add day dialog for past empty days ---------------------------
 
-  void _showAddDayDialog(DateTime date) {
+  Future<void> _showAddDayDialog(DateTime date) async {
     final state = _state;
     if (state.workPeriods.isEmpty || state.travelPresets.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -342,6 +343,10 @@ class _PeriodTabState extends State<_PeriodTab> {
       return;
     }
 
+    final prefs = PreferencesService();
+    final lastPeriodId = await prefs.getLastWorkPeriodId();
+    final lastPresetId = await prefs.getLastTravelPresetId();
+
     showDialog<_AddDayResult>(
       context: context,
       builder: (_) => _AddDayDialog(
@@ -349,6 +354,8 @@ class _PeriodTabState extends State<_PeriodTab> {
         expectedMinutes: state.activePeriod?.expectedMinutes ?? 480,
         workPeriods: state.workPeriods,
         travelPresets: state.travelPresets,
+        initialPeriodId: lastPeriodId,
+        initialPresetId: lastPresetId,
       ),
     ).then((result) {
       if (result == null) return;
@@ -369,6 +376,8 @@ class _PeriodTabState extends State<_PeriodTab> {
         note: result.note,
       ).then((_) {
         // Refresh was triggered by addDay — no extra work needed.
+        prefs.setLastWorkPeriodId(result.periodId);
+        prefs.setLastTravelPresetId(result.presetId);
       }).catchError((e) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -872,6 +881,8 @@ class _EditDayDialogState extends State<_EditDayDialog> {
   }
 
 
+
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -1032,6 +1043,8 @@ class _AddDayResult {
   final int eveningOverheadMinutes;
   final int eveningProductiveCommuteMinutes;
   final String? note;
+  final String? periodId;
+  final String? presetId;
   _AddDayResult({
     required this.date,
     required this.startTime,
@@ -1043,6 +1056,8 @@ class _AddDayResult {
     required this.eveningOverheadMinutes,
     required this.eveningProductiveCommuteMinutes,
     this.note,
+    this.periodId,
+    this.presetId,
   });
 }
 
@@ -1051,12 +1066,16 @@ class _AddDayDialog extends StatefulWidget {
   final int expectedMinutes;
   final List<dynamic> workPeriods;
   final List<dynamic> travelPresets;
+  final String? initialPeriodId;
+  final String? initialPresetId;
 
   const _AddDayDialog({
     required this.initialDate,
     required this.expectedMinutes,
     required this.workPeriods,
     required this.travelPresets,
+    this.initialPeriodId,
+    this.initialPresetId,
   });
 
   @override
@@ -1084,8 +1103,8 @@ class _AddDayDialogState extends State<_AddDayDialog> {
     _date = widget.initialDate;
     _startTime = const TimeOfDay(hour: 8, minute: 0);
     _endTime = const TimeOfDay(hour: 16, minute: 0);
-    _selectedPeriod = _matchPeriod(widget.workPeriods, widget.expectedMinutes);
-    _selectedPreset = widget.travelPresets.first;
+    _selectedPeriod = _initialPeriod(widget.expectedMinutes);
+    _selectedPreset = _initialPreset();
   }
 
   static dynamic _matchPeriod(List<dynamic> periods, int mins) {
@@ -1093,6 +1112,27 @@ class _AddDayDialogState extends State<_AddDayDialog> {
       if (p.expectedMinutes == mins) return p;
     }
     return periods.first;
+  }
+
+  dynamic _initialPeriod(int expected) {
+    if (widget.initialPeriodId != null) {
+      for (final p in widget.workPeriods) {
+        if (p.id == widget.initialPeriodId) return p;
+      }
+    }
+    for (final p in widget.workPeriods) {
+      if (p.expectedMinutes == expected) return p;
+    }
+    return widget.workPeriods.first;
+  }
+
+  dynamic _initialPreset() {
+    if (widget.initialPresetId != null) {
+      for (final p in widget.travelPresets) {
+        if (p.id == widget.initialPresetId) return p;
+      }
+    }
+    return widget.travelPresets.first;
   }
 
 
@@ -1257,6 +1297,8 @@ class _AddDayDialogState extends State<_AddDayDialog> {
             eveningOverheadMinutes: _eveningOverhead,
             eveningProductiveCommuteMinutes: _eveningProductive,
             note: _note.isEmpty ? null : _note,
+            periodId: _selectedPeriod?.id,
+            presetId: _selectedPreset?.id,
           )),
           child: const Text('Add'),
         ),

@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 
 import '../app_state.dart';
 import '../services/notification_service.dart';
+import '../services/preferences_service.dart';
+import '../services/preferences_service.dart';
 
 /// The "My Day" content widget — shows today's time tracking.
 /// This is a standalone widget (no Scaffold) meant for use inside MainShell.
@@ -389,12 +391,19 @@ class _MyDayTabState extends State<MyDayTab> with SingleTickerProviderStateMixin
       return;
     }
 
+    // Load last-used preferences
+    final prefs = PreferencesService();
+    final lastPeriodId = await prefs.getLastWorkPeriodId();
+    final lastPresetId = await prefs.getLastTravelPresetId();
+
     final result = await showDialog<_StartDayResult>(
       context: ctx,
       builder: (_) => _StartDayDialog(
         expectedMinutes: state.activePeriod?.expectedMinutes ?? 480,
         travelPresets: state.travelPresets,
         workPeriods: state.workPeriods,
+        initialPeriodId: lastPeriodId,
+        initialPresetId: lastPresetId,
       ),
     );
 
@@ -409,6 +418,9 @@ class _MyDayTabState extends State<MyDayTab> with SingleTickerProviderStateMixin
         eveningOverheadMinutes: result.eveningOverheadMinutes,
         eveningProductiveCommuteMinutes: result.eveningProductiveCommuteMinutes,
       );
+      // Save last-used selections
+      await prefs.setLastWorkPeriodId(result.periodId);
+      await prefs.setLastTravelPresetId(result.presetId);
     }
   }
 
@@ -500,6 +512,10 @@ class _MyDayTabState extends State<MyDayTab> with SingleTickerProviderStateMixin
         note: result.note,
       );
       await state.editDay(editedLog);
+      // Save last-used selections from edit
+      final prefs = PreferencesService();
+      await prefs.setLastWorkPeriodId(result.periodId);
+      await prefs.setLastTravelPresetId(result.presetId);
     }
   }
 
@@ -581,6 +597,8 @@ class _StartDayResult {
   final int morningProductiveCommuteMinutes;
   final int eveningOverheadMinutes;
   final int eveningProductiveCommuteMinutes;
+  final String? periodId;
+  final String? presetId;
   _StartDayResult(
     this.time,
     this.expectedMinutes,
@@ -588,8 +606,10 @@ class _StartDayResult {
     this.morningOverheadMinutes,
     this.morningProductiveCommuteMinutes,
     this.eveningOverheadMinutes,
-    this.eveningProductiveCommuteMinutes,
-  );
+    this.eveningProductiveCommuteMinutes, {
+    this.periodId,
+    this.presetId,
+  });
 }
 
 class _StopDayResult {
@@ -606,11 +626,15 @@ class _StartDayDialog extends StatefulWidget {
   final int expectedMinutes;
   final List<dynamic> workPeriods;
   final List<dynamic> travelPresets;
+  final String? initialPeriodId;
+  final String? initialPresetId;
 
   const _StartDayDialog({
     required this.expectedMinutes,
     required this.workPeriods,
     required this.travelPresets,
+    this.initialPeriodId,
+    this.initialPresetId,
   });
 
   @override
@@ -633,15 +657,31 @@ class _StartDayDialogState extends State<_StartDayDialog> {
   void initState() {
     super.initState();
     _startTime = TimeOfDay.now();
-    _selectedPeriod = _pickPeriod(widget.expectedMinutes);
-    _selectedPreset = widget.travelPresets.first;
+    _selectedPeriod = _initialPeriod(widget.expectedMinutes);
+    _selectedPreset = _initialPreset();
   }
 
-  dynamic _pickPeriod(int expected) {
+  dynamic _initialPeriod(int expected) {
+    // Try last-used period first, then active period, then first
+    if (widget.initialPeriodId != null) {
+      for (final p in widget.workPeriods) {
+        if (p.id == widget.initialPeriodId) return p;
+      }
+    }
     for (final p in widget.workPeriods) {
       if (p.expectedMinutes == expected) return p;
     }
     return widget.workPeriods.first;
+  }
+
+  dynamic _initialPreset() {
+    // Try last-used preset first, then first
+    if (widget.initialPresetId != null) {
+      for (final p in widget.travelPresets) {
+        if (p.id == widget.initialPresetId) return p;
+      }
+    }
+    return widget.travelPresets.first;
   }
 
   /// When you're physically free to leave the office.
@@ -774,6 +814,8 @@ class _StartDayDialogState extends State<_StartDayDialog> {
             _morningProductive,
             _eveningOverhead,
             _eveningProductive,
+            periodId: _selectedPeriod?.id,
+            presetId: _selectedPreset?.id,
           )),
           child: const Text('Start'),
         ),
@@ -900,6 +942,8 @@ class _EditDayResult {
   final int eveningOverheadMinutes;
   final int eveningProductiveCommuteMinutes;
   final String? note;
+  final String? periodId;
+  final String? presetId;
   _EditDayResult({
     required this.startTime,
     required this.endTime,
@@ -910,6 +954,8 @@ class _EditDayResult {
     required this.eveningOverheadMinutes,
     required this.eveningProductiveCommuteMinutes,
     this.note,
+    this.periodId,
+    this.presetId,
   });
 }
 
@@ -1074,6 +1120,8 @@ class _EditDayDialogState extends State<_EditDayDialog> {
             eveningOverheadMinutes: _eveningOverhead,
             eveningProductiveCommuteMinutes: _eveningProductive,
             note: _note.isEmpty ? null : _note,
+            periodId: _selectedPeriod?.id,
+            presetId: _selectedPreset?.id,
           )),
           child: const Text('Save'),
         ),
