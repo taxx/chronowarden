@@ -1,9 +1,11 @@
+import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-/// Persists the user's last-selected work period and travel preset IDs
-/// so they are pre-selected the next time a day is started or added.
+/// Persists the user's last-selected work period and travel preset IDs,
+/// and other local preferences.
 ///
 /// Uses local device storage — no database calls.
+/// Exposes [ValueNotifier]s so UI can react to changes without polling.
 class PreferencesService {
   PreferencesService._();
   static final PreferencesService _instance = PreferencesService._();
@@ -12,6 +14,16 @@ class PreferencesService {
   static const _keyPeriodId = 'last_work_period_id';
   static const _keyPresetId = 'last_travel_preset_id';
   static const _keyShowWeekends = 'show_weekends';
+
+  // -- Reactive notifiers ---------------------------------------------------
+  final showWeekends = ValueNotifier<bool>(false);
+
+  Future<void> init() async {
+    final prefs = await SharedPreferences.getInstance();
+    showWeekends.value = prefs.getBool(_keyShowWeekends) ?? false;
+  }
+
+  // -- Last-used period/preset ----------------------------------------------
 
   Future<String?> getLastWorkPeriodId() async {
     final prefs = await SharedPreferences.getInstance();
@@ -41,6 +53,8 @@ class PreferencesService {
     }
   }
 
+  // -- Weekend visibility ---------------------------------------------------
+
   Future<bool> getShowWeekends() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getBool(_keyShowWeekends) ?? false;
@@ -49,5 +63,6 @@ class PreferencesService {
   Future<void> setShowWeekends(bool show) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_keyShowWeekends, show);
+    showWeekends.value = show;
   }
 }

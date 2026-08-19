@@ -96,17 +96,11 @@ class _PeriodTabState extends State<_PeriodTab> {
   late int _offset;
   final _state = AppState();
   final _prefs = PreferencesService();
-  bool _showWeekends = false;
 
   @override
   void initState() {
     super.initState();
-    _loadPref();
-  }
-
-  Future<void> _loadPref() async {
-    final show = await _prefs.getShowWeekends();
-    if (mounted) setState(() => _showWeekends = show);
+    _prefs.init();
   }
 
   @override
@@ -131,7 +125,7 @@ class _PeriodTabState extends State<_PeriodTab> {
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
-      listenable: _state,
+      listenable: Listenable.merge([_state, _prefs.showWeekends]),
       builder: (context, _) {
         final theme = Theme.of(context);
         final logs = _state.allLogs;
@@ -232,11 +226,12 @@ class _PeriodTabState extends State<_PeriodTab> {
 
   List<TimeLog> _filterLogs(List<TimeLog> logs) {
     final ref = _offsetDate();
+    final showWeekends = _prefs.showWeekends.value;
     return logs.where((l) {
       final date = _parseDate(l.date);
       if (date == null) return false;
       // Filter weekends unless preference says show them
-      if (!_showWeekends && date.weekday > 5) return false;
+      if (!showWeekends && date.weekday > 5) return false;
       return _dateFallsInPeriod(date, ref);
     }).toList();
   }

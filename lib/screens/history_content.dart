@@ -16,26 +16,21 @@ class HistoryContent extends StatefulWidget {
 class _HistoryContentState extends State<HistoryContent> {
   final _state = AppState();
   final _prefs = PreferencesService();
-  bool _showWeekends = false;
 
   @override
   void initState() {
     super.initState();
-    _loadPref();
-  }
-
-  Future<void> _loadPref() async {
-    final show = await _prefs.getShowWeekends();
-    if (mounted) setState(() => _showWeekends = show);
+    _prefs.init();
   }
 
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
-      listenable: _state,
+      listenable: Listenable.merge([_state, _prefs.showWeekends]),
       builder: (context, _) {
         final theme = Theme.of(context);
-        final logs = _showWeekends
+        final showWeekends = _prefs.showWeekends.value;
+        final logs = showWeekends
             ? _state.allLogs
             : _state.allLogs.where((l) {
                 final date = DateTime.parse(l.date);
