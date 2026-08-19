@@ -237,9 +237,10 @@ class _MyDayTabState extends State<MyDayTab> with SingleTickerProviderStateMixin
             ),
             const SizedBox(height: 24),
             _statRow(theme, 'Expected', '${log.expectedMinutes} min work'),
-            _statRow(theme, 'Overhead', '${log.overheadMinutes} min buffer'),
-            if (log.productiveCommuteMinutes > 0)
-              _statRow(theme, 'Productive commute', '${log.productiveCommuteMinutes} min train work'),
+            if (log.morningOverheadMinutes + log.eveningOverheadMinutes > 0)
+              _statRow(theme, 'Commute overhead', '${log.morningOverheadMinutes}/${log.eveningOverheadMinutes} min (am/pm)'),
+            if (log.morningProductiveCommuteMinutes + log.eveningProductiveCommuteMinutes > 0)
+              _statRow(theme, 'Productive commute', '${log.morningProductiveCommuteMinutes}/${log.eveningProductiveCommuteMinutes} min (am/pm)'),
             _statRow(theme, 'Total', '${log.expectedMinutes + log.overheadMinutes + log.productiveCommuteMinutes} min'),
             InkWell(
               onTap: () => _showEditLunchDialog(context, lunch),
@@ -263,7 +264,16 @@ class _MyDayTabState extends State<MyDayTab> with SingleTickerProviderStateMixin
                 ),
               ),
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 16),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: () => _showChangePresetDialog(context),
+                icon: const Icon(Icons.directions),
+                label: const Text('Change commute pattern'),
+              ),
+            ),
+            const SizedBox(height: 8),
             SizedBox(
               width: double.infinity,
               child: FilledButton.icon(
@@ -383,9 +393,8 @@ class _MyDayTabState extends State<MyDayTab> with SingleTickerProviderStateMixin
       context: ctx,
       builder: (_) => _StartDayDialog(
         expectedMinutes: state.activePeriod?.expectedMinutes ?? 480,
-        overheadMinutes: state.travelPresets.first.defaultOverheadMinutes,
-        workPeriods: state.workPeriods,
         travelPresets: state.travelPresets,
+        workPeriods: state.workPeriods,
       ),
     );
 
@@ -394,9 +403,11 @@ class _MyDayTabState extends State<MyDayTab> with SingleTickerProviderStateMixin
       await state.startDay(
         startTime: startStr,
         expectedMinutes: result.expectedMinutes,
-        overheadMinutes: result.overheadMinutes,
         lunchMinutes: result.lunchMinutes,
-        productiveCommuteMinutes: result.productiveCommuteMinutes,
+        morningOverheadMinutes: result.morningOverheadMinutes,
+        morningProductiveCommuteMinutes: result.morningProductiveCommuteMinutes,
+        eveningOverheadMinutes: result.eveningOverheadMinutes,
+        eveningProductiveCommuteMinutes: result.eveningProductiveCommuteMinutes,
       );
     }
   }
@@ -481,9 +492,11 @@ class _MyDayTabState extends State<MyDayTab> with SingleTickerProviderStateMixin
         startTime: startStr,
         endTime: endStr,
         expectedMinutes: result.expectedMinutes,
-        overheadMinutes: result.overheadMinutes,
         lunchMinutes: result.lunchMinutes,
-        productiveCommuteMinutes: result.productiveCommuteMinutes,
+        morningOverheadMinutes: result.morningOverheadMinutes,
+        morningProductiveCommuteMinutes: result.morningProductiveCommuteMinutes,
+        eveningOverheadMinutes: result.eveningOverheadMinutes,
+        eveningProductiveCommuteMinutes: result.eveningProductiveCommuteMinutes,
         note: result.note,
       );
       await state.editDay(editedLog);
@@ -510,15 +523,73 @@ class _MyDayTabState extends State<MyDayTab> with SingleTickerProviderStateMixin
       await _state.deleteDay(id);
     }
   }
+
+  Future<void> _showChangePresetDialog(BuildContext ctx) async {
+    final state = _state;
+    if (state.travelPresets.isEmpty) {
+      ScaffoldMessenger.of(ctx).showSnackBar(
+        const SnackBar(content: Text('No travel presets available. Add one in Settings.')),
+      );
+      return;
+    }
+
+    dynamic pickedPreset;
+    final selected = await showDialog<dynamic>(
+      context: ctx,
+      builder: (_) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text('Change commute pattern'),
+          content: DropdownButtonFormField(
+            items: state.travelPresets.map<DropdownMenuItem>((p) {
+              return DropdownMenuItem(
+                value: p,
+                child: Text('${p.name} — ${p.morningOverheadMinutes}/${p.eveningOverheadMinutes} min walk, ${p.morningProductiveCommuteMinutes}/${p.eveningProductiveCommuteMinutes} min train'),
+              );
+            }).toList(),
+            onChanged: (v) {
+              pickedPreset = v;
+              setDialogState(() {});
+            },
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+            FilledButton(
+              onPressed: () => Navigator.pop(ctx, pickedPreset),
+              child: const Text('Apply'),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (selected != null) {
+      await state.updateCommuteValues(
+        morningOverheadMinutes: selected.morningOverheadMinutes,
+        morningProductiveCommuteMinutes: selected.morningProductiveCommuteMinutes,
+        eveningOverheadMinutes: selected.eveningOverheadMinutes,
+        eveningProductiveCommuteMinutes: selected.eveningProductiveCommuteMinutes,
+      );
+    }
+  }
 }
 
 class _StartDayResult {
   final TimeOfDay time;
   final int expectedMinutes;
-  final int overheadMinutes;
   final int lunchMinutes;
-  final int productiveCommuteMinutes;
-  _StartDayResult(this.time, this.expectedMinutes, this.overheadMinutes, this.lunchMinutes, this.productiveCommuteMinutes);
+  final int morningOverheadMinutes;
+  final int morningProductiveCommuteMinutes;
+  final int eveningOverheadMinutes;
+  final int eveningProductiveCommuteMinutes;
+  _StartDayResult(
+    this.time,
+    this.expectedMinutes,
+    this.lunchMinutes,
+    this.morningOverheadMinutes,
+    this.morningProductiveCommuteMinutes,
+    this.eveningOverheadMinutes,
+    this.eveningProductiveCommuteMinutes,
+  );
 }
 
 class _StopDayResult {
@@ -533,13 +604,11 @@ class _StopDayResult {
 
 class _StartDayDialog extends StatefulWidget {
   final int expectedMinutes;
-  final int overheadMinutes;
   final List<dynamic> workPeriods;
   final List<dynamic> travelPresets;
 
   const _StartDayDialog({
     required this.expectedMinutes,
-    required this.overheadMinutes,
     required this.workPeriods,
     required this.travelPresets,
   });
@@ -555,15 +624,17 @@ class _StartDayDialogState extends State<_StartDayDialog> {
   int _lunchMinutes = 30;
 
   int get _expected => _selectedPeriod.expectedMinutes;
-  int get _overhead => _selectedPreset.defaultOverheadMinutes;
-  int get _productiveCommute => _selectedPreset.productiveCommuteMinutes;
+  int get _morningOverhead => _selectedPreset.morningOverheadMinutes;
+  int get _morningProductive => _selectedPreset.morningProductiveCommuteMinutes;
+  int get _eveningOverhead => _selectedPreset.eveningOverheadMinutes;
+  int get _eveningProductive => _selectedPreset.eveningProductiveCommuteMinutes;
 
   @override
   void initState() {
     super.initState();
     _startTime = TimeOfDay.now();
     _selectedPeriod = _pickPeriod(widget.expectedMinutes);
-    _selectedPreset = _pickPreset(widget.overheadMinutes);
+    _selectedPreset = widget.travelPresets.first;
   }
 
   dynamic _pickPeriod(int expected) {
@@ -573,30 +644,29 @@ class _StartDayDialogState extends State<_StartDayDialog> {
     return widget.workPeriods.first;
   }
 
-  dynamic _pickPreset(int overhead) {
-    for (final p in widget.travelPresets) {
-      if (p.defaultOverheadMinutes == overhead) return p;
-    }
-    return widget.travelPresets.first;
-  }
-
-  /// When you're physically free to leave (includes lunch time at office).
-  /// Subtracts evening productive commute because that work happens after
-  /// leaving the office.
-  /// Does NOT include overhead — commute overhead happens before work
-  /// starts (morning) or after leaving (evening), so it doesn't extend
-  /// your office stay.
+  /// When you're physically free to leave the office.
+  /// Formula: start + expected + lunch + morningOverhead - eveningProductiveCommute
+  /// Morning overhead is added because it happens after startTime
+  /// (walking to office). Evening productive commute is subtracted
+  /// because that work happens after leaving the office.
   DateTime get _leaveTime {
     final now = DateTime.now();
     final start = DateTime(now.year, now.month, now.day, _startTime.hour, _startTime.minute);
-    return start.add(Duration(minutes: _expected + _lunchMinutes - (_productiveCommute ~/ 2)));
+    return start.add(Duration(
+      minutes: _expected +
+          _lunchMinutes +
+          _morningOverhead -
+          _eveningProductive,
+    ));
   }
 
-  /// When you've done enough pure work (not counting lunch as work).
+  /// When you've done enough pure work (not counting lunch or overhead).
   DateTime get _netWorkTime {
     final now = DateTime.now();
     final start = DateTime(now.year, now.month, now.day, _startTime.hour, _startTime.minute);
-    return start.add(Duration(minutes: _expected - (_productiveCommute ~/ 2)));
+    return start.add(Duration(
+      minutes: _expected + _morningOverhead - _eveningProductive,
+    ));
   }
 
   @override
@@ -635,11 +705,12 @@ class _StartDayDialogState extends State<_StartDayDialog> {
             DropdownButtonFormField(
               initialValue: _selectedPreset,
               items: widget.travelPresets.map<DropdownMenuItem>((p) {
-                return DropdownMenuItem(value: p, child: Text('${p.name} (+${p.defaultOverheadMinutes} min)'));
+                return DropdownMenuItem(value: p, child: Text('${p.name}'));
               }).toList(),
               onChanged: (v) { if (v != null) setState(() => _selectedPreset = v); },
             ),
-            if (_productiveCommute > 0) ...[const SizedBox(height: 8), Text('Includes $_productiveCommute min productive commute (train time)', style: theme.textTheme.bodySmall)],
+            const SizedBox(height: 8),
+            _commuteSummary(theme),
             const SizedBox(height: 16),
             Text('Lunch break', style: theme.textTheme.titleSmall),
             const SizedBox(height: 4),
@@ -681,6 +752,11 @@ class _StartDayDialogState extends State<_StartDayDialog> {
                       style: theme.textTheme.bodySmall,
                     ),
                   ],
+                  const SizedBox(height: 8),
+                  Text(
+                    'Expected end: ${_expectedEnd.hour.toString().padLeft(2, '0')}:${_expectedEnd.minute.toString().padLeft(2, '0')}',
+                    style: theme.textTheme.bodySmall,
+                  ),
                 ],
               ),
             ),
@@ -690,11 +766,50 @@ class _StartDayDialogState extends State<_StartDayDialog> {
       actions: [
         TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
         FilledButton(
-          onPressed: () => Navigator.pop(context, _StartDayResult(_startTime, _expected, _overhead, _lunchMinutes, _productiveCommute)),
+          onPressed: () => Navigator.pop(context, _StartDayResult(
+            _startTime,
+            _expected,
+            _lunchMinutes,
+            _morningOverhead,
+            _morningProductive,
+            _eveningOverhead,
+            _eveningProductive,
+          )),
           child: const Text('Start'),
         ),
       ],
     );
+  }
+
+  Widget _commuteSummary(ThemeData theme) {
+    final morningTotal = _morningOverhead + _morningProductive;
+    final eveningTotal = _eveningOverhead + _eveningProductive;
+    final totalCommute = morningTotal + eveningTotal;
+    if (totalCommute == 0) return const SizedBox.shrink();
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.4),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Commute breakdown', style: theme.textTheme.labelSmall?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+          const SizedBox(height: 4),
+          Text('Morning: ${_morningOverhead} min walk, ${_morningProductive} min train work', style: theme.textTheme.bodySmall),
+          Text('Evening: ${_eveningOverhead} min walk, ${_eveningProductive} min train work', style: theme.textTheme.bodySmall),
+          Text('Total: $totalCommute min commute', style: theme.textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w600)),
+        ],
+      ),
+    );
+  }
+
+  DateTime get _expectedEnd {
+    final lt = _leaveTime;
+    return lt.add(Duration(
+      minutes: _eveningOverhead + _eveningProductive,
+    ));
   }
 }
 
@@ -779,17 +894,21 @@ class _EditDayResult {
   final TimeOfDay startTime;
   final TimeOfDay? endTime;
   final int expectedMinutes;
-  final int overheadMinutes;
   final int lunchMinutes;
-  final int productiveCommuteMinutes;
+  final int morningOverheadMinutes;
+  final int morningProductiveCommuteMinutes;
+  final int eveningOverheadMinutes;
+  final int eveningProductiveCommuteMinutes;
   final String? note;
   _EditDayResult({
     required this.startTime,
     required this.endTime,
     required this.expectedMinutes,
-    required this.overheadMinutes,
     required this.lunchMinutes,
-    required this.productiveCommuteMinutes,
+    required this.morningOverheadMinutes,
+    required this.morningProductiveCommuteMinutes,
+    required this.eveningOverheadMinutes,
+    required this.eveningProductiveCommuteMinutes,
     this.note,
   });
 }
@@ -822,8 +941,10 @@ class _EditDayDialogState extends State<_EditDayDialog> {
   late String _note;
 
   int get _expected => _selectedPeriod.expectedMinutes;
-  int get _overhead => _selectedPreset.defaultOverheadMinutes;
-  int get _productiveCommute => _selectedPreset.productiveCommuteMinutes;
+  int get _morningOverhead => _selectedPreset.morningOverheadMinutes;
+  int get _morningProductive => _selectedPreset.morningProductiveCommuteMinutes;
+  int get _eveningOverhead => _selectedPreset.eveningOverheadMinutes;
+  int get _eveningProductive => _selectedPreset.eveningProductiveCommuteMinutes;
 
   @override
   void initState() {
@@ -904,11 +1025,12 @@ class _EditDayDialogState extends State<_EditDayDialog> {
             DropdownButtonFormField(
               initialValue: _selectedPreset,
               items: widget.travelPresets.map<DropdownMenuItem>((p) {
-                return DropdownMenuItem(value: p, child: Text('${p.name} (+${p.defaultOverheadMinutes} min)'));
+                return DropdownMenuItem(value: p, child: Text('${p.name}'));
               }).toList(),
               onChanged: (v) { if (v != null) setState(() => _selectedPreset = v); },
             ),
-            if (_productiveCommute > 0) ...[const SizedBox(height: 8), Text('Includes $_productiveCommute min productive commute', style: theme.textTheme.bodySmall)],
+            const SizedBox(height: 8),
+            _commuteSummary(theme),
             const SizedBox(height: 16),
             Text('Lunch break', style: theme.textTheme.titleSmall),
             const SizedBox(height: 4),
@@ -946,14 +1068,40 @@ class _EditDayDialogState extends State<_EditDayDialog> {
             startTime: _startTime,
             endTime: _endTime,
             expectedMinutes: _expected,
-            overheadMinutes: _overhead,
             lunchMinutes: _lunch,
-            productiveCommuteMinutes: _productiveCommute,
+            morningOverheadMinutes: _morningOverhead,
+            morningProductiveCommuteMinutes: _morningProductive,
+            eveningOverheadMinutes: _eveningOverhead,
+            eveningProductiveCommuteMinutes: _eveningProductive,
             note: _note.isEmpty ? null : _note,
           )),
           child: const Text('Save'),
         ),
       ],
+    );
+  }
+
+  Widget _commuteSummary(ThemeData theme) {
+    final morningTotal = _morningOverhead + _morningProductive;
+    final eveningTotal = _eveningOverhead + _eveningProductive;
+    final totalCommute = morningTotal + eveningTotal;
+    if (totalCommute == 0) return const SizedBox.shrink();
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.4),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Commute breakdown', style: theme.textTheme.labelSmall?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+          const SizedBox(height: 4),
+          Text('Morning: ${_morningOverhead} min walk, ${_morningProductive} min train work', style: theme.textTheme.bodySmall),
+          Text('Evening: ${_eveningOverhead} min walk, ${_eveningProductive} min train work', style: theme.textTheme.bodySmall),
+          Text('Total: $totalCommute min commute', style: theme.textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w600)),
+        ],
+      ),
     );
   }
 }

@@ -319,8 +319,11 @@ class _PeriodTabState extends State<_PeriodTab> {
           startTime: startStr,
           endTime: endStr,
           expectedMinutes: result.expectedMinutes,
-          overheadMinutes: result.overheadMinutes,
           lunchMinutes: result.lunchMinutes,
+          morningOverheadMinutes: result.morningOverheadMinutes,
+          morningProductiveCommuteMinutes: result.morningProductiveCommuteMinutes,
+          eveningOverheadMinutes: result.eveningOverheadMinutes,
+          eveningProductiveCommuteMinutes: result.eveningProductiveCommuteMinutes,
           note: result.note,
         );
         state.editDay(editedLog);
@@ -344,7 +347,6 @@ class _PeriodTabState extends State<_PeriodTab> {
       builder: (_) => _AddDayDialog(
         initialDate: date,
         expectedMinutes: state.activePeriod?.expectedMinutes ?? 480,
-        overheadMinutes: state.travelPresets.first.defaultOverheadMinutes,
         workPeriods: state.workPeriods,
         travelPresets: state.travelPresets,
       ),
@@ -359,9 +361,11 @@ class _PeriodTabState extends State<_PeriodTab> {
         startTime: startStr,
         endTime: endStr,
         expectedMinutes: result.expectedMinutes,
-        overheadMinutes: result.overheadMinutes,
         lunchMinutes: result.lunchMinutes,
-        productiveCommuteMinutes: result.productiveCommuteMinutes,
+        morningOverheadMinutes: result.morningOverheadMinutes,
+        morningProductiveCommuteMinutes: result.morningProductiveCommuteMinutes,
+        eveningOverheadMinutes: result.eveningOverheadMinutes,
+        eveningProductiveCommuteMinutes: result.eveningProductiveCommuteMinutes,
         note: result.note,
       ).then((_) {
         // Refresh was triggered by addDay — no extra work needed.
@@ -794,18 +798,22 @@ class _EditDayResult {
   final TimeOfDay startTime;
   final TimeOfDay? endTime;
   final int expectedMinutes;
-  final int overheadMinutes;
   final int lunchMinutes;
-  final int productiveCommuteMinutes;
+  final int morningOverheadMinutes;
+  final int morningProductiveCommuteMinutes;
+  final int eveningOverheadMinutes;
+  final int eveningProductiveCommuteMinutes;
   final String? note;
   final bool isDelete;
   _EditDayResult({
     required this.startTime,
     required this.endTime,
     required this.expectedMinutes,
-    required this.overheadMinutes,
     required this.lunchMinutes,
-    required this.productiveCommuteMinutes,
+    required this.morningOverheadMinutes,
+    required this.morningProductiveCommuteMinutes,
+    required this.eveningOverheadMinutes,
+    required this.eveningProductiveCommuteMinutes,
     this.note,
     this.isDelete = false,
   });
@@ -835,8 +843,10 @@ class _EditDayDialogState extends State<_EditDayDialog> {
   late String _note;
 
   int get _expected => _selectedPeriod.expectedMinutes;
-  int get _overhead => _selectedPreset.defaultOverheadMinutes;
-  int get _productiveCommute => _selectedPreset.productiveCommuteMinutes;
+  int get _morningOverhead => _selectedPreset.morningOverheadMinutes;
+  int get _morningProductive => _selectedPreset.morningProductiveCommuteMinutes;
+  int get _eveningOverhead => _selectedPreset.eveningOverheadMinutes;
+  int get _eveningProductive => _selectedPreset.eveningProductiveCommuteMinutes;
 
   @override
   void initState() {
@@ -844,7 +854,7 @@ class _EditDayDialogState extends State<_EditDayDialog> {
     _startTime = _timeOfDayFromStr(widget.log.startTime);
     _endTime = widget.log.endTime != null ? _timeOfDayFromStr(widget.log.endTime!) : null;
     _selectedPeriod = _matchPeriod(widget.workPeriods, widget.log.expectedMinutes);
-    _selectedPreset = _matchPreset(widget.travelPresets, widget.log.overheadMinutes);
+    _selectedPreset = widget.travelPresets.first;
     _lunch = widget.log.lunchMinutes;
     _note = widget.log.note ?? '';
   }
@@ -861,12 +871,6 @@ class _EditDayDialogState extends State<_EditDayDialog> {
     return periods.first;
   }
 
-  static dynamic _matchPreset(List<dynamic> presets, int mins) {
-    for (final p in presets) {
-      if (p.defaultOverheadMinutes == mins) return p;
-    }
-    return presets.first;
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -921,7 +925,7 @@ class _EditDayDialogState extends State<_EditDayDialog> {
               }).toList(),
               onChanged: (v) { if (v != null) setState(() => _selectedPreset = v); },
             ),
-            if (_productiveCommute > 0) ...[const SizedBox(height: 8), Text('Includes $_productiveCommute min productive commute', style: theme.textTheme.bodySmall)],
+            _commuteSummary(theme),
             const SizedBox(height: 16),
             Text('Lunch break', style: theme.textTheme.titleSmall),
             const SizedBox(height: 4),
@@ -960,9 +964,11 @@ class _EditDayDialogState extends State<_EditDayDialog> {
               startTime: _startTime,
               endTime: _endTime,
               expectedMinutes: _expected,
-              overheadMinutes: _overhead,
               lunchMinutes: _lunch,
-              productiveCommuteMinutes: _productiveCommute,
+              morningOverheadMinutes: _morningOverhead,
+              morningProductiveCommuteMinutes: _morningProductive,
+              eveningOverheadMinutes: _eveningOverhead,
+              eveningProductiveCommuteMinutes: _eveningProductive,
               note: _note.isEmpty ? null : _note,
               isDelete: true,
             )),
@@ -974,14 +980,39 @@ class _EditDayDialogState extends State<_EditDayDialog> {
             startTime: _startTime,
             endTime: _endTime,
             expectedMinutes: _expected,
-            overheadMinutes: _overhead,
             lunchMinutes: _lunch,
-            productiveCommuteMinutes: _productiveCommute,
+            morningOverheadMinutes: _morningOverhead,
+            morningProductiveCommuteMinutes: _morningProductive,
+            eveningOverheadMinutes: _eveningOverhead,
+            eveningProductiveCommuteMinutes: _eveningProductive,
             note: _note.isEmpty ? null : _note,
           )),
           child: const Text('Save'),
         ),
       ],
+    );
+  }
+  Widget _commuteSummary(ThemeData theme) {
+    final morningTotal = _morningOverhead + _morningProductive;
+    final eveningTotal = _eveningOverhead + _eveningProductive;
+    final totalCommute = morningTotal + eveningTotal;
+    if (totalCommute == 0) return const SizedBox.shrink();
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.4),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Commute breakdown', style: theme.textTheme.labelSmall?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+          const SizedBox(height: 4),
+          Text('Morning: ${_morningOverhead} min walk, ${_morningProductive} min train work', style: theme.textTheme.bodySmall),
+          Text('Evening: ${_eveningOverhead} min walk, ${_eveningProductive} min train work', style: theme.textTheme.bodySmall),
+          Text('Total: $totalCommute min commute', style: theme.textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w600)),
+        ],
+      ),
     );
   }
 }
@@ -995,18 +1026,22 @@ class _AddDayResult {
   final TimeOfDay startTime;
   final TimeOfDay endTime;
   final int expectedMinutes;
-  final int overheadMinutes;
   final int lunchMinutes;
-  final int productiveCommuteMinutes;
+  final int morningOverheadMinutes;
+  final int morningProductiveCommuteMinutes;
+  final int eveningOverheadMinutes;
+  final int eveningProductiveCommuteMinutes;
   final String? note;
   _AddDayResult({
     required this.date,
     required this.startTime,
     required this.endTime,
     required this.expectedMinutes,
-    required this.overheadMinutes,
     required this.lunchMinutes,
-    required this.productiveCommuteMinutes,
+    required this.morningOverheadMinutes,
+    required this.morningProductiveCommuteMinutes,
+    required this.eveningOverheadMinutes,
+    required this.eveningProductiveCommuteMinutes,
     this.note,
   });
 }
@@ -1014,14 +1049,12 @@ class _AddDayResult {
 class _AddDayDialog extends StatefulWidget {
   final DateTime initialDate;
   final int expectedMinutes;
-  final int overheadMinutes;
   final List<dynamic> workPeriods;
   final List<dynamic> travelPresets;
 
   const _AddDayDialog({
     required this.initialDate,
     required this.expectedMinutes,
-    required this.overheadMinutes,
     required this.workPeriods,
     required this.travelPresets,
   });
@@ -1040,8 +1073,10 @@ class _AddDayDialogState extends State<_AddDayDialog> {
   String _note = '';
 
   int get _expected => _selectedPeriod.expectedMinutes;
-  int get _overhead => _selectedPreset.defaultOverheadMinutes;
-  int get _productiveCommute => _selectedPreset.productiveCommuteMinutes;
+  int get _morningOverhead => _selectedPreset.morningOverheadMinutes;
+  int get _morningProductive => _selectedPreset.morningProductiveCommuteMinutes;
+  int get _eveningOverhead => _selectedPreset.eveningOverheadMinutes;
+  int get _eveningProductive => _selectedPreset.eveningProductiveCommuteMinutes;
 
   @override
   void initState() {
@@ -1050,7 +1085,7 @@ class _AddDayDialogState extends State<_AddDayDialog> {
     _startTime = const TimeOfDay(hour: 8, minute: 0);
     _endTime = const TimeOfDay(hour: 16, minute: 0);
     _selectedPeriod = _matchPeriod(widget.workPeriods, widget.expectedMinutes);
-    _selectedPreset = _matchPreset(widget.travelPresets, widget.overheadMinutes);
+    _selectedPreset = widget.travelPresets.first;
   }
 
   static dynamic _matchPeriod(List<dynamic> periods, int mins) {
@@ -1060,18 +1095,12 @@ class _AddDayDialogState extends State<_AddDayDialog> {
     return periods.first;
   }
 
-  static dynamic _matchPreset(List<dynamic> presets, int mins) {
-    for (final p in presets) {
-      if (p.defaultOverheadMinutes == mins) return p;
-    }
-    return presets.first;
-  }
 
   int get _overtime {
     final actualMinutes = _endTime.hour * 60 + _endTime.minute -
         (_startTime.hour * 60 + _startTime.minute) -
         _lunch;
-    return actualMinutes - _expected - _overhead;
+    return actualMinutes - _expected - (_morningOverhead + _eveningOverhead);
   }
 
   @override
@@ -1162,7 +1191,7 @@ class _AddDayDialogState extends State<_AddDayDialog> {
               }).toList(),
               onChanged: (v) { if (v != null) setState(() => _selectedPreset = v); },
             ),
-            if (_productiveCommute > 0) ...[const SizedBox(height: 8), Text('Includes $_productiveCommute min productive commute', style: theme.textTheme.bodySmall)],
+            _commuteSummary(theme),
             const SizedBox(height: 16),
             Text('Lunch break', style: theme.textTheme.titleSmall),
             const SizedBox(height: 4),
@@ -1222,14 +1251,39 @@ class _AddDayDialogState extends State<_AddDayDialog> {
             startTime: _startTime,
             endTime: _endTime,
             expectedMinutes: _expected,
-            overheadMinutes: _overhead,
             lunchMinutes: _lunch,
-            productiveCommuteMinutes: _productiveCommute,
+            morningOverheadMinutes: _morningOverhead,
+            morningProductiveCommuteMinutes: _morningProductive,
+            eveningOverheadMinutes: _eveningOverhead,
+            eveningProductiveCommuteMinutes: _eveningProductive,
             note: _note.isEmpty ? null : _note,
           )),
           child: const Text('Add'),
         ),
       ],
+    );
+  }
+  Widget _commuteSummary(ThemeData theme) {
+    final morningTotal = _morningOverhead + _morningProductive;
+    final eveningTotal = _eveningOverhead + _eveningProductive;
+    final totalCommute = morningTotal + eveningTotal;
+    if (totalCommute == 0) return const SizedBox.shrink();
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.4),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Commute breakdown', style: theme.textTheme.labelSmall?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+          const SizedBox(height: 4),
+          Text('Morning: ${_morningOverhead} min walk, ${_morningProductive} min train work', style: theme.textTheme.bodySmall),
+          Text('Evening: ${_eveningOverhead} min walk, ${_eveningProductive} min train work', style: theme.textTheme.bodySmall),
+          Text('Total: $totalCommute min commute', style: theme.textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w600)),
+        ],
+      ),
     );
   }
 }

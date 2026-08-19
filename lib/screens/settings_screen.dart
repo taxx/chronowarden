@@ -60,7 +60,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           title: 'Travel Presets',
           subtitle: 'Commute scenarios with overhead buffer',
           items: _state.travelPresets,
-          itemBuilder: (p) => Text('${p.name}: +${p.defaultOverheadMinutes} min overhead${p.productiveCommuteMinutes > 0 ? ', +${p.productiveCommuteMinutes} min productive commute' : ''}'),
+          itemBuilder: (p) => Text('${p.name}: ${p.morningOverheadMinutes}/${p.eveningOverheadMinutes} min overhead, ${p.morningProductiveCommuteMinutes}/${p.eveningProductiveCommuteMinutes} min train work'),
           onEdit: (p) => _showEditPresetDialog(context, p),
           onDelete: (p) => _confirmDeletePreset(context, p),
           onAdd: () => _showAddPresetDialog(context),
@@ -212,8 +212,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
     TravelPreset? existing,
   }) async {
     final nameCtrl = TextEditingController(text: existing?.name ?? '');
-    final minsCtrl = TextEditingController(text: existing?.defaultOverheadMinutes.toString() ?? '60');
-    final commuteCtrl = TextEditingController(text: existing?.productiveCommuteMinutes.toString() ?? '0');
+    final morningOverheadCtrl = TextEditingController(text: existing?.morningOverheadMinutes.toString() ?? '0');
+    final morningProductiveCtrl = TextEditingController(text: existing?.morningProductiveCommuteMinutes.toString() ?? '0');
+    final eveningOverheadCtrl = TextEditingController(text: existing?.eveningOverheadMinutes.toString() ?? '0');
+    final eveningProductiveCtrl = TextEditingController(text: existing?.eveningProductiveCommuteMinutes.toString() ?? '0');
 
     final result = await showDialog<bool>(
       context: ctx,
@@ -224,16 +226,24 @@ class _SettingsScreenState extends State<SettingsScreen> {
           children: [
             TextField(controller: nameCtrl, decoration: const InputDecoration(labelText: 'Name')),
             const SizedBox(height: 8),
-            TextField(controller: minsCtrl, decoration: const InputDecoration(labelText: 'Overhead minutes (walking, prep)'), keyboardType: const TextInputType.numberWithOptions()),
+            TextField(controller: morningOverheadCtrl, decoration: const InputDecoration(labelText: 'Morning overhead (walking to office)'), keyboardType: const TextInputType.numberWithOptions(),),
             const SizedBox(height: 8),
-            TextField(controller: commuteCtrl, decoration: const InputDecoration(labelText: 'Productive commute minutes (train work)'), keyboardType: const TextInputType.numberWithOptions(),),
+            TextField(controller: morningProductiveCtrl, decoration: const InputDecoration(labelText: 'Morning productive commute (train work)'), keyboardType: const TextInputType.numberWithOptions(),),
+            const SizedBox(height: 8),
+            TextField(controller: eveningOverheadCtrl, decoration: const InputDecoration(labelText: 'Evening overhead (walking from office)'), keyboardType: const TextInputType.numberWithOptions(),),
+            const SizedBox(height: 8),
+            TextField(controller: eveningProductiveCtrl, decoration: const InputDecoration(labelText: 'Evening productive commute (train work)'), keyboardType: const TextInputType.numberWithOptions(),),
           ],
         ),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
           FilledButton(
             onPressed: () {
-              if (nameCtrl.text.isNotEmpty && int.tryParse(minsCtrl.text) != null && int.tryParse(commuteCtrl.text) != null) {
+              if (nameCtrl.text.isNotEmpty &&
+                  int.tryParse(morningOverheadCtrl.text) != null &&
+                  int.tryParse(morningProductiveCtrl.text) != null &&
+                  int.tryParse(eveningOverheadCtrl.text) != null &&
+                  int.tryParse(eveningProductiveCtrl.text) != null) {
                 Navigator.pop(ctx, true);
               }
             },
@@ -247,8 +257,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
       return TravelPreset(
         id: existing?.id,
         name: nameCtrl.text,
-        defaultOverheadMinutes: int.parse(minsCtrl.text),
-        productiveCommuteMinutes: int.parse(commuteCtrl.text),
+        morningOverheadMinutes: int.parse(morningOverheadCtrl.text),
+        morningProductiveCommuteMinutes: int.parse(morningProductiveCtrl.text),
+        eveningOverheadMinutes: int.parse(eveningOverheadCtrl.text),
+        eveningProductiveCommuteMinutes: int.parse(eveningProductiveCtrl.text),
       );
     }
     return null;

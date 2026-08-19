@@ -1,20 +1,21 @@
 /// A single workday log entry. Maps to the [time_logs] table.
 ///
-/// The core model behind ChronoWarden's two UX states:
-///   • *Morning Calculator* — project leave time from [startTime],
-///     [expectedMinutes] and [overheadMinutes].
-///   • *Afternoon Logger* — compute [overtimeMinutes] once [endTime] is set.
+/// Commute values (morningOverheadMinutes, eveningProductiveCommuteMinutes,
+/// etc.) are stored per-direction so asymmetrical commutes are handled
+/// correctly instead of dividing totals by 2.
 class TimeLog {
   final String? id;
   final String? userId;
   final String date; // "YYYY-MM-DD"
   final String startTime; // "HH:MM:SS"
   final String? endTime;  // "HH:MM:SS" — null while the day is active
-  final int overheadMinutes;
   final int expectedMinutes;
   final int lunchMinutes;
+  final int morningOverheadMinutes;
+  final int morningProductiveCommuteMinutes;
+  final int eveningOverheadMinutes;
+  final int eveningProductiveCommuteMinutes;
   final int overtimeMinutes;
-  final int productiveCommuteMinutes;
   final String? note;
   final String? createdAt;
 
@@ -24,31 +25,72 @@ class TimeLog {
     required this.date,
     required this.startTime,
     this.endTime,
-    required this.overheadMinutes,
     required this.expectedMinutes,
     this.lunchMinutes = 0,
+    this.morningOverheadMinutes = 0,
+    this.morningProductiveCommuteMinutes = 0,
+    this.eveningOverheadMinutes = 0,
+    this.eveningProductiveCommuteMinutes = 0,
     required this.overtimeMinutes,
-    this.productiveCommuteMinutes = 0,
     this.note,
     this.createdAt,
   });
+
+  /// Total overhead across both directions (computed).
+  int get overheadMinutes =>
+      morningOverheadMinutes + eveningOverheadMinutes;
+
+  /// Total productive commute across both directions (computed).
+  int get productiveCommuteMinutes =>
+      morningProductiveCommuteMinutes + eveningProductiveCommuteMinutes;
 
   // ------------------------------------------------------------------
   // JSON factories (snake_case ↔ camelCase)
   // ------------------------------------------------------------------
 
   factory TimeLog.fromJson(Map<String, dynamic> json) {
+    // Try reading per-direction fields first.
+    final morningOverhead = json['morning_overhead_minutes'] as int?;
+    final morningProductive = json['morning_productive_commute_minutes'] as int?;
+    final eveningOverhead = json['evening_overhead_minutes'] as int?;
+    final eveningProductive = json['evening_productive_commute_minutes'] as int?;
+
+    if (morningOverhead != null && eveningOverhead != null) {
+      // New format — use per-direction values.
+      return TimeLog(
+        id: json['id'] as String?,
+        userId: json['user_id'] as String?,
+        date: json['date'] as String,
+        startTime: json['start_time'] as String,
+        endTime: json['end_time'] as String?,
+        expectedMinutes: json['expected_minutes'] as int,
+        lunchMinutes: (json['lunch_minutes'] as int?) ?? 0,
+        morningOverheadMinutes: morningOverhead,
+        morningProductiveCommuteMinutes: morningProductive ?? 0,
+        eveningOverheadMinutes: eveningOverhead,
+        eveningProductiveCommuteMinutes: eveningProductive ?? 0,
+        overtimeMinutes: json['overtime_minutes'] as int,
+        note: json['note'] as String?,
+        createdAt: json['created_at'] as String?,
+      );
+    }
+
+    // Legacy format — split total values 50/50.
+    final totalOverhead = json['overhead_minutes'] as int;
+    final totalProductive = (json['productive_commute_minutes'] as int?) ?? 0;
     return TimeLog(
       id: json['id'] as String?,
       userId: json['user_id'] as String?,
       date: json['date'] as String,
       startTime: json['start_time'] as String,
       endTime: json['end_time'] as String?,
-      overheadMinutes: json['overhead_minutes'] as int,
       expectedMinutes: json['expected_minutes'] as int,
       lunchMinutes: (json['lunch_minutes'] as int?) ?? 0,
+      morningOverheadMinutes: totalOverhead ~/ 2,
+      morningProductiveCommuteMinutes: totalProductive ~/ 2,
+      eveningOverheadMinutes: totalOverhead - (totalOverhead ~/ 2),
+      eveningProductiveCommuteMinutes: totalProductive - (totalProductive ~/ 2),
       overtimeMinutes: json['overtime_minutes'] as int,
-      productiveCommuteMinutes: (json['productive_commute_minutes'] as int?) ?? 0,
       note: json['note'] as String?,
       createdAt: json['created_at'] as String?,
     );
@@ -61,11 +103,17 @@ class TimeLog {
       'date': date,
       'start_time': startTime,
       'end_time': endTime,
-      'overhead_minutes': overheadMinutes,
       'expected_minutes': expectedMinutes,
       'lunch_minutes': lunchMinutes,
-      'overtime_minutes': overtimeMinutes,
+      // New per-direction fields
+      'morning_overhead_minutes': morningOverheadMinutes,
+      'morning_productive_commute_minutes': morningProductiveCommuteMinutes,
+      'evening_overhead_minutes': eveningOverheadMinutes,
+      'evening_productive_commute_minutes': eveningProductiveCommuteMinutes,
+      // Legacy total fields for backward compat
+      'overhead_minutes': overheadMinutes,
       'productive_commute_minutes': productiveCommuteMinutes,
+      'overtime_minutes': overtimeMinutes,
       'note': note,
       'created_at': createdAt,
     };
@@ -76,8 +124,6 @@ class TimeLog {
   // ------------------------------------------------------------------
 
   /// Combine [date] + [startTime] into a single local [DateTime].
-  /// Anchored to a neutral epoch so DST boundaries cannot corrupt the
-  /// wall-clock arithmetic we rely on for leave-time projection.
   DateTime get _dayStart => combineDateAndTime(date, startTime);
 
   /// Combine [date] + [endTime] into a single local [DateTime] (if set).
@@ -105,15 +151,27 @@ class TimeLog {
 
   /// Convenience: same as [calculateLeaveTime] but derived from the stored
   /// [date] + [startTime] fields (no external [dayStart] argument needed).
-  /// Includes [lunchMinutes] because you must be present for lunch too.
-  /// Subtracts half of [productiveCommuteMinutes] (evening portion) because
-  /// that work happens after leaving the office.
-  /// Does NOT include [overheadMinutes] — commute overhead happens before
-  /// work starts (morning) or after leaving (evening), so it doesn't extend
-  /// your office stay.
+  ///
+  /// Formula: `[dayStart] + expectedMinutes + lunchMinutes
+  ///          + morningOverheadMinutes - eveningProductiveCommuteMinutes`
+  ///
+  /// [morningOverheadMinutes] is added because the morning commute (walking)
+  /// happens after startTime but before arriving at the office — it pushes
+  /// office arrival later, so you leave later.
+  ///
+  /// [eveningProductiveCommuteMinutes] is subtracted because that work
+  /// happens after leaving the office, so you can leave earlier.
+  ///
+  /// Does NOT include [eveningOverheadMinutes] — evening commute overhead
+  /// happens after leaving, so it doesn't extend your office stay.
   DateTime get leaveTime {
     final start = combineDateAndTime(date, startTime);
-    return start.add(Duration(minutes: expectedMinutes + lunchMinutes - (productiveCommuteMinutes ~/ 2)));
+    return start.add(Duration(
+      minutes: expectedMinutes +
+          lunchMinutes +
+          morningOverheadMinutes -
+          eveningProductiveCommuteMinutes,
+    ));
   }
 
   /// Elapsed minutes from start → now (or end if closed).
@@ -132,20 +190,20 @@ class TimeLog {
   /// **Morning Calculator** — Given the workday's exact start [DateTime],
   /// return the precise wall-clock moment the user is free to log off.
   ///
-  /// Formula: `[dayStart] + expectedMinutes + lunchMinutes - productiveCommuteMinutes/2`
-  ///
-  /// Does NOT include [overheadMinutes] — commute overhead happens before
-  /// work starts (morning) or after leaving (evening), so it doesn't extend
-  /// your office stay.
+  /// Formula: `[dayStart] + expectedMinutes + lunchMinutes
+  ///          + morningOverheadMinutes - eveningProductiveCommuteMinutes`
   DateTime calculateLeaveTime(DateTime dayStart) {
-    return dayStart.add(
-      Duration(minutes: expectedMinutes + lunchMinutes - (productiveCommuteMinutes ~/ 2)),
-    );
+    return dayStart.add(Duration(
+      minutes: expectedMinutes +
+          lunchMinutes +
+          morningOverheadMinutes -
+          eveningProductiveCommuteMinutes,
+    ));
   }
 
   /// **Afternoon Logger** — Calculate the net overtime (or undertime) in
   /// minutes by comparing the actual elapsed time against the expected
-  /// total (expected + overhead).
+  /// total (expected + total overhead).
   ///
   /// Positive = overtime worked, negative = left early (time bank credit).
   /// Returns `0` if [endTime] has not yet been set.
@@ -160,7 +218,7 @@ class TimeLog {
     return actualMinutes - lunchMinutes - totalExpected;
   }
 
-  /// Total minutes the user is expected to spend (work + overhead).
+  /// Total minutes the user is expected to spend (work + total overhead).
   int get totalExpectedMinutes => expectedMinutes + overheadMinutes;
 
   /// Human-readable label for the overtime status.
@@ -179,11 +237,14 @@ class TimeLog {
     String? date,
     String? startTime,
     String? endTime,
-    int? overheadMinutes,
     int? expectedMinutes,
     int? lunchMinutes,
+    int? morningOverheadMinutes,
+    int? morningProductiveCommuteMinutes,
+    int? eveningOverheadMinutes,
+    int? eveningProductiveCommuteMinutes,
     int? overtimeMinutes,
-    int? productiveCommuteMinutes,
+    int? productiveCommuteMinutes, // convenience: sets evening only
     String? note,
     String? createdAt,
   }) {
@@ -193,11 +254,19 @@ class TimeLog {
       date: date ?? this.date,
       startTime: startTime ?? this.startTime,
       endTime: endTime ?? this.endTime,
-      overheadMinutes: overheadMinutes ?? this.overheadMinutes,
       expectedMinutes: expectedMinutes ?? this.expectedMinutes,
       lunchMinutes: lunchMinutes ?? this.lunchMinutes,
+      morningOverheadMinutes:
+          morningOverheadMinutes ?? this.morningOverheadMinutes,
+      morningProductiveCommuteMinutes:
+          morningProductiveCommuteMinutes ??
+              this.morningProductiveCommuteMinutes,
+      eveningOverheadMinutes:
+          eveningOverheadMinutes ?? this.eveningOverheadMinutes,
+      eveningProductiveCommuteMinutes:
+          eveningProductiveCommuteMinutes ??
+              this.eveningProductiveCommuteMinutes,
       overtimeMinutes: overtimeMinutes ?? this.overtimeMinutes,
-      productiveCommuteMinutes: productiveCommuteMinutes ?? this.productiveCommuteMinutes,
       note: note ?? this.note,
       createdAt: createdAt ?? this.createdAt,
     );

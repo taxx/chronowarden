@@ -187,17 +187,25 @@ _RowResult _parseRow(String line, String? userId, Set<String> existingDates) {
     return _RowResult(skipped: true);
   }
 
-  // Build TimeLog — overtime will be recalculated by AppState
+  // Build TimeLog — split total values 50/50 for legacy CSV format
+  final morningOverhead = overhead ~/ 2;
+  final eveningOverhead = overhead - morningOverhead;
+  final totalProductive = _parseInt(commuteStr, 'productive_commute_minutes') ?? 0;
+  final morningProductive = totalProductive ~/ 2;
+  final eveningProductive = totalProductive - morningProductive;
+
   final log = TimeLog(
     userId: userId,
     date: date,
     startTime: startTime,
     endTime: endTime.isEmpty ? null : endTime,
     expectedMinutes: expected,
-    overheadMinutes: overhead,
     lunchMinutes: lunch,
+    morningOverheadMinutes: morningOverhead,
+    morningProductiveCommuteMinutes: morningProductive,
+    eveningOverheadMinutes: eveningOverhead,
+    eveningProductiveCommuteMinutes: eveningProductive,
     overtimeMinutes: 0, // recalculated on insert
-    productiveCommuteMinutes: _parseInt(commuteStr, 'productive_commute_minutes') ?? 0,
     note: note.isEmpty ? null : note,
   );
 

@@ -147,9 +147,11 @@ class AppState extends ChangeNotifier {
   Future<TimeLog> startDay({
     required String startTime,
     required int expectedMinutes,
-    required int overheadMinutes,
     int lunchMinutes = 0,
-    int productiveCommuteMinutes = 0,
+    int morningOverheadMinutes = 0,
+    int morningProductiveCommuteMinutes = 0,
+    int eveningOverheadMinutes = 0,
+    int eveningProductiveCommuteMinutes = 0,
   }) async {
     final date = _dateStr(DateTime.now());
     final existing = await logs.activeToday();
@@ -159,10 +161,12 @@ class AppState extends ChangeNotifier {
       date: date,
       startTime: startTime,
       expectedMinutes: expectedMinutes,
-      overheadMinutes: overheadMinutes,
       lunchMinutes: lunchMinutes,
+      morningOverheadMinutes: morningOverheadMinutes,
+      morningProductiveCommuteMinutes: morningProductiveCommuteMinutes,
+      eveningOverheadMinutes: eveningOverheadMinutes,
+      eveningProductiveCommuteMinutes: eveningProductiveCommuteMinutes,
       overtimeMinutes: 0,
-      productiveCommuteMinutes: productiveCommuteMinutes,
     );
     final saved = await logs.insert(newLog);
     _todayLog = saved;
@@ -175,6 +179,25 @@ class AppState extends ChangeNotifier {
     final log = _todayLog;
     if (log == null || log.id == null) return;
     await logs.update(log.id!, {'lunch_minutes': lunchMinutes});
+    await _loadToday();
+    notifyListeners();
+  }
+
+  // -- update commute values on the active day ---------------------
+  Future<void> updateCommuteValues({
+    required int morningOverheadMinutes,
+    required int morningProductiveCommuteMinutes,
+    required int eveningOverheadMinutes,
+    required int eveningProductiveCommuteMinutes,
+  }) async {
+    final log = _todayLog;
+    if (log == null || log.id == null) return;
+    await logs.update(log.id!, {
+      'morning_overhead_minutes': morningOverheadMinutes,
+      'morning_productive_commute_minutes': morningProductiveCommuteMinutes,
+      'evening_overhead_minutes': eveningOverheadMinutes,
+      'evening_productive_commute_minutes': eveningProductiveCommuteMinutes,
+    });
     await _loadToday();
     notifyListeners();
   }
@@ -215,9 +238,11 @@ class AppState extends ChangeNotifier {
     required String startTime,
     required String endTime,
     required int expectedMinutes,
-    required int overheadMinutes,
     int lunchMinutes = 0,
-    int productiveCommuteMinutes = 0,
+    int morningOverheadMinutes = 0,
+    int morningProductiveCommuteMinutes = 0,
+    int eveningOverheadMinutes = 0,
+    int eveningProductiveCommuteMinutes = 0,
     String? note,
   }) async {
     final newLog = TimeLog(
@@ -225,10 +250,12 @@ class AppState extends ChangeNotifier {
       startTime: startTime,
       endTime: endTime,
       expectedMinutes: expectedMinutes,
-      overheadMinutes: overheadMinutes,
       lunchMinutes: lunchMinutes,
+      morningOverheadMinutes: morningOverheadMinutes,
+      morningProductiveCommuteMinutes: morningProductiveCommuteMinutes,
+      eveningOverheadMinutes: eveningOverheadMinutes,
+      eveningProductiveCommuteMinutes: eveningProductiveCommuteMinutes,
       overtimeMinutes: 0,
-      productiveCommuteMinutes: productiveCommuteMinutes,
       note: note,
     );
     final overtime = newLog.calculateOvertimeMinutes();

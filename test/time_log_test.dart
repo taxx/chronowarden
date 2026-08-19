@@ -4,7 +4,8 @@ import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   group('TimeLog.leaveTime', () {
-    // Helper to create a TimeLog with the given values
+    // Helper to create a TimeLog with the given values.
+    // Splits total overhead/productive commute 50/50 into morning/evening.
     TimeLog makeLog({
       String startTime = '07:30:00',
       int expectedMinutes = 480,
@@ -17,16 +18,20 @@ void main() {
         date: date,
         startTime: startTime,
         expectedMinutes: expectedMinutes,
-        overheadMinutes: overheadMinutes,
         lunchMinutes: lunchMinutes,
-        productiveCommuteMinutes: productiveCommuteMinutes,
+        morningOverheadMinutes: overheadMinutes ~/ 2,
+        morningProductiveCommuteMinutes: productiveCommuteMinutes ~/ 2,
+        eveningOverheadMinutes: overheadMinutes - (overheadMinutes ~/ 2),
+        eveningProductiveCommuteMinutes:
+            productiveCommuteMinutes - (productiveCommuteMinutes ~/ 2),
         overtimeMinutes: 0,
       );
     }
 
-    test('no productive commute — leave time = start + expected + lunch', () {
-      final log = makeLog(productiveCommuteMinutes: 0);
-      // Formula: start + expected + lunch (overhead not included)
+    test('no commute — leave time = start + expected + lunch', () {
+      final log = makeLog(overheadMinutes: 0, productiveCommuteMinutes: 0);
+      // Formula: start + expected + lunch + morningOverhead - eveningProductive
+      // With zero commute: start + expected + lunch
       final leave = log.leaveTime;
       final expected = DateTime(2024, 1, 15, 7, 30)
           .add(const Duration(minutes: 480));
@@ -34,8 +39,8 @@ void main() {
     });
 
     test('with productive commute — leave time subtracts evening portion', () {
-      // User works 60 min on train (30 each direction)
-      // Evening portion (30 min) subtracted from leave time
+      // User works 60 min on train (30 each direction).
+      // Evening portion (30 min) subtracted from leave time.
       final log = makeLog(
         startTime: '07:30:00',
         expectedMinutes: 480,
@@ -43,10 +48,10 @@ void main() {
         productiveCommuteMinutes: 60,
       );
       final leave = log.leaveTime;
-      // start + expected + lunch - (productiveCommute ~/ 2)
-      // = 07:30 + 480 - 30 = 07:30 + 450 = 15:00
+      // start + expected + lunch + morningOverhead - eveningProductive
+      // = 07:30 + 480 + 0 + 25 - 30 = 07:30 + 475 = 15:25
       final expected = DateTime(2024, 1, 15, 7, 30)
-          .add(const Duration(minutes: 480 - 30));
+          .add(const Duration(minutes: 480 + 25 - 30));
       expect(leave, expected);
     });
 
@@ -59,23 +64,23 @@ void main() {
         productiveCommuteMinutes: 60,
       );
       final leave = log.leaveTime;
-      // 07:30 + 480 + 30 - 30 = 07:30 + 480 = 15:30
+      // 07:30 + 480 + 30 + 25 - 30 = 07:30 + 505 = 15:55
       final expected = DateTime(2024, 1, 15, 7, 30)
-          .add(const Duration(minutes: 480 + 30 - 30));
+          .add(const Duration(minutes: 480 + 30 + 25 - 30));
       expect(leave, expected);
     });
 
-    test('odd productive commute minutes — integer division truncates', () {
-      // 45 min total = 22.5 evening, truncates to 22
+    test('odd overhead minutes — integer division', () {
+      // 25 total overhead = 12 morning, 13 evening
       final log = makeLog(
         startTime: '07:30:00',
         expectedMinutes: 480,
-        overheadMinutes: 50,
-        productiveCommuteMinutes: 45,
+        overheadMinutes: 25,
       );
       final leave = log.leaveTime;
+      // 07:30 + 480 + 0 + 12 - 0 = 07:30 + 492
       final expected = DateTime(2024, 1, 15, 7, 30)
-          .add(const Duration(minutes: 480 - 22));
+          .add(const Duration(minutes: 480 + 12));
       expect(leave, expected);
     });
 
@@ -107,9 +112,12 @@ void main() {
         startTime: startTime,
         endTime: endTime,
         expectedMinutes: expectedMinutes,
-        overheadMinutes: overheadMinutes,
         lunchMinutes: lunchMinutes,
-        productiveCommuteMinutes: productiveCommuteMinutes,
+        morningOverheadMinutes: overheadMinutes ~/ 2,
+        morningProductiveCommuteMinutes: productiveCommuteMinutes ~/ 2,
+        eveningOverheadMinutes: overheadMinutes - (overheadMinutes ~/ 2),
+        eveningProductiveCommuteMinutes:
+            productiveCommuteMinutes - (productiveCommuteMinutes ~/ 2),
         overtimeMinutes: 0,
       );
     }
@@ -198,14 +206,16 @@ void main() {
   });
 
   group('TimeLog.totalExpectedMinutes', () {
-    test('sums expected and overhead', () {
+    test('sums expected and total overhead', () {
       final log = TimeLog(
         date: '2024-01-15',
         startTime: '07:30:00',
         expectedMinutes: 480,
-        overheadMinutes: 50,
         lunchMinutes: 30,
-        productiveCommuteMinutes: 60,
+        morningOverheadMinutes: 25,
+        morningProductiveCommuteMinutes: 30,
+        eveningOverheadMinutes: 25,
+        eveningProductiveCommuteMinutes: 30,
         overtimeMinutes: 0,
       );
       expect(log.totalExpectedMinutes, 530);
@@ -213,92 +223,123 @@ void main() {
   });
 
   group('TimeLog.copyWith', () {
-    test('includes productiveCommuteMinutes', () {
+    test('includes per-direction commute fields', () {
       final original = TimeLog(
         date: '2024-01-15',
         startTime: '07:30:00',
         expectedMinutes: 480,
-        overheadMinutes: 50,
-        productiveCommuteMinutes: 60,
+        morningOverheadMinutes: 25,
+        morningProductiveCommuteMinutes: 30,
+        eveningOverheadMinutes: 25,
+        eveningProductiveCommuteMinutes: 30,
         overtimeMinutes: 0,
       );
-      final copy = original.copyWith(productiveCommuteMinutes: 30);
-      expect(copy.productiveCommuteMinutes, 30);
-      expect(original.productiveCommuteMinutes, 60);
+      final copy = original.copyWith(
+        morningOverheadMinutes: 0,
+        eveningOverheadMinutes: 50,
+      );
+      expect(copy.morningOverheadMinutes, 0);
+      expect(copy.eveningOverheadMinutes, 50);
+      expect(original.morningOverheadMinutes, 25);
+      expect(original.eveningOverheadMinutes, 25);
     });
   });
 
   group('TravelPreset JSON round-trip', () {
-    test('fromJson parses productive_commute_minutes', () {
+    test('fromJson parses per-direction fields', () {
       final json = {
         'id': 'test-id',
         'user_id': 'test-user',
         'name': 'Train Commute',
-        'default_overhead_minutes': 50,
-        'productive_commute_minutes': 60,
+        'morning_overhead_minutes': 10,
+        'morning_productive_commute_minutes': 15,
+        'evening_overhead_minutes': 15,
+        'evening_productive_commute_minutes': 15,
         'created_at': '2024-01-01T00:00:00Z',
       };
       final preset = TravelPreset.fromJson(json);
-      expect(preset.productiveCommuteMinutes, 60);
+      expect(preset.morningOverheadMinutes, 10);
+      expect(preset.eveningOverheadMinutes, 15);
+      expect(preset.productiveCommuteMinutes, 30);
+      expect(preset.defaultOverheadMinutes, 25);
     });
 
-    test('fromJson defaults to 0 when field missing', () {
+    test('fromJson falls back to legacy total fields', () {
       final json = {
         'name': 'Car Commute',
         'default_overhead_minutes': 30,
       };
       final preset = TravelPreset.fromJson(json);
-      expect(preset.productiveCommuteMinutes, 0);
+      expect(preset.defaultOverheadMinutes, 30);
+      expect(preset.morningOverheadMinutes, 15);
+      expect(preset.eveningOverheadMinutes, 15);
     });
 
-    test('toJson includes productive_commute_minutes', () {
+    test('toJson includes both legacy and new fields', () {
       final preset = TravelPreset(
         name: 'Train',
-        defaultOverheadMinutes: 50,
-        productiveCommuteMinutes: 60,
+        morningOverheadMinutes: 10,
+        morningProductiveCommuteMinutes: 15,
+        eveningOverheadMinutes: 15,
+        eveningProductiveCommuteMinutes: 15,
       );
       final json = preset.toJson();
-      expect(json['productive_commute_minutes'], 60);
+      expect(json['morning_overhead_minutes'], 10);
+      expect(json['evening_overhead_minutes'], 15);
+      expect(json['default_overhead_minutes'], 25);
+      expect(json['productive_commute_minutes'], 30);
     });
   });
 
   group('TimeLog JSON round-trip', () {
-    test('fromJson parses productive_commute_minutes', () {
+    test('fromJson parses per-direction fields', () {
+      final json = {
+        'date': '2024-01-15',
+        'start_time': '07:30:00',
+        'expected_minutes': 480,
+        'overtime_minutes': 0,
+        'morning_overhead_minutes': 10,
+        'morning_productive_commute_minutes': 15,
+        'evening_overhead_minutes': 15,
+        'evening_productive_commute_minutes': 15,
+      };
+      final log = TimeLog.fromJson(json);
+      expect(log.morningOverheadMinutes, 10);
+      expect(log.eveningOverheadMinutes, 15);
+      expect(log.overheadMinutes, 25);
+      expect(log.productiveCommuteMinutes, 30);
+    });
+
+    test('fromJson falls back to legacy total fields', () {
       final json = {
         'date': '2024-01-15',
         'start_time': '07:30:00',
         'overhead_minutes': 50,
         'expected_minutes': 480,
         'overtime_minutes': 0,
-        'productive_commute_minutes': 60,
       };
       final log = TimeLog.fromJson(json);
-      expect(log.productiveCommuteMinutes, 60);
+      expect(log.overheadMinutes, 50);
+      expect(log.morningOverheadMinutes, 25);
+      expect(log.eveningOverheadMinutes, 25);
     });
 
-    test('fromJson defaults to 0 when field missing', () {
-      final json = {
-        'date': '2024-01-15',
-        'start_time': '07:30:00',
-        'overhead_minutes': 50,
-        'expected_minutes': 480,
-        'overtime_minutes': 0,
-      };
-      final log = TimeLog.fromJson(json);
-      expect(log.productiveCommuteMinutes, 0);
-    });
-
-    test('toJson includes productive_commute_minutes', () {
+    test('toJson includes both legacy and new fields', () {
       final log = TimeLog(
         date: '2024-01-15',
         startTime: '07:30:00',
         expectedMinutes: 480,
-        overheadMinutes: 50,
-        productiveCommuteMinutes: 60,
+        morningOverheadMinutes: 10,
+        morningProductiveCommuteMinutes: 15,
+        eveningOverheadMinutes: 15,
+        eveningProductiveCommuteMinutes: 15,
         overtimeMinutes: 0,
       );
       final json = log.toJson();
-      expect(json['productive_commute_minutes'], 60);
+      expect(json['morning_overhead_minutes'], 10);
+      expect(json['evening_overhead_minutes'], 15);
+      expect(json['overhead_minutes'], 25);
+      expect(json['productive_commute_minutes'], 30);
     });
   });
 }

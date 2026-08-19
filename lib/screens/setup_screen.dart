@@ -17,6 +17,29 @@ const _kSetupSql = r'''
 alter table travel_presets add column if not exists productive_commute_minutes int not null default 0;
 alter table time_logs add column if not exists productive_commute_minutes int not null default 0;
 
+-- Per-direction commute fields (v2)
+alter table travel_presets add column if not exists morning_overhead_minutes int not null default 0;
+alter table travel_presets add column if not exists morning_productive_commute_minutes int not null default 0;
+alter table travel_presets add column if not exists evening_overhead_minutes int not null default 0;
+alter table travel_presets add column if not exists evening_productive_commute_minutes int not null default 0;
+alter table time_logs add column if not exists morning_overhead_minutes int not null default 0;
+alter table time_logs add column if not exists morning_productive_commute_minutes int not null default 0;
+alter table time_logs add column if not exists evening_overhead_minutes int not null default 0;
+alter table time_logs add column if not exists evening_productive_commute_minutes int not null default 0;
+
+-- Split existing total values 50/50 into morning/evening
+update travel_presets set
+  morning_overhead_minutes = default_overhead_minutes / 2,
+  evening_overhead_minutes = default_overhead_minutes - (default_overhead_minutes / 2),
+  morning_productive_commute_minutes = productive_commute_minutes / 2,
+  evening_productive_commute_minutes = productive_commute_minutes - (productive_commute_minutes / 2);
+
+update time_logs set
+  morning_overhead_minutes = overhead_minutes / 2,
+  evening_overhead_minutes = overhead_minutes - (overhead_minutes / 2),
+  morning_productive_commute_minutes = productive_commute_minutes / 2,
+  evening_productive_commute_minutes = productive_commute_minutes - (productive_commute_minutes / 2);
+
 -- 0. Clean slate — drop tables (cascade removes their policies automatically)
 drop table if exists time_logs cascade;
 drop table if exists work_period_settings cascade;
@@ -68,8 +91,12 @@ create table travel_presets (
   id uuid default gen_random_uuid() primary key,
   user_id uuid references auth.users on delete cascade not null,
   name text not null,
-  default_overhead_minutes int not null,
+  default_overhead_minutes int not null default 0,
   productive_commute_minutes int not null default 0,
+  morning_overhead_minutes int not null default 0,
+  morning_productive_commute_minutes int not null default 0,
+  evening_overhead_minutes int not null default 0,
+  evening_productive_commute_minutes int not null default 0,
   created_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
 
@@ -80,11 +107,13 @@ create table time_logs (
   date date not null default current_date,
   start_time time not null,
   end_time time,
-  overhead_minutes int not null,
   expected_minutes int not null,
   lunch_minutes int not null default 0,
+  morning_overhead_minutes int not null default 0,
+  morning_productive_commute_minutes int not null default 0,
+  evening_overhead_minutes int not null default 0,
+  evening_productive_commute_minutes int not null default 0,
   overtime_minutes int not null default 0,
-  productive_commute_minutes int not null default 0,
   note text,
   created_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
