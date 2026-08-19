@@ -11,6 +11,7 @@ class PreferencesService {
 
   static const _keyPeriodId = 'last_work_period_id';
   static const _keyPresetId = 'last_travel_preset_id';
+  static const _keyShowWeekends = 'show_weekends';
 
   Future<String?> getLastWorkPeriodId() async {
     final prefs = await SharedPreferences.getInstance();
@@ -38,5 +39,15 @@ class PreferencesService {
     } else {
       await prefs.setString(_keyPresetId, id);
     }
+  }
+
+  Future<bool> getShowWeekends() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_keyShowWeekends) ?? false;
+  }
+
+  Future<void> setShowWeekends(bool show) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_keyShowWeekends, show);
   }
 }

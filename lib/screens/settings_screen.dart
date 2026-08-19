@@ -4,6 +4,7 @@ import '../app_state.dart';
 import '../models/travel_preset.dart';
 import '../models/work_period_setting.dart';
 import '../services/notification_service.dart';
+import '../services/preferences_service.dart';
 import '../utils/csv_export.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -67,6 +68,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
         ),
         const SizedBox(height: 24),
         _NotificationSettings(),
+        const SizedBox(height: 24),
+        _WeekendToggle(),
         const SizedBox(height: 24),
         _ExportSection(),
       ],
@@ -432,6 +435,65 @@ class _NotificationSettingsState extends State<_NotificationSettings> {
           ],
         ),
       ],
+    );
+  }
+}
+
+/// Toggle to show/hide weekends in history and overview views.
+class _WeekendToggle extends StatefulWidget {
+  @override
+  State<_WeekendToggle> createState() => _WeekendToggleState();
+}
+
+class _WeekendToggleState extends State<_WeekendToggle> {
+  final _prefs = PreferencesService();
+  bool? _show;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    final show = await _prefs.getShowWeekends();
+    if (mounted) setState(() => _show = show);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    if (_show == null) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.calendar_month, color: theme.colorScheme.primary),
+                const SizedBox(width: 12),
+                Expanded(child: Text('Weekend days', style: theme.textTheme.titleLarge)),
+                Switch(
+                  value: _show!,
+                  onChanged: (value) async {
+                    await _prefs.setShowWeekends(value);
+                    if (mounted) setState(() => _show = value);
+                  },
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Text(
+              _show! ? 'Weekend days are shown in history and overview.' : 'Weekend days are hidden from history and overview.',
+              style: theme.textTheme.bodySmall,
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

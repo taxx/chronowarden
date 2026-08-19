@@ -95,10 +95,23 @@ class _PeriodTab extends StatefulWidget {
 class _PeriodTabState extends State<_PeriodTab> {
   late int _offset;
   final _state = AppState();
+  final _prefs = PreferencesService();
+  bool _showWeekends = false;
 
   @override
   void initState() {
     super.initState();
+    _loadPref();
+  }
+
+  Future<void> _loadPref() async {
+    final show = await _prefs.getShowWeekends();
+    if (mounted) setState(() => _showWeekends = show);
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
     _offset = widget.externalOffset ?? 0;
   }
 
@@ -222,6 +235,8 @@ class _PeriodTabState extends State<_PeriodTab> {
     return logs.where((l) {
       final date = _parseDate(l.date);
       if (date == null) return false;
+      // Filter weekends unless preference says show them
+      if (!_showWeekends && date.weekday > 5) return false;
       return _dateFallsInPeriod(date, ref);
     }).toList();
   }
