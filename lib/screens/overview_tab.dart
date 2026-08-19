@@ -401,13 +401,14 @@ class _PeriodTabState extends State<_PeriodTab> {
   // ------------------------------------------------------------------
 
   Widget _buildCalendar(ThemeData theme, Map<String, TimeLog> logByDate) {
+    final showWeekends = _prefs.showWeekends.value;
     switch (widget.period) {
       case Period.week:
-        return _weekCalendar(context, logByDate, refDate: _offsetDate(), onDayTap: _showEditDayDialog, onEmptyPastDayTap: _showAddDayDialog);
+        return _weekCalendar(context, logByDate, refDate: _offsetDate(), showWeekends: showWeekends, onDayTap: _showEditDayDialog, onEmptyPastDayTap: _showAddDayDialog);
       case Period.month:
-        return _monthCalendar(context, logByDate, refDate: _offsetDate(), onDayTap: _showEditDayDialog, onEmptyPastDayTap: _showAddDayDialog);
+        return _monthCalendar(context, logByDate, refDate: _offsetDate(), showWeekends: showWeekends, onDayTap: _showEditDayDialog, onEmptyPastDayTap: _showAddDayDialog);
       case Period.year:
-        return _yearCalendar(context, logByDate, refDate: _offsetDate(), onDayTap: _showEditDayDialog, onMonthTap: widget.onMonthSelected);
+        return _yearCalendar(context, logByDate, refDate: _offsetDate(), showWeekends: showWeekends, onDayTap: _showEditDayDialog, onMonthTap: widget.onMonthSelected);
     }
   }
 
@@ -463,6 +464,7 @@ Widget _summaryCard(
 
 Widget _weekCalendar(BuildContext context, Map<String, TimeLog> logByDate, {
   required DateTime refDate,
+  bool showWeekends = false,
   void Function(TimeLog)? onDayTap,
   void Function(DateTime)? onEmptyPastDayTap,
 }) {
@@ -480,6 +482,8 @@ Widget _weekCalendar(BuildContext context, Map<String, TimeLog> logByDate, {
         child: Row(
           children: List.generate(7, (i) {
             final day = weekStart.add(Duration(days: i));
+            // Skip weekends when toggle is off
+            if (!showWeekends && day.weekday > 5) return const SizedBox.shrink();
             final dateStr = _dateStr(day);
             final log = logByDate[dateStr];
             return _dayCell(theme, dayName: dayNames[i], day: day, log: log, onTap: log != null && onDayTap != null ? () => onDayTap(log) : null, onEmptyPastDayTap: log == null && onEmptyPastDayTap != null ? () => onEmptyPastDayTap(day) : null);
@@ -595,6 +599,7 @@ bool _isToday(DateTime date) {
 
 Widget _monthCalendar(BuildContext context, Map<String, TimeLog> logByDate, {
   required DateTime refDate,
+  bool showWeekends = false,
   void Function(TimeLog)? onDayTap,
   void Function(DateTime)? onEmptyPastDayTap,
 }) {
@@ -623,13 +628,14 @@ Widget _monthCalendar(BuildContext context, Map<String, TimeLog> logByDate, {
       ),
       const SizedBox(height: 4),
       // Grid rows
-      ..._buildMonthRows(context, cellWidth, logByDate, firstDay, startWeekday, daysInMonth, onDayTap, onEmptyPastDayTap),
+      ..._buildMonthRows(context, cellWidth, logByDate, firstDay, startWeekday, daysInMonth, showWeekends, onDayTap, onEmptyPastDayTap),
     ],
   );
 }
 
 List<Widget> _buildMonthRows(BuildContext context, double cellWidth, Map<String, TimeLog> logByDate,
     DateTime firstDay, int startWeekday, int daysInMonth,
+    bool showWeekends,
     void Function(TimeLog)? onDayTap,
     void Function(DateTime)? onEmptyPastDayTap) {
   final theme = Theme.of(context);
@@ -640,6 +646,20 @@ List<Widget> _buildMonthRows(BuildContext context, double cellWidth, Map<String,
     final dateStr = _dateStr(date);
     final log = logByDate[dateStr];
     final isToday = _isToday(date);
+
+    // Hide weekend cells when toggle is off
+    if (!showWeekends && date.weekday > 5) {
+      cells.add(Container(
+        width: cellWidth,
+        height: 48,
+        decoration: BoxDecoration(
+          color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.2),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: const Center(child: Text('-', style: TextStyle(color: Colors.transparent))),
+      ));
+      continue;
+    }
 
     Color? bgColor;
     if (log != null && log.endTime != null) {
@@ -742,6 +762,7 @@ String _overtimeStr(int minutes) {
 
 Widget _yearCalendar(BuildContext context, Map<String, TimeLog> logByDate, {
   required DateTime refDate,
+  bool showWeekends = false,
   void Function(TimeLog)? onDayTap,
   void Function(int year, int month)? onMonthTap,
 }) {
