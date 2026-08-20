@@ -737,16 +737,25 @@ class _StartDayDialogState extends State<_StartDayDialog> {
   int get _eveningOverhead => _selectedPreset.eveningOverheadMinutes;
   int get _eveningProductive => _selectedPreset.eveningProductiveCommuteMinutes;
 
+  /// Work periods that are valid for today's date.
+  List<dynamic> get _validPeriods => widget.workPeriods.where((p) {
+    return p.isActiveOn(DateTime.now());
+  }).toList();
+
   dynamic _initialPeriod(int expected) {
-    // Try last-used period first, then active period, then first
+    // Try last-used period first (must be valid today)
     if (widget.initialPeriodId != null) {
-      for (final p in widget.workPeriods) {
+      for (final p in _validPeriods) {
         if (p.id == widget.initialPeriodId) return p;
       }
     }
-    for (final p in widget.workPeriods) {
+    // Fall back to active period (matches expected minutes)
+    for (final p in _validPeriods) {
       if (p.expectedMinutes == expected) return p;
     }
+    // First valid period
+    if (_validPeriods.isNotEmpty) return _validPeriods.first;
+    // Last resort: any period
     return widget.workPeriods.first;
   }
 
@@ -811,7 +820,7 @@ class _StartDayDialogState extends State<_StartDayDialog> {
             const SizedBox(height: 4),
             DropdownButtonFormField(
               initialValue: _selectedPeriod,
-              items: widget.workPeriods.map<DropdownMenuItem>((p) {
+              items: _validPeriods.map<DropdownMenuItem>((p) {
                 return DropdownMenuItem(value: p, child: Text('${p.name} (${p.expectedMinutes} min)'));
               }).toList(),
               onChanged: (v) { if (v != null) setState(() => _selectedPeriod = v); },
@@ -1109,6 +1118,11 @@ class _EditDayDialogState extends State<_EditDayDialog> {
   int get _eveningOverhead => _selectedPreset.eveningOverheadMinutes;
   int get _eveningProductive => _selectedPreset.eveningProductiveCommuteMinutes;
 
+  /// Work periods valid for this log's date.
+  List<dynamic> get _validPeriods => widget.workPeriods.where((p) {
+    return p.isActiveOn(DateTime.parse(widget.log.date));
+  }).toList();
+
   @override
   void initState() {
     super.initState();
@@ -1177,7 +1191,7 @@ class _EditDayDialogState extends State<_EditDayDialog> {
             const SizedBox(height: 4),
             DropdownButtonFormField(
               initialValue: _selectedPeriod,
-              items: widget.workPeriods.map<DropdownMenuItem>((p) {
+              items: _validPeriods.map<DropdownMenuItem>((p) {
                 return DropdownMenuItem(value: p, child: Text('${p.name} (${p.expectedMinutes} min)'));
               }).toList(),
               onChanged: (v) { if (v != null) setState(() => _selectedPeriod = v); },
