@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 import '../app_state.dart';
 import '../services/notification_service.dart';
 import '../services/preferences_service.dart';
-import '../services/preferences_service.dart';
+import '../services/user_settings_service.dart';
 
 /// The "My Day" content widget — shows today's time tracking.
 /// This is a standalone widget (no Scaffold) meant for use inside MainShell.
@@ -419,6 +419,7 @@ class _MyDayTabState extends State<MyDayTab> with SingleTickerProviderStateMixin
     final prefs = PreferencesService();
     final lastPeriodId = await prefs.getLastWorkPeriodId();
     final lastPresetId = await prefs.getLastTravelPresetId();
+    final defaultFlex = await UserSettingsService().getDefaultFlexMinutes();
 
     final result = await showDialog<_StartDayResult>(
       context: ctx,
@@ -428,6 +429,7 @@ class _MyDayTabState extends State<MyDayTab> with SingleTickerProviderStateMixin
         workPeriods: state.workPeriods,
         initialPeriodId: lastPeriodId,
         initialPresetId: lastPresetId,
+        initialFlexMinutes: defaultFlex,
       ),
     );
 
@@ -698,6 +700,7 @@ class _StartDayDialog extends StatefulWidget {
   final List<dynamic> travelPresets;
   final String? initialPeriodId;
   final String? initialPresetId;
+  final int initialFlexMinutes;
 
   const _StartDayDialog({
     required this.expectedMinutes,
@@ -705,6 +708,7 @@ class _StartDayDialog extends StatefulWidget {
     required this.travelPresets,
     this.initialPeriodId,
     this.initialPresetId,
+    this.initialFlexMinutes = 0,
   });
 
   @override
@@ -718,19 +722,20 @@ class _StartDayDialogState extends State<_StartDayDialog> {
   int _lunchMinutes = 30;
   int _flexMinutes = 0;
 
-  int get _expected => _selectedPeriod.expectedMinutes;
-  int get _morningOverhead => _selectedPreset.morningOverheadMinutes;
-  int get _morningProductive => _selectedPreset.morningProductiveCommuteMinutes;
-  int get _eveningOverhead => _selectedPreset.eveningOverheadMinutes;
-  int get _eveningProductive => _selectedPreset.eveningProductiveCommuteMinutes;
-
   @override
   void initState() {
     super.initState();
     _startTime = TimeOfDay.now();
     _selectedPeriod = _initialPeriod(widget.expectedMinutes);
     _selectedPreset = _initialPreset();
+    _flexMinutes = widget.initialFlexMinutes;
   }
+
+  int get _expected => _selectedPeriod.expectedMinutes;
+  int get _morningOverhead => _selectedPreset.morningOverheadMinutes;
+  int get _morningProductive => _selectedPreset.morningProductiveCommuteMinutes;
+  int get _eveningOverhead => _selectedPreset.eveningOverheadMinutes;
+  int get _eveningProductive => _selectedPreset.eveningProductiveCommuteMinutes;
 
   dynamic _initialPeriod(int expected) {
     // Try last-used period first, then active period, then first
