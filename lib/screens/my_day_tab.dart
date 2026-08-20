@@ -841,6 +841,24 @@ class _StartDayDialogState extends State<_StartDayDialog> {
                 Text('$_lunchMinutes min', style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600)),
               ],
             ),
+            const SizedBox(height: 16),
+            Text('Flex time (banked overtime)', style: theme.textTheme.titleSmall),
+            const SizedBox(height: 4),
+            Row(
+              children: [
+                Expanded(
+                  child: Slider(
+                    value: _flexMinutes.toDouble(),
+                    min: 0,
+                    max: 240,
+                    divisions: 48,
+                    label: '$_flexMinutes min',
+                    onChanged: (v) => setState(() => _flexMinutes = v.round()),
+                  ),
+                ),
+                Text('$_flexMinutes min', style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600)),
+              ],
+            ),
             const SizedBox(height: 12),
             Container(
               width: double.infinity,
@@ -857,10 +875,10 @@ class _StartDayDialogState extends State<_StartDayDialog> {
                     '${_leaveTime.hour.toString().padLeft(2, '0')}:${_leaveTime.minute.toString().padLeft(2, '0')}',
                     style: theme.textTheme.headlineLarge?.copyWith(fontFamily: 'monospace', fontWeight: FontWeight.bold),
                   ),
-                  if (_lunchMinutes > 0) ...[
+                  if (_lunchMinutes > 0 || _flexMinutes > 0) ...[
                     const SizedBox(height: 4),
                     Text(
-                      'net work done at ${_netWorkTime.hour.toString().padLeft(2, '0')}:${_netWorkTime.minute.toString().padLeft(2, '0')} (minus $_lunchMinutes min lunch)',
+                      'net work done at ${_netWorkTime.hour.toString().padLeft(2, '0')}:${_netWorkTime.minute.toString().padLeft(2, '0')}' + (_lunchMinutes > 0 ? ' (minus $_lunchMinutes min lunch)' : '') + (_flexMinutes > 0 ? ' (minus $_flexMinutes min flex)' : ''),
                       style: theme.textTheme.bodySmall,
                     ),
                   ],
