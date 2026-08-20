@@ -437,6 +437,7 @@ class _MyDayTabState extends State<MyDayTab> with SingleTickerProviderStateMixin
         startTime: startStr,
         expectedMinutes: result.expectedMinutes,
         lunchMinutes: result.lunchMinutes,
+        flexMinutes: result.flexMinutes,
         morningOverheadMinutes: result.morningOverheadMinutes,
         morningProductiveCommuteMinutes: result.morningProductiveCommuteMinutes,
         eveningOverheadMinutes: result.eveningOverheadMinutes,
@@ -659,6 +660,7 @@ class _StartDayResult {
   final TimeOfDay time;
   final int expectedMinutes;
   final int lunchMinutes;
+  final int flexMinutes;
   final int morningOverheadMinutes;
   final int morningProductiveCommuteMinutes;
   final int eveningOverheadMinutes;
@@ -669,6 +671,7 @@ class _StartDayResult {
     this.time,
     this.expectedMinutes,
     this.lunchMinutes,
+    this.flexMinutes,
     this.morningOverheadMinutes,
     this.morningProductiveCommuteMinutes,
     this.eveningOverheadMinutes,
@@ -713,6 +716,7 @@ class _StartDayDialogState extends State<_StartDayDialog> {
   late dynamic _selectedPeriod;
   late dynamic _selectedPreset;
   int _lunchMinutes = 30;
+  int _flexMinutes = 0;
 
   int get _expected => _selectedPeriod.expectedMinutes;
   int get _morningOverhead => _selectedPreset.morningOverheadMinutes;
@@ -762,6 +766,7 @@ class _StartDayDialogState extends State<_StartDayDialog> {
     return start.add(Duration(
       minutes: _expected +
           _lunchMinutes +
+          _flexMinutes +
           _morningOverhead -
           _eveningProductive,
     ));
@@ -877,6 +882,7 @@ class _StartDayDialogState extends State<_StartDayDialog> {
             _startTime,
             _expected,
             _lunchMinutes,
+            _flexMinutes,
             _morningOverhead,
             _morningProductive,
             _eveningOverhead,
