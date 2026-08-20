@@ -40,6 +40,21 @@ update time_logs set
   morning_productive_commute_minutes = productive_commute_minutes / 2,
   evening_productive_commute_minutes = productive_commute_minutes - (productive_commute_minutes / 2);
 
+-- Flex minutes (v3) — banked overtime spent on personal time
+alter table time_logs add column if not exists flex_minutes int not null default 0;
+
+-- User settings table (v3)
+create table if not exists user_settings (
+  id uuid default gen_random_uuid() primary key,
+  user_id uuid references auth.users on delete cascade not null,
+  default_flex_minutes int not null default 0,
+  created_at timestamp with time zone default timezone('utc'::text, now()) not null,
+  unique(user_id)
+);
+alter table user_settings enable row level security;
+create policy "Manage own settings" on user_settings
+  for all using (auth.uid() = user_id);
+
 -- 0. Clean slate — drop tables (cascade removes their policies automatically)
 drop table if exists time_logs cascade;
 drop table if exists work_period_settings cascade;
@@ -109,6 +124,7 @@ create table time_logs (
   end_time time,
   expected_minutes int not null,
   lunch_minutes int not null default 0,
+  flex_minutes int not null default 0,
   morning_overhead_minutes int not null default 0,
   morning_productive_commute_minutes int not null default 0,
   evening_overhead_minutes int not null default 0,
@@ -117,6 +133,18 @@ create table time_logs (
   note text,
   created_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
+
+-- 5b. USER SETTINGS — per-user preferences
+create table user_settings (
+  id uuid default gen_random_uuid() primary key,
+  user_id uuid references auth.users on delete cascade not null,
+  default_flex_minutes int not null default 0,
+  created_at timestamp with time zone default timezone('utc'::text, now()) not null,
+  unique(user_id)
+);
+alter table user_settings enable row level security;
+create policy "Manage own settings" on user_settings
+  for all using (auth.uid() = user_id);
 
 -- 6. TRIGGER — create profile row on signup
 create function handle_new_user()

@@ -11,6 +11,7 @@ class TimeLog {
   final String? endTime;  // "HH:MM:SS" — null while the day is active
   final int expectedMinutes;
   final int lunchMinutes;
+  final int flexMinutes;
   final int morningOverheadMinutes;
   final int morningProductiveCommuteMinutes;
   final int eveningOverheadMinutes;
@@ -27,6 +28,7 @@ class TimeLog {
     this.endTime,
     required this.expectedMinutes,
     this.lunchMinutes = 0,
+    this.flexMinutes = 0,
     this.morningOverheadMinutes = 0,
     this.morningProductiveCommuteMinutes = 0,
     this.eveningOverheadMinutes = 0,
@@ -65,6 +67,7 @@ class TimeLog {
         endTime: json['end_time'] as String?,
         expectedMinutes: json['expected_minutes'] as int,
         lunchMinutes: (json['lunch_minutes'] as int?) ?? 0,
+        flexMinutes: (json['flex_minutes'] as int?) ?? 0,
         morningOverheadMinutes: morningOverhead,
         morningProductiveCommuteMinutes: morningProductive ?? 0,
         eveningOverheadMinutes: eveningOverhead,
@@ -86,6 +89,7 @@ class TimeLog {
       endTime: json['end_time'] as String?,
       expectedMinutes: json['expected_minutes'] as int,
       lunchMinutes: (json['lunch_minutes'] as int?) ?? 0,
+      flexMinutes: (json['flex_minutes'] as int?) ?? 0,
       morningOverheadMinutes: totalOverhead ~/ 2,
       morningProductiveCommuteMinutes: totalProductive ~/ 2,
       eveningOverheadMinutes: totalOverhead - (totalOverhead ~/ 2),
@@ -105,6 +109,7 @@ class TimeLog {
       'end_time': endTime,
       'expected_minutes': expectedMinutes,
       'lunch_minutes': lunchMinutes,
+      'flex_minutes': flexMinutes,
       // New per-direction fields
       'morning_overhead_minutes': morningOverheadMinutes,
       'morning_productive_commute_minutes': morningProductiveCommuteMinutes,
@@ -169,6 +174,7 @@ class TimeLog {
     return start.add(Duration(
       minutes: expectedMinutes +
           lunchMinutes +
+          flexMinutes +
           morningOverheadMinutes -
           eveningProductiveCommuteMinutes,
     ));
@@ -196,6 +202,7 @@ class TimeLog {
     return dayStart.add(Duration(
       minutes: expectedMinutes +
           lunchMinutes +
+          flexMinutes +
           morningOverheadMinutes -
           eveningProductiveCommuteMinutes,
     ));
@@ -215,7 +222,7 @@ class TimeLog {
     final actualMinutes = end.difference(start).inMinutes;
     final totalExpected = expectedMinutes + overheadMinutes;
 
-    return actualMinutes - lunchMinutes - totalExpected;
+    return actualMinutes - lunchMinutes - flexMinutes - totalExpected;
   }
 
   /// Total minutes the user is expected to spend (work + total overhead).
@@ -239,6 +246,7 @@ class TimeLog {
     String? endTime,
     int? expectedMinutes,
     int? lunchMinutes,
+    int? flexMinutes,
     int? morningOverheadMinutes,
     int? morningProductiveCommuteMinutes,
     int? eveningOverheadMinutes,
@@ -256,6 +264,7 @@ class TimeLog {
       endTime: endTime ?? this.endTime,
       expectedMinutes: expectedMinutes ?? this.expectedMinutes,
       lunchMinutes: lunchMinutes ?? this.lunchMinutes,
+      flexMinutes: flexMinutes ?? this.flexMinutes,
       morningOverheadMinutes:
           morningOverheadMinutes ?? this.morningOverheadMinutes,
       morningProductiveCommuteMinutes:

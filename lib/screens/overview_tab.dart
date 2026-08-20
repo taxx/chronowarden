@@ -379,6 +379,7 @@ class _PeriodTabState extends State<_PeriodTab> {
         endTime: endStr,
         expectedMinutes: result.expectedMinutes,
         lunchMinutes: result.lunchMinutes,
+        flexMinutes: result.flexMinutes,
         morningOverheadMinutes: result.morningOverheadMinutes,
         morningProductiveCommuteMinutes: result.morningProductiveCommuteMinutes,
         eveningOverheadMinutes: result.eveningOverheadMinutes,
@@ -839,6 +840,7 @@ class _EditDayResult {
   final TimeOfDay? endTime;
   final int expectedMinutes;
   final int lunchMinutes;
+  final int flexMinutes;
   final int morningOverheadMinutes;
   final int morningProductiveCommuteMinutes;
   final int eveningOverheadMinutes;
@@ -850,6 +852,7 @@ class _EditDayResult {
     required this.endTime,
     required this.expectedMinutes,
     required this.lunchMinutes,
+    this.flexMinutes = 0,
     required this.morningOverheadMinutes,
     required this.morningProductiveCommuteMinutes,
     required this.eveningOverheadMinutes,
@@ -1023,6 +1026,7 @@ class _EditDayDialogState extends State<_EditDayDialog> {
             endTime: _endTime,
             expectedMinutes: _expected,
             lunchMinutes: _lunch,
+            flexMinutes: 0,
             morningOverheadMinutes: _morningOverhead,
             morningProductiveCommuteMinutes: _morningProductive,
             eveningOverheadMinutes: _eveningOverhead,
@@ -1069,6 +1073,7 @@ class _AddDayResult {
   final TimeOfDay endTime;
   final int expectedMinutes;
   final int lunchMinutes;
+  final int flexMinutes;
   final int morningOverheadMinutes;
   final int morningProductiveCommuteMinutes;
   final int eveningOverheadMinutes;
@@ -1082,6 +1087,7 @@ class _AddDayResult {
     required this.endTime,
     required this.expectedMinutes,
     required this.lunchMinutes,
+    this.flexMinutes = 0,
     required this.morningOverheadMinutes,
     required this.morningProductiveCommuteMinutes,
     required this.eveningOverheadMinutes,
@@ -1323,6 +1329,7 @@ class _AddDayDialogState extends State<_AddDayDialog> {
             endTime: _endTime,
             expectedMinutes: _expected,
             lunchMinutes: _lunch,
+            flexMinutes: 0,
             morningOverheadMinutes: _morningOverhead,
             morningProductiveCommuteMinutes: _morningProductive,
             eveningOverheadMinutes: _eveningOverhead,

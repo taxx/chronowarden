@@ -148,6 +148,7 @@ class AppState extends ChangeNotifier {
     required String startTime,
     required int expectedMinutes,
     int lunchMinutes = 0,
+    int flexMinutes = 0,
     int morningOverheadMinutes = 0,
     int morningProductiveCommuteMinutes = 0,
     int eveningOverheadMinutes = 0,
@@ -162,6 +163,7 @@ class AppState extends ChangeNotifier {
       startTime: startTime,
       expectedMinutes: expectedMinutes,
       lunchMinutes: lunchMinutes,
+      flexMinutes: flexMinutes,
       morningOverheadMinutes: morningOverheadMinutes,
       morningProductiveCommuteMinutes: morningProductiveCommuteMinutes,
       eveningOverheadMinutes: eveningOverheadMinutes,
@@ -172,6 +174,15 @@ class AppState extends ChangeNotifier {
     _todayLog = saved;
     notifyListeners();
     return saved;
+  }
+
+  // -- update flex minutes on the active day -------------------------
+  Future<void> updateFlexMinutes(int flexMinutes) async {
+    final log = _todayLog;
+    if (log == null || log.id == null) return;
+    await logs.update(log.id!, {'flex_minutes': flexMinutes});
+    await _loadToday();
+    notifyListeners();
   }
 
   // -- update lunch on the active day --------------------------------
@@ -239,6 +250,7 @@ class AppState extends ChangeNotifier {
     required String endTime,
     required int expectedMinutes,
     int lunchMinutes = 0,
+    int flexMinutes = 0,
     int morningOverheadMinutes = 0,
     int morningProductiveCommuteMinutes = 0,
     int eveningOverheadMinutes = 0,
@@ -251,6 +263,7 @@ class AppState extends ChangeNotifier {
       endTime: endTime,
       expectedMinutes: expectedMinutes,
       lunchMinutes: lunchMinutes,
+      flexMinutes: flexMinutes,
       morningOverheadMinutes: morningOverheadMinutes,
       morningProductiveCommuteMinutes: morningProductiveCommuteMinutes,
       eveningOverheadMinutes: eveningOverheadMinutes,
@@ -298,11 +311,11 @@ class AppState extends ChangeNotifier {
   }
 
   // -- stop today's workday ------------------------------------------
-  Future<void> stopDay(String endTime, {int lunchMinutes = 0}) async {
+  Future<void> stopDay(String endTime, {int lunchMinutes = 0, int flexMinutes = 0}) async {
     final log = _todayLog;
     if (log == null) return;
 
-    final computed = log.copyWith(endTime: endTime, lunchMinutes: lunchMinutes);
+    final computed = log.copyWith(endTime: endTime, lunchMinutes: lunchMinutes, flexMinutes: flexMinutes);
     final overtime = computed.calculateOvertimeMinutes();
     final id = log.id;
     if (id == null) return;
@@ -310,6 +323,7 @@ class AppState extends ChangeNotifier {
     await logs.update(id, {
       'end_time': endTime,
       'lunch_minutes': lunchMinutes,
+      'flex_minutes': flexMinutes,
       'overtime_minutes': overtime,
     });
 

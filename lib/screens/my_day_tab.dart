@@ -244,6 +244,8 @@ class _MyDayTabState extends State<MyDayTab> with SingleTickerProviderStateMixin
             if (log.morningProductiveCommuteMinutes + log.eveningProductiveCommuteMinutes > 0)
               _statRow(theme, 'Productive commute', '${log.morningProductiveCommuteMinutes}/${log.eveningProductiveCommuteMinutes} min (am/pm)'),
             _statRow(theme, 'Total', '${log.expectedMinutes + log.overheadMinutes + log.productiveCommuteMinutes} min'),
+            if (log.flexMinutes > 0)
+              _statRow(theme, 'Flex time', '${log.flexMinutes} min'),
             InkWell(
               onTap: () => _showEditLunchDialog(context, lunch),
               borderRadius: BorderRadius.circular(8),
@@ -259,6 +261,28 @@ class _MyDayTabState extends State<MyDayTab> with SingleTickerProviderStateMixin
                     ]),
                     Row(children: [
                       Text('$lunch min', style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600)),
+                      const SizedBox(width: 4),
+                      Icon(Icons.edit, size: 14, color: theme.colorScheme.primary),
+                    ]),
+                  ],
+                ),
+              ),
+            ),
+            InkWell(
+              onTap: () => _showEditFlexDialog(context, log.flexMinutes),
+              borderRadius: BorderRadius.circular(8),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 4),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Row(children: [
+                      Text('Flex time', style: theme.textTheme.bodyMedium),
+                      const SizedBox(width: 4),
+                      Icon(Icons.schedule, size: 16, color: theme.colorScheme.onSurfaceVariant),
+                    ]),
+                    Row(children: [
+                      Text('${log.flexMinutes} min', style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600)),
                       const SizedBox(width: 4),
                       Icon(Icons.edit, size: 14, color: theme.colorScheme.primary),
                     ]),
@@ -425,15 +449,17 @@ class _MyDayTabState extends State<MyDayTab> with SingleTickerProviderStateMixin
   }
 
   Future<void> _showStopDayDialog(BuildContext ctx) async {
-    final currentLunch = _state.todayLog?.lunchMinutes ?? 0;
+    final log = _state.todayLog;
+    final currentLunch = log?.lunchMinutes ?? 0;
+    final currentFlex = log?.flexMinutes ?? 0;
     final result = await showDialog<_StopDayResult>(
       context: ctx,
-      builder: (_) => _StopDayDialog(initialLunchMinutes: currentLunch),
+      builder: (_) => _StopDayDialog(initialLunchMinutes: currentLunch, initialFlexMinutes: currentFlex),
     );
 
     if (result != null) {
       final endStr = '${result.time.hour.toString().padLeft(2, '0')}:${result.time.minute.toString().padLeft(2, '0')}:00';
-      await _state.stopDay(endStr, lunchMinutes: result.lunchMinutes);
+      await _state.stopDay(endStr, lunchMinutes: result.lunchMinutes, flexMinutes: result.flexMinutes);
     }
   }
 
@@ -540,6 +566,46 @@ class _MyDayTabState extends State<MyDayTab> with SingleTickerProviderStateMixin
     }
   }
 
+  Future<void> _showEditFlexDialog(BuildContext ctx, int currentFlex) async {
+    int flex = currentFlex;
+    await showDialog<void>(
+      context: ctx,
+      builder: (_) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text('Adjust flex time'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Slider(
+                value: flex.toDouble(),
+                min: 0,
+                max: 240,
+                divisions: 48,
+                label: '$flex min',
+                onChanged: (v) {
+                  flex = v.round();
+                  setDialogState(() {});
+                },
+              ),
+              const SizedBox(height: 4),
+              Text('$flex min', style: Theme.of(ctx).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
+            ],
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+            FilledButton(
+              onPressed: () {
+                Navigator.pop(ctx);
+                _state.updateFlexMinutes(flex);
+              },
+              child: const Text('Save'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Future<void> _showChangePresetDialog(BuildContext ctx) async {
     final state = _state;
     if (state.travelPresets.isEmpty) {
@@ -615,7 +681,8 @@ class _StartDayResult {
 class _StopDayResult {
   final TimeOfDay time;
   final int lunchMinutes;
-  _StopDayResult(this.time, this.lunchMinutes);
+  final int flexMinutes;
+  _StopDayResult(this.time, this.lunchMinutes, this.flexMinutes);
 }
 
 // ---------------------------------------------------------------------------
@@ -861,8 +928,9 @@ class _StartDayDialogState extends State<_StartDayDialog> {
 
 class _StopDayDialog extends StatefulWidget {
   final int initialLunchMinutes;
+  final int initialFlexMinutes;
 
-  const _StopDayDialog({this.initialLunchMinutes = 0});
+  const _StopDayDialog({this.initialLunchMinutes = 0, this.initialFlexMinutes = 0});
 
   @override
   State<_StopDayDialog> createState() => _StopDayDialogState();
@@ -871,12 +939,14 @@ class _StopDayDialog extends StatefulWidget {
 class _StopDayDialogState extends State<_StopDayDialog> {
   late TimeOfDay _time;
   late int _lunchMinutes;
+  late int _flexMinutes;
 
   @override
   void initState() {
     super.initState();
     _time = TimeOfDay.now();
     _lunchMinutes = widget.initialLunchMinutes;
+    _flexMinutes = widget.initialFlexMinutes;
   }
 
   @override
@@ -915,12 +985,30 @@ class _StopDayDialogState extends State<_StopDayDialog> {
               Text('$_lunchMinutes min', style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600)),
             ],
           ),
+          const SizedBox(height: 16),
+          Text('Flex time (banked overtime)', style: theme.textTheme.titleSmall),
+          const SizedBox(height: 4),
+          Row(
+            children: [
+              Expanded(
+                child: Slider(
+                  value: _flexMinutes.toDouble(),
+                  min: 0,
+                  max: 240,
+                  divisions: 48,
+                  label: '$_flexMinutes min',
+                  onChanged: (v) => setState(() => _flexMinutes = v.round()),
+                ),
+              ),
+              Text('$_flexMinutes min', style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600)),
+            ],
+          ),
         ],
       ),
       actions: [
         TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
         FilledButton(
-          onPressed: () => Navigator.pop(context, _StopDayResult(_time, _lunchMinutes)),
+          onPressed: () => Navigator.pop(context, _StopDayResult(_time, _lunchMinutes, _flexMinutes)),
           child: const Text('Stop'),
         ),
       ],

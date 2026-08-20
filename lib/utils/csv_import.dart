@@ -201,6 +201,7 @@ _RowResult _parseRow(String line, String? userId, Set<String> existingDates) {
     endTime: endTime.isEmpty ? null : endTime,
     expectedMinutes: expected,
     lunchMinutes: lunch,
+    flexMinutes: 0,
     morningOverheadMinutes: morningOverhead,
     morningProductiveCommuteMinutes: morningProductive,
     eveningOverheadMinutes: eveningOverhead,

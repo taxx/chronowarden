@@ -5,6 +5,7 @@ import '../models/travel_preset.dart';
 import '../models/work_period_setting.dart';
 import '../services/notification_service.dart';
 import '../services/preferences_service.dart';
+import '../services/user_settings_service.dart';
 import '../utils/csv_export.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -70,6 +71,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
         _NotificationSettings(),
         const SizedBox(height: 24),
         _WeekendToggle(),
+        const SizedBox(height: 24),
+        _DefaultFlexSetting(),
         const SizedBox(height: 24),
         _ExportSection(),
       ],
@@ -490,6 +493,96 @@ class _WeekendToggleState extends State<_WeekendToggle> {
             Text(
               _show! ? 'Weekend days are shown in history and overview.' : 'Weekend days are hidden from history and overview.',
               style: theme.textTheme.bodySmall,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Default flex minutes setting — banked overtime spent on personal time.
+class _DefaultFlexSetting extends StatefulWidget {
+  @override
+  State<_DefaultFlexSetting> createState() => _DefaultFlexSettingState();
+}
+
+class _DefaultFlexSettingState extends State<_DefaultFlexSetting> {
+  final _settings = UserSettingsService();
+  int _flexMinutes = 0;
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    final minutes = await _settings.getDefaultFlexMinutes();
+    if (mounted) setState(() {
+      _flexMinutes = minutes;
+      _loading = false;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    if (_loading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.schedule, color: theme.colorScheme.primary),
+                const SizedBox(width: 12),
+                Expanded(child: Text('Default flex time', style: theme.textTheme.titleLarge)),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Banked overtime you take as personal time each day.\nLeave time and overtime calculations adjust automatically.',
+              style: theme.textTheme.bodySmall,
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                const Text('Minutes: '),
+                Expanded(
+                  child: Slider(
+                    value: _flexMinutes.toDouble(),
+                    min: 0,
+                    max: 120,
+                    divisions: 24,
+                    label: '$_flexMinutes min',
+                    onChanged: (v) => setState(() => _flexMinutes = v.round()),
+                  ),
+                ),
+                Text('$_flexMinutes min', style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600)),
+              ],
+            ),
+            const SizedBox(height: 8),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton(
+                onPressed: _loading
+                    ? null
+                    : () async {
+                        await _settings.setDefaultFlexMinutes(_flexMinutes);
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Default flex time saved')),
+                          );
+                        }
+                      },
+                child: const Text('Save'),
+              ),
             ),
           ],
         ),
