@@ -288,7 +288,7 @@ class _PeriodTabState extends State<_PeriodTab> {
           ),
           const SizedBox(height: 16),
           // Time bank chart — running overtime balance
-          _TimeBankChart(logs: filtered, period: widget.period, refDate: refDate),
+          _TimeBankChart(logs: filtered, period: widget.period, refDate: refDate, showWeekends: _prefs.showWeekends.value),
           const SizedBox(height: 16),
           // Calendar view depending on period
           _buildCalendar(theme, logByDate),
@@ -647,16 +647,16 @@ List<Widget> _buildMonthRows(BuildContext context, double cellWidth, Map<String,
     final log = logByDate[dateStr];
     final isToday = _isToday(date);
 
-    // Hide weekend cells when toggle is off
+    // Hide weekend cells when toggle is off (keep cell width for grid alignment)
     if (!showWeekends && date.weekday > 5) {
       cells.add(Container(
         width: cellWidth,
         height: 48,
         decoration: BoxDecoration(
-          color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.2),
+          color: Colors.transparent,
           borderRadius: BorderRadius.circular(8),
         ),
-        child: const Center(child: Text('-', style: TextStyle(color: Colors.transparent))),
+        child: const SizedBox.shrink(),
       ));
       continue;
     }
@@ -1369,11 +1369,13 @@ class _TimeBankChart extends StatelessWidget {
   final List<TimeLog> logs;
   final Period period;
   final DateTime refDate;
+  final bool showWeekends;
 
   const _TimeBankChart({
     required this.logs,
     required this.period,
     required this.refDate,
+    this.showWeekends = false,
   });
 
   @override
@@ -1496,6 +1498,8 @@ class _TimeBankChart extends StatelessWidget {
 
     for (int i = 0; i < 7; i++) {
       final day = weekStart.add(Duration(days: i));
+      // Skip weekends when toggle is off
+      if (!showWeekends && day.weekday > 5) continue;
       final dateStr = _dateStr(day);
       final log = logByDate[dateStr];
       if (log != null && log.endTime != null) {
@@ -1516,6 +1520,8 @@ class _TimeBankChart extends StatelessWidget {
 
     for (int day = 1; day <= daysInMonth; day++) {
       final date = DateTime(refDate.year, refDate.month, day);
+      // Skip weekends when toggle is off
+      if (!showWeekends && date.weekday > 5) continue;
       final dateStr = _dateStr(date);
       final log = logByDate[dateStr];
       if (log != null && log.endTime != null) {
