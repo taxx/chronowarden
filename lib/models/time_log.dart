@@ -174,9 +174,9 @@ class TimeLog {
     return start.add(Duration(
       minutes: expectedMinutes +
           lunchMinutes +
-          flexMinutes +
           morningOverheadMinutes -
-          eveningProductiveCommuteMinutes,
+          eveningProductiveCommuteMinutes -
+          flexMinutes,
     ));
   }
 
@@ -202,9 +202,9 @@ class TimeLog {
     return dayStart.add(Duration(
       minutes: expectedMinutes +
           lunchMinutes +
-          flexMinutes +
           morningOverheadMinutes -
-          eveningProductiveCommuteMinutes,
+          eveningProductiveCommuteMinutes -
+          flexMinutes,
     ));
   }
 

@@ -780,9 +780,9 @@ class _StartDayDialogState extends State<_StartDayDialog> {
     return start.add(Duration(
       minutes: _expected +
           _lunchMinutes +
-          _flexMinutes +
           _morningOverhead -
-          _eveningProductive,
+          _eveningProductive -
+          _flexMinutes,
     ));
   }
 
@@ -889,12 +889,16 @@ class _StartDayDialogState extends State<_StartDayDialog> {
                     '${_leaveTime.hour.toString().padLeft(2, '0')}:${_leaveTime.minute.toString().padLeft(2, '0')}',
                     style: theme.textTheme.headlineLarge?.copyWith(fontFamily: 'monospace', fontWeight: FontWeight.bold),
                   ),
-                  if (_lunchMinutes > 0 || _flexMinutes > 0) ...[
+                  if (_lunchMinutes > 0 || _flexMinutes > 0) ...<Widget>[
                     const SizedBox(height: 4),
                     Text(
-                      'net work done at ${_netWorkTime.hour.toString().padLeft(2, '0')}:${_netWorkTime.minute.toString().padLeft(2, '0')}' + (_lunchMinutes > 0 ? ' (minus $_lunchMinutes min lunch)' : '') + (_flexMinutes > 0 ? ' (minus $_flexMinutes min flex)' : ''),
+                      'net work done at ${_netWorkTime.hour.toString().padLeft(2, '0')}:${_netWorkTime.minute.toString().padLeft(2, '0')}',
                       style: theme.textTheme.bodySmall,
                     ),
+                    if (_lunchMinutes > 0)
+                      Text('  minus $_lunchMinutes min lunch', style: theme.textTheme.bodySmall),
+                    if (_flexMinutes > 0)
+                      Text('  minus $_flexMinutes min flex', style: theme.textTheme.bodySmall),
                   ],
                   const SizedBox(height: 8),
                   Text(
