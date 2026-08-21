@@ -1509,9 +1509,9 @@ class _TimeBankChart extends StatelessWidget {
       if (!showWeekends && day.weekday > 5) continue;
       final dateStr = _dateStr(day);
       final log = logByDate[dateStr];
-      if (log != null && log.endTime != null) {
-        cum += log.overtimeMinutes;
-      }
+      // Only plot days that actually have a completed log
+      if (log == null || log.endTime == null) continue;
+      cum += log.overtimeMinutes;
       balances.add(cum);
       labels.add(dayNames[i]);
     }
@@ -1531,9 +1531,9 @@ class _TimeBankChart extends StatelessWidget {
       if (!showWeekends && date.weekday > 5) continue;
       final dateStr = _dateStr(date);
       final log = logByDate[dateStr];
-      if (log != null && log.endTime != null) {
-        cum += log.overtimeMinutes;
-      }
+      // Only plot days that actually have a completed log
+      if (log == null || log.endTime == null) continue;
+      cum += log.overtimeMinutes;
       balances.add(cum);
       // Label every 5th day or first/last
       if (day == 1 || day == daysInMonth || day % 5 == 0) {
