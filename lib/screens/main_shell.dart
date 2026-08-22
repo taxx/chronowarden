@@ -8,6 +8,7 @@ import 'admin_screen.dart';
 import 'history_content.dart';
 import 'my_day_tab.dart';
 import 'overview_tab.dart';
+import 'projection_screen.dart';
 import 'settings_screen.dart';
 
 /// Unified shell for all authenticated, approved users.
@@ -61,6 +62,10 @@ class _MainShellState extends State<MainShell> {
           const NavigationDestination(
             icon: Icon(Icons.bar_chart_rounded),
             label: 'Overview',
+          ),
+          const NavigationDestination(
+            icon: Icon(Icons.trending_down),
+            label: 'Projection',
           ),
           const NavigationDestination(
             icon: Icon(Icons.history),
@@ -137,6 +142,7 @@ class _MainShellState extends State<MainShell> {
                 children: [
                   const MyDayTab(),
                   const OverviewTab(),
+                  const ProjectionScreen(),
                   const HistoryContent(),
                   if (isAdmin) const AdminScreen(),
                 ],

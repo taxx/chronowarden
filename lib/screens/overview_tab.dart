@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../app_state.dart';
-import 'projection_screen.dart';
+
 import '../models/time_log.dart';
 import '../services/preferences_service.dart';
 
@@ -290,42 +290,6 @@ class _PeriodTabState extends State<_PeriodTab> {
           const SizedBox(height: 16),
           // Time bank chart — running overtime balance
           _TimeBankChart(logs: filtered, period: widget.period, refDate: refDate, showWeekends: _prefs.showWeekends.value),
-          const SizedBox(height: 16),
-          // Projection button
-          Card(
-            margin: const EdgeInsets.symmetric(vertical: 4),
-            child: InkWell(
-              onTap: () => Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const ProjectionScreen()),
-              ),
-              borderRadius: BorderRadius.circular(12),
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Row(
-                  children: [
-                    Icon(Icons.trending_down, color: theme.colorScheme.primary),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text('Time Bank Projection', style: theme.textTheme.titleMedium),
-                          Text(
-                            'Plan how daily flex reduces your bank to zero',
-                            style: theme.textTheme.bodySmall?.copyWith(
-                              color: theme.colorScheme.onSurfaceVariant,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    Icon(Icons.chevron_right, color: theme.colorScheme.onSurfaceVariant),
-                  ],
-                ),
-              ),
-            ),
-          ),
           const SizedBox(height: 16),
           // Calendar view depending on period
           _buildCalendar(theme, logByDate),
