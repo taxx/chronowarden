@@ -24,6 +24,12 @@ void main() async {
   await ThemeService().init();
   await AuthService().init();
 
+  // Pre-load app data so the first frame never shows setup screen
+  final auth = AuthService();
+  if (auth.isAuthenticated && auth.profile?.isApproved == true) {
+    await AppState().refresh();
+  }
+
   runApp(const ChronoWardenApp());
 }
 
@@ -46,11 +52,7 @@ class _ChronoWardenAppState extends State<ChronoWardenApp> {
 
   Future<void> _init() async {
     _auth.addListener(_onAuthChanged);
-    // AuthService.init() already ran in main(), but we still need to
-    // refresh data and set up the listener.
-    if (_auth.isAuthenticated && _auth.profile?.isApproved == true) {
-      await _state.refresh();
-    }
+    // Data already loaded in main(), just set up the listener.
     if (mounted) setState(() {});
   }
 
