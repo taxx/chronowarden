@@ -1688,12 +1688,16 @@ class _ChartPainter extends CustomPainter {
       canvas.drawCircle(pt, 3, dotPaint);
     }
 
-    // ---- Zero reference line (on top of data) ----
-    canvas.drawLine(
-      Offset(leftPad, zeroY),
-      Offset(size.width - rightPad, zeroY),
-      Paint()..color = zeroLineColor..strokeWidth = 2.5,
-    );
+    // ---- Zero reference line (dashed, on top of data) ----
+    final dashPaint = Paint()..color = zeroLineColor..strokeWidth = 2.5;
+    final dashWidth = 6.0;
+    final gapWidth = 4.0;
+    double x0 = leftPad;
+    while (x0 < size.width - rightPad) {
+      final x1 = (x0 + dashWidth).clamp(leftPad, size.width - rightPad);
+      canvas.drawLine(Offset(x0, zeroY), Offset(x1, zeroY), dashPaint);
+      x0 = x1 + gapWidth;
+    }
 
     // ---- X-axis labels ----
     for (int i = 0; i < labels.length; i++) {
