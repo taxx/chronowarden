@@ -1420,6 +1420,7 @@ class _TimeBankChart extends StatelessWidget {
                 greenColor: Colors.green.shade700,
                 redColor: Colors.red.shade700,
                 gridColor: theme.dividerColor,
+                zeroLineColor: theme.colorScheme.onSurfaceVariant,
               )),
             ),
             const SizedBox(height: 8),
@@ -1585,6 +1586,7 @@ class _ChartPainter extends CustomPainter {
   final Color greenColor;
   final Color redColor;
   final Color gridColor;
+  final Color zeroLineColor;
 
   _ChartPainter({
     required this.balances,
@@ -1592,6 +1594,7 @@ class _ChartPainter extends CustomPainter {
     required this.greenColor,
     required this.redColor,
     required this.gridColor,
+    required this.zeroLineColor,
   });
 
   @override
@@ -1645,13 +1648,6 @@ class _ChartPainter extends CustomPainter {
       canvas.drawLine(Offset(leftPad, y), Offset(size.width - rightPad, y), gridPaint);
     }
 
-    // ---- Zero reference line ----
-    canvas.drawLine(
-      Offset(leftPad, zeroY),
-      Offset(size.width - rightPad, zeroY),
-      Paint()..color = redColor.withValues(alpha: 0.7)..strokeWidth = 2.5,
-    );
-
     // ---- Data path + fill ----
     final path = Path();
     final fillPath = Path();
@@ -1691,6 +1687,13 @@ class _ChartPainter extends CustomPainter {
     for (final pt in points) {
       canvas.drawCircle(pt, 3, dotPaint);
     }
+
+    // ---- Zero reference line (on top of data) ----
+    canvas.drawLine(
+      Offset(leftPad, zeroY),
+      Offset(size.width - rightPad, zeroY),
+      Paint()..color = zeroLineColor..strokeWidth = 2.5,
+    );
 
     // ---- X-axis labels ----
     for (int i = 0; i < labels.length; i++) {
