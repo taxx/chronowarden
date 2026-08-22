@@ -22,6 +22,7 @@ void main() async {
   }
 
   await ThemeService().init();
+  await AuthService().init();
 
   runApp(const ChronoWardenApp());
 }
@@ -45,7 +46,8 @@ class _ChronoWardenAppState extends State<ChronoWardenApp> {
 
   Future<void> _init() async {
     _auth.addListener(_onAuthChanged);
-    await _auth.init();
+    // AuthService.init() already ran in main(), but we still need to
+    // refresh data and set up the listener.
     if (_auth.isAuthenticated && _auth.profile?.isApproved == true) {
       await _state.refresh();
     }
