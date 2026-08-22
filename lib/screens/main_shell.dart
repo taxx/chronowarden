@@ -59,12 +59,12 @@ class _MainShellState extends State<MainShell> {
             label: 'My Day',
           ),
           const NavigationDestination(
-            icon: Icon(Icons.history),
-            label: 'History',
-          ),
-          const NavigationDestination(
             icon: Icon(Icons.bar_chart_rounded),
             label: 'Overview',
+          ),
+          const NavigationDestination(
+            icon: Icon(Icons.history),
+            label: 'History',
           ),
           if (isAdmin)
             const NavigationDestination(
@@ -136,8 +136,8 @@ class _MainShellState extends State<MainShell> {
                 index: _currentIndex,
                 children: [
                   const MyDayTab(),
-                  const HistoryContent(),
                   const OverviewTab(),
+                  const HistoryContent(),
                   if (isAdmin) const AdminScreen(),
                 ],
               );

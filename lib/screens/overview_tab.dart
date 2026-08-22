@@ -1649,7 +1649,7 @@ class _ChartPainter extends CustomPainter {
     canvas.drawLine(
       Offset(leftPad, zeroY),
       Offset(size.width - rightPad, zeroY),
-      Paint()..color = redColor.withValues(alpha: 0.35)..strokeWidth = 1.5,
+      Paint()..color = redColor.withValues(alpha: 0.7)..strokeWidth = 2.5,
     );
 
     // ---- Data path + fill ----
