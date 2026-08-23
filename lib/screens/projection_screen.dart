@@ -317,11 +317,15 @@ class _ProjectionScreenState extends State<ProjectionScreen> {
     allBalances.add(projectedCum);
     allLabels.add('now');
 
+    // When trend is enabled, net change = flex - avg growth per day
+    final avgDailyGrowth = _computeAvgGrowth() ~/ 5;
+    final netChange = useTrend ? (dailyFlex - avgDailyGrowth).clamp(0, dailyFlex) : dailyFlex;
+
     const maxDays = 365;
     for (int i = 1; i <= maxDays; i++) {
       final day = today.add(Duration(days: i));
       if (day.weekday > 5) continue;
-      projectedCum -= dailyFlex;
+      projectedCum -= netChange;
       if (projectedCum <= 0) {
         allBalances.add(0);
         allLabels.add('${day.day}/${day.month}');
