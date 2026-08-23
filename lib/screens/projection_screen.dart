@@ -411,6 +411,10 @@ class _ProjectionChartPainter extends CustomPainter {
 
       // Draw projected portion in blue (from splitIndex)
       if (splitIndex < balances.length - 1) {
+        final projPaint = Paint()
+          ..color = blueColor
+          ..strokeWidth = 4.0
+          ..strokeCap = StrokeCap.round;
         final projPath = Path();
         for (int i = splitIndex; i < balances.length; i++) {
           final x = leftPad + i * stepX;
@@ -418,10 +422,16 @@ class _ProjectionChartPainter extends CustomPainter {
           if (i == splitIndex) projPath.moveTo(x, y);
           else projPath.lineTo(x, y);
         }
-        canvas.drawPath(projPath, Paint()
+        canvas.drawPath(projPath, projPaint);
+        // Draw dots on each projected data point
+        final dotPaint = Paint()
           ..color = blueColor
-          ..strokeWidth = 2.5
-          ..strokeCap = StrokeCap.round);
+          ..style = PaintingStyle.fill;
+        for (int i = splitIndex; i < balances.length; i++) {
+          final x = leftPad + i * stepX;
+          final y = yOf(balances[i].toDouble());
+          canvas.drawCircle(Offset(x, y), 4, dotPaint);
+        }
       }
     }
 
