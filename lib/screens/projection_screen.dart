@@ -321,6 +321,11 @@ class _ProjectionScreenState extends State<ProjectionScreen> {
     final avgDailyGrowth = _computeAvgGrowth() ~/ 5;
     final netChange = useTrend ? (dailyFlex - avgDailyGrowth).clamp(0, dailyFlex) : dailyFlex;
 
+    // Trend line data (what if we keep growing at current pace without flex)
+    final trendBalances = <int>[];
+    var trendCum = _currentBalance;
+    trendBalances.add(trendCum);
+
     const maxDays = 365;
     for (int i = 1; i <= maxDays; i++) {
       final day = today.add(Duration(days: i));
@@ -337,12 +342,19 @@ class _ProjectionScreenState extends State<ProjectionScreen> {
       } else {
         allLabels.add('');
       }
+
+      // Trend: add avg daily growth (shows where bank goes without flex)
+      if (useTrend) {
+        trendCum += avgDailyGrowth;
+        trendBalances.add(trendCum);
+      }
     }
 
     return _ProjectionData(
       allBalances: allBalances,
       allLabels: allLabels,
       splitIndex: splitIndex,
+      trendBalances: useTrend ? trendBalances : null,
     );
   }
 
@@ -376,11 +388,13 @@ class _ProjectionData {
   final List<int> allBalances;
   final List<String> allLabels;
   final int splitIndex; // index where projection begins
+  final List<int>? trendBalances;
 
   const _ProjectionData({
     required this.allBalances,
     required this.allLabels,
     required this.splitIndex,
+    this.trendBalances,
   });
 }
 
