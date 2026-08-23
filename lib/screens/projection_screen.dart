@@ -15,6 +15,7 @@ class ProjectionScreen extends StatefulWidget {
 class _ProjectionScreenState extends State<ProjectionScreen> {
   final _state = AppState();
   int _dailyFlex = 30;
+  bool _useTrend = false;
   bool _loading = true;
 
   // Computed projection data
@@ -63,12 +64,15 @@ class _ProjectionScreenState extends State<ProjectionScreen> {
   }
 
   Widget _buildContent(ThemeData theme) {
-    final projection = _computeProjection(_dailyFlex);
+    final projection = _computeProjection(_dailyFlex, _useTrend);
     final balanceStr = _formatMinutes(_currentBalance);
-    final reductionPerWeek = _dailyFlex * 5;
-    final weeksToZero = _currentBalance <= 0 || _dailyFlex <= 0
+    final avgGrowth = _computeAvgGrowth();
+    final netDailyChange = _dailyFlex - (avgGrowth ~/ 5);
+    final effectiveFlex = _useTrend ? netDailyChange : _dailyFlex;
+    final effectiveWeekly = effectiveFlex * 5;
+    final weeksToZero = _currentBalance <= 0 || effectiveFlex <= 0
         ? 0
-        : (_currentBalance / (_dailyFlex * 5)).ceil();
+        : (_currentBalance / (effectiveFlex * 5)).ceil();
     final zeroDate = _computeZeroDate(weeksToZero);
 
     return ListView(
@@ -149,14 +153,19 @@ class _ProjectionScreenState extends State<ProjectionScreen> {
               children: [
                 Text('Projection', style: theme.textTheme.titleMedium),
                 const SizedBox(height: 8),
-                _statRow(theme, 'Weekly reduction', _formatMinutes(-_dailyFlex * 5)),
+                if (_useTrend) ...[  
+                  _statRow(theme, 'Avg growth rate', '${_formatMinutes(avgGrowth)}/week'),
+                  _statRow(theme, 'Net weekly change', _formatMinutes(-effectiveWeekly)),
+                ],
+                _statRow(theme, 'Weekly reduction', _formatMinutes(-effectiveWeekly)),
                 _statRow(theme, 'Weeks to zero', '$weeksToZero weeks'),
                 _statRow(theme, 'Estimated zero date', zeroDate),
-                if (_dailyFlex > 0) ...[
+                if (effectiveFlex > 0) ...[  
                   const SizedBox(height: 8),
                   Text(
-                    'Taking $_dailyFlex min per workday, your bank of $balanceStr\n'
-                    'will reach zero in ~$weeksToZero weeks ($zeroDate).',
+                    _useTrend
+                        ? 'Taking $_dailyFlex min flex per workday (net ${_formatMinutes(-effectiveWeekly)}/week after avg growth of ${_formatMinutes(avgGrowth)}/week), your bank of $balanceStr will reach zero in ~$weeksToZero weeks ($zeroDate).'
+                        : 'Taking $_dailyFlex min per workday, your bank of $balanceStr will reach zero in ~$weeksToZero weeks ($zeroDate).',
                     style: theme.textTheme.bodySmall?.copyWith(
                       color: theme.colorScheme.onSurfaceVariant,
                     ),
@@ -234,7 +243,34 @@ class _ProjectionScreenState extends State<ProjectionScreen> {
 
   // -- Projection calculation ------------------------------------------------
 
-  _ProjectionData _computeProjection(int dailyFlex) {
+  /// Average weekly overtime accumulation from the last 30 working days.
+  /// Returns 0 if insufficient data.
+  int _computeAvgGrowth() {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+
+    // Get completed logs from last 60 calendar days (to find ~30 workdays)
+    final cutoff = today.subtract(const Duration(days: 60));
+    final recent = _allLogs.where((l) {
+      if (l.endTime == null) return false;
+      final d = DateTime.parse(l.date);
+      return d.isAfter(cutoff) && d.isBefore(today.add(const Duration(days: 1)));
+    }).toList()..sort((a, b) => a.date.compareTo(b.date));
+
+    if (recent.length < 5) return 0; // not enough data
+
+    int totalOvertime = 0;
+    int count = 0;
+    for (final l in recent) {
+      totalOvertime += l.overtimeMinutes;
+      count++;
+    }
+
+    final avgPerDay = totalOvertime ~/ count;
+    return avgPerDay * 5;
+  }
+
+  _ProjectionData _computeProjection(int dailyFlex, bool useTrend) {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
 
@@ -342,6 +378,8 @@ class _ProjectionChartPainter extends CustomPainter {
   final int splitIndex;
   final Color greenColor;
   final Color blueColor;
+  final Color? trendColor;
+  final List<int>? trendBalances;
   final Color gridColor;
 
   _ProjectionChartPainter({
@@ -350,6 +388,8 @@ class _ProjectionChartPainter extends CustomPainter {
     required this.splitIndex,
     required this.greenColor,
     required this.blueColor,
+    this.trendColor,
+    this.trendBalances,
     required this.gridColor,
   });
 
@@ -432,6 +472,25 @@ class _ProjectionChartPainter extends CustomPainter {
           final y = yOf(balances[i].toDouble());
           canvas.drawCircle(Offset(x, y), 4, dotPaint);
         }
+      }
+
+      // ---- Trend line (orange, dashed) ----
+      if (trendBalances != null && trendBalances!.length >= 2 && trendColor != null) {
+        final trendPaint = Paint()
+          ..color = trendColor!
+          ..strokeWidth = 2.0
+          ..strokeCap = StrokeCap.round;
+        final trendPath = Path();
+        // Trend starts at splitIndex (same starting point as projection)
+        for (int i = 0; i < trendBalances!.length; i++) {
+          final idx = splitIndex + i;
+          if (idx >= balances.length) break;
+          final x = leftPad + idx * stepX;
+          final y = yOf(trendBalances![i].toDouble());
+          if (i == 0) trendPath.moveTo(x, y);
+          else trendPath.lineTo(x, y);
+        }
+        canvas.drawPath(trendPath, trendPaint);
       }
     }
 
