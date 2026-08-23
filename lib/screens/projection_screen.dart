@@ -506,23 +506,23 @@ class _ProjectionChartPainter extends CustomPainter {
         }
       }
 
-      // ---- Trend line (orange, dashed) ----
+      // ---- Trend line (pink, drawn as segments) ----
       if (trendBalances != null && trendBalances!.length >= 2 && trendColor != null) {
         final trendPaint = Paint()
           ..color = trendColor!
           ..strokeWidth = 4.0
           ..strokeCap = StrokeCap.round;
-        final trendPath = Path();
-        // Trend starts at splitIndex (same starting point as projection)
-        for (int i = 0; i < trendBalances!.length; i++) {
-          final idx = splitIndex + i;
-          if (idx >= balances.length) break;
-          final x = leftPad + idx * stepX;
-          final y = yOf(trendBalances![i].toDouble());
-          if (i == 0) trendPath.moveTo(x, y);
-          else trendPath.lineTo(x, y);
+        // Draw as individual line segments instead of a Path
+        for (int i = 1; i < trendBalances!.length; i++) {
+          final idx0 = splitIndex + (i - 1);
+          final idx1 = splitIndex + i;
+          if (idx1 >= balances.length) break;
+          final x0 = leftPad + idx0 * stepX;
+          final y0 = yOf(trendBalances![i - 1].toDouble());
+          final x1 = leftPad + idx1 * stepX;
+          final y1 = yOf(trendBalances![i].toDouble());
+          canvas.drawLine(Offset(x0, y0), Offset(x1, y1), trendPaint);
         }
-        canvas.drawPath(trendPath, trendPaint);
         // Debug: draw a red circle at the trend line's first point
         if (trendBalances!.length >= 2) {
           final x0 = leftPad + splitIndex * stepX;
