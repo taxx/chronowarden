@@ -223,7 +223,7 @@ class _ProjectionScreenState extends State<ProjectionScreen> {
                       splitIndex: projection.splitIndex,
                       greenColor: Colors.green.shade700,
                       blueColor: theme.colorScheme.primary,
-                      trendColor: _useTrend ? Colors.orange.shade700 : null,
+                      trendColor: _useTrend ? Colors.pinkAccent : null,
                       trendBalances: _useTrend ? projection.trendBalances : null,
                       gridColor: theme.dividerColor,
                     ),
