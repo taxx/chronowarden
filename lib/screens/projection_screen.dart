@@ -109,10 +109,22 @@ class _ProjectionScreenState extends State<ProjectionScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Daily flex target', style: theme.textTheme.titleMedium),
+                Row(
+                  children: [
+                    Expanded(child: Text('Daily flex target', style: theme.textTheme.titleMedium)),
+                    const SizedBox(width: 8),
+                    Text('Use trend', style: theme.textTheme.bodySmall),
+                    Switch(
+                      value: _useTrend,
+                      onChanged: (v) => setState(() => _useTrend = v),
+                    ),
+                  ],
+                ),
                 const SizedBox(height: 4),
                 Text(
-                  'Minutes to take from the bank each workday.',
+                  _useTrend
+                      ? 'Minutes to take from the bank each workday.\nTrend adjusts for your avg growth (${_formatMinutes(avgGrowth)}/week).'
+                      : 'Minutes to take from the bank each workday.',
                   style: theme.textTheme.bodySmall?.copyWith(
                     color: theme.colorScheme.onSurfaceVariant,
                   ),
