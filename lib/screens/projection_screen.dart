@@ -510,7 +510,7 @@ class _ProjectionChartPainter extends CustomPainter {
       if (trendBalances != null && trendBalances!.length >= 2 && trendColor != null) {
         final trendPaint = Paint()
           ..color = trendColor!
-          ..strokeWidth = 2.0
+          ..strokeWidth = 4.0
           ..strokeCap = StrokeCap.round;
         final trendPath = Path();
         // Trend starts at splitIndex (same starting point as projection)
@@ -523,6 +523,12 @@ class _ProjectionChartPainter extends CustomPainter {
           else trendPath.lineTo(x, y);
         }
         canvas.drawPath(trendPath, trendPaint);
+        // Debug: draw a red circle at the trend line's first point
+        if (trendBalances!.length >= 2) {
+          final x0 = leftPad + splitIndex * stepX;
+          final y0 = yOf(trendBalances![0].toDouble());
+          canvas.drawCircle(Offset(x0, y0), 12, Paint()..color = Colors.red..style = PaintingStyle.fill);
+        }
       }
     }
 
