@@ -66,7 +66,7 @@ class _ProjectionScreenState extends State<ProjectionScreen> {
     final projection = _computeProjection(_dailyFlex);
     final balanceStr = _formatMinutes(_currentBalance);
     final reductionPerWeek = _dailyFlex * 5;
-    final weeksToZero = _currentBalance <= 0
+    final weeksToZero = _currentBalance <= 0 || _dailyFlex <= 0
         ? 0
         : (_currentBalance / (_dailyFlex * 5)).ceil();
     final zeroDate = _computeZeroDate(weeksToZero);
