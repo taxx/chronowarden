@@ -197,10 +197,9 @@ class _ProjectionScreenState extends State<ProjectionScreen> {
                   width: double.infinity,
                   child: CustomPaint(
                     painter: _ProjectionChartPainter(
-                      historicalBalances: projection.historicalBalances,
-                      historicalLabels: projection.historicalLabels,
-                      projectedBalances: projection.projectedBalances,
-                      projectedLabels: projection.projectedLabels,
+                      balances: projection.allBalances,
+                      labels: projection.allLabels,
+                      splitIndex: projection.splitIndex,
                       greenColor: Colors.green.shade700,
                       blueColor: theme.colorScheme.primary,
                       gridColor: theme.dividerColor,
@@ -243,59 +242,55 @@ class _ProjectionScreenState extends State<ProjectionScreen> {
     final sorted = _allLogs.where((l) => l.endTime != null).toList()
       ..sort((a, b) => a.date.compareTo(b.date));
 
-    final historicalBalances = <int>[];
-    final historicalLabels = <String>[];
+    final allBalances = <int>[];
+    final allLabels = <String>[];
     var cum = 0;
+
+    // ---- Historical portion ----
     for (final l in sorted) {
       cum += l.overtimeMinutes;
-      historicalBalances.add(cum);
-      // Label every 5th entry or first/last
-      if (historicalBalances.length == 1 ||
-          historicalBalances.length == sorted.length ||
-          historicalBalances.length % 5 == 0) {
-        // Use month-day label
-        final d = DateTime.parse(l.date);
-        historicalLabels.add('${d.day}/${d.month}');
+      allBalances.add(cum);
+      final d = DateTime.parse(l.date);
+      // Label first, last, and every ~10th
+      if (allBalances.length == 1 ||
+          allBalances.length == sorted.length ||
+          allBalances.length % 10 == 0) {
+        allLabels.add('${d.day}/${d.month}');
       } else {
-        historicalLabels.add('');
+        allLabels.add('');
       }
     }
 
-    // Projection: from today forward, reduce by flex per workday
-    final projectedBalances = <int>[];
-    final projectedLabels = <String>[];
+    final splitIndex = allBalances.length; // where historical ends
+
+    // ---- Projection portion ----
     var projectedCum = _currentBalance;
+    // Add today as the connection point
+    allBalances.add(projectedCum);
+    allLabels.add('now');
 
-    // Add today's actual balance as the starting point
-    projectedBalances.add(projectedCum);
-    projectedLabels.add('now');
-
-    // Count forward up to 52 weeks (max projection horizon)
     const maxDays = 365;
     for (int i = 1; i <= maxDays; i++) {
       final day = today.add(Duration(days: i));
-      // Skip weekends — 5-day workweek
       if (day.weekday > 5) continue;
       projectedCum -= dailyFlex;
       if (projectedCum <= 0) {
-        projectedBalances.add(0);
-        projectedLabels.add('${day.day}/${day.month}');
+        allBalances.add(0);
+        allLabels.add('${day.day}/${day.month}');
         break;
       }
-      projectedBalances.add(projectedCum);
-      // Label every ~20th data point
-      if (i % 20 == 0 || projectedCum <= 0) {
-        projectedLabels.add('${day.day}/${day.month}');
+      allBalances.add(projectedCum);
+      if (i % 20 == 0) {
+        allLabels.add('${day.day}/${day.month}');
       } else {
-        projectedLabels.add('');
+        allLabels.add('');
       }
     }
 
     return _ProjectionData(
-      historicalBalances: historicalBalances,
-      historicalLabels: historicalLabels,
-      projectedBalances: projectedBalances,
-      projectedLabels: projectedLabels,
+      allBalances: allBalances,
+      allLabels: allLabels,
+      splitIndex: splitIndex,
     );
   }
 
@@ -326,16 +321,14 @@ class _ProjectionScreenState extends State<ProjectionScreen> {
 // ---------------------------------------------------------------------------
 
 class _ProjectionData {
-  final List<int> historicalBalances;
-  final List<String> historicalLabels;
-  final List<int> projectedBalances;
-  final List<String> projectedLabels;
+  final List<int> allBalances;
+  final List<String> allLabels;
+  final int splitIndex; // index where projection begins
 
   const _ProjectionData({
-    required this.historicalBalances,
-    required this.historicalLabels,
-    required this.projectedBalances,
-    required this.projectedLabels,
+    required this.allBalances,
+    required this.allLabels,
+    required this.splitIndex,
   });
 }
 
@@ -344,19 +337,17 @@ class _ProjectionData {
 // ---------------------------------------------------------------------------
 
 class _ProjectionChartPainter extends CustomPainter {
-  final List<int> historicalBalances;
-  final List<String> historicalLabels;
-  final List<int> projectedBalances;
-  final List<String> projectedLabels;
+  final List<int> balances;
+  final List<String> labels;
+  final int splitIndex;
   final Color greenColor;
   final Color blueColor;
   final Color gridColor;
 
   _ProjectionChartPainter({
-    required this.historicalBalances,
-    required this.historicalLabels,
-    required this.projectedBalances,
-    required this.projectedLabels,
+    required this.balances,
+    required this.labels,
+    required this.splitIndex,
     required this.greenColor,
     required this.blueColor,
     required this.gridColor,
@@ -364,12 +355,10 @@ class _ProjectionChartPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    if (historicalBalances.isEmpty && projectedBalances.isEmpty) return;
+    if (balances.isEmpty) return;
 
-    // Combine all data for Y-axis range
-    final allBalances = [...historicalBalances, ...projectedBalances];
-    final max = allBalances.reduce((a, b) => a > b ? a : b).toDouble();
-    final min = allBalances.reduce((a, b) => a < b ? a : b).toDouble();
+    final max = balances.reduce((a, b) => a > b ? a : b).toDouble();
+    final min = balances.reduce((a, b) => a < b ? a : b).toDouble();
     final range = (max - min).clamp(1.0, double.infinity);
 
     const leftPad = 44.0;
@@ -379,6 +368,7 @@ class _ProjectionChartPainter extends CustomPainter {
 
     final graphWidth = size.width - leftPad - rightPad;
     final graphHeight = size.height - topPad - bottomPad;
+    final stepX = graphWidth / (balances.length - 1).clamp(1, double.infinity);
 
     double yOf(double v) => topPad + graphHeight - ((v - min) / range) * graphHeight;
 
@@ -391,43 +381,48 @@ class _ProjectionChartPainter extends CustomPainter {
       canvas.drawLine(Offset(leftPad, y), Offset(size.width - rightPad, y), gridPaint);
     }
 
-    // ---- Draw historical line (green) ----
-    if (historicalBalances.length >= 2) {
-      final stepX = graphWidth / (historicalBalances.length - 1).clamp(1, double.infinity);
+    // ---- Single combined line (green → blue at splitIndex) ----
+    if (balances.length >= 2) {
       final path = Path();
-      for (int i = 0; i < historicalBalances.length; i++) {
+      for (int i = 0; i < balances.length; i++) {
         final x = leftPad + i * stepX;
-        final y = yOf(historicalBalances[i].toDouble());
+        final y = yOf(balances[i].toDouble());
         if (i == 0) {
           path.moveTo(x, y);
         } else {
           path.lineTo(x, y);
         }
       }
-      canvas.drawPath(path, Paint()
-        ..color = greenColor
-        ..strokeWidth = 2.5
-        ..strokeCap = StrokeCap.round);
-    }
 
-    // ---- Draw projected line (blue) ----
-    if (projectedBalances.length >= 2) {
-      final stepX = graphWidth / (projectedBalances.length - 1).clamp(1, double.infinity);
-      final path = Path();
-      for (int i = 0; i < projectedBalances.length; i++) {
-        final x = leftPad + i * stepX;
-        final y = yOf(projectedBalances[i].toDouble());
-        if (i == 0) {
-          path.moveTo(x, y);
-        } else {
-          path.lineTo(x, y);
+      // Draw historical portion in green (up to splitIndex)
+      if (splitIndex > 1) {
+        final histPath = Path();
+        for (int i = 0; i <= splitIndex && i < balances.length; i++) {
+          final x = leftPad + i * stepX;
+          final y = yOf(balances[i].toDouble());
+          if (i == 0) histPath.moveTo(x, y);
+          else histPath.lineTo(x, y);
         }
+        canvas.drawPath(histPath, Paint()
+          ..color = greenColor
+          ..strokeWidth = 2.5
+          ..strokeCap = StrokeCap.round);
       }
-      canvas.drawPath(path, Paint()
-        ..color = blueColor
-        ..strokeWidth = 2.5
-        ..strokeCap = StrokeCap.round
-        ..style = PaintingStyle.stroke);
+
+      // Draw projected portion in blue (from splitIndex)
+      if (splitIndex < balances.length - 1) {
+        final projPath = Path();
+        for (int i = splitIndex; i < balances.length; i++) {
+          final x = leftPad + i * stepX;
+          final y = yOf(balances[i].toDouble());
+          if (i == splitIndex) projPath.moveTo(x, y);
+          else projPath.lineTo(x, y);
+        }
+        canvas.drawPath(projPath, Paint()
+          ..color = blueColor
+          ..strokeWidth = 2.5
+          ..strokeCap = StrokeCap.round);
+      }
     }
 
     // ---- Zero reference line (dashed) ----
@@ -451,39 +446,22 @@ class _ProjectionChartPainter extends CustomPainter {
       tp.paint(canvas, Offset(leftPad - tp.width - 4, y - tp.height / 2));
     }
 
-    final mid = (min + max) / 2;
     drawYLabel(_minLabel(max, min, max), topPad);
+    final mid = (min + max) / 2;
     drawYLabel(_minLabel(max, min, mid), topPad + graphHeight / 2);
     drawYLabel(_minLabel(max, min, min), topPad + graphHeight);
 
-    // ---- X-axis labels (historical) ----
-    if (historicalLabels.isNotEmpty && historicalBalances.length >= 2) {
-      final stepX = graphWidth / (historicalBalances.length - 1).clamp(1, double.infinity);
-      for (int i = 0; i < historicalLabels.length; i++) {
-        final label = historicalLabels[i];
-        if (label.isEmpty) continue;
-        final tp = TextPainter(
-          text: TextSpan(text: label, style: TextStyle(fontSize: 10, color: gridColor)),
-          textDirection: TextDirection.ltr,
-        )..layout();
-        final x = (leftPad + i * stepX - tp.width / 2).clamp(leftPad, size.width - rightPad - tp.width);
-        tp.paint(canvas, Offset(x, size.height - bottomPad + 4));
-      }
-    }
-
-    // ---- X-axis labels (projected) ----
-    if (projectedLabels.isNotEmpty && projectedBalances.length >= 2) {
-      final stepX = graphWidth / (projectedBalances.length - 1).clamp(1, double.infinity);
-      for (int i = 0; i < projectedLabels.length; i++) {
-        final label = projectedLabels[i];
-        if (label.isEmpty) continue;
-        final tp = TextPainter(
-          text: TextSpan(text: label, style: TextStyle(fontSize: 10, color: blueColor)),
-          textDirection: TextDirection.ltr,
-        )..layout();
-        final x = (leftPad + i * stepX - tp.width / 2).clamp(leftPad, size.width - rightPad - tp.width);
-        tp.paint(canvas, Offset(x, size.height - bottomPad + 14));
-      }
+    // ---- X-axis labels ----
+    for (int i = 0; i < labels.length; i++) {
+      final label = labels[i];
+      if (label.isEmpty) continue;
+      final color = i < splitIndex ? gridColor : blueColor;
+      final tp = TextPainter(
+        text: TextSpan(text: label, style: TextStyle(fontSize: 10, color: color)),
+        textDirection: TextDirection.ltr,
+      )..layout();
+      final x = (leftPad + i * stepX - tp.width / 2).clamp(leftPad, size.width - rightPad - tp.width);
+      tp.paint(canvas, Offset(x, size.height - bottomPad + 4));
     }
   }
 
