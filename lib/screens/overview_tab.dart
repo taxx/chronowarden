@@ -380,7 +380,6 @@ class _PeriodTabState extends State<_PeriodTab> {
         endTime: endStr,
         expectedMinutes: result.expectedMinutes,
         lunchMinutes: result.lunchMinutes,
-        flexMinutes: result.flexMinutes,
         morningOverheadMinutes: result.morningOverheadMinutes,
         morningProductiveCommuteMinutes: result.morningProductiveCommuteMinutes,
         eveningOverheadMinutes: result.eveningOverheadMinutes,
