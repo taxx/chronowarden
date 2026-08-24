@@ -223,7 +223,7 @@ class _ProjectionScreenState extends State<ProjectionScreen> {
                       splitIndex: projection.splitIndex,
                       greenColor: Colors.green.shade700,
                       blueColor: theme.colorScheme.primary,
-                      trendColor: _useTrend ? Colors.pinkAccent : null,
+                      trendColor: _useTrend ? Colors.orange.shade700 : null,
                       trendBalances: _useTrend ? projection.trendBalances : null,
                       gridColor: theme.dividerColor,
                     ),
@@ -429,8 +429,10 @@ class _ProjectionChartPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     if (balances.isEmpty) return;
 
-    final max = balances.reduce((a, b) => a > b ? a : b).toDouble();
-    final min = balances.reduce((a, b) => a < b ? a : b).toDouble();
+    // Include trend balances in Y-range so trend line stays visible
+    final allForRange = [...balances, ...(trendBalances ?? [])];
+    final max = allForRange.reduce((a, b) => a > b ? a : b).toDouble();
+    final min = allForRange.reduce((a, b) => a < b ? a : b).toDouble();
     final range = (max - min).clamp(1.0, double.infinity);
 
     const leftPad = 44.0;
@@ -522,12 +524,6 @@ class _ProjectionChartPainter extends CustomPainter {
           final x1 = leftPad + idx1 * stepX;
           final y1 = yOf(trendBalances![i].toDouble());
           canvas.drawLine(Offset(x0, y0), Offset(x1, y1), trendPaint);
-        }
-        // Debug: draw a red circle at the trend line's first point
-        if (trendBalances!.length >= 2) {
-          final x0 = leftPad + splitIndex * stepX;
-          final y0 = yOf(trendBalances![0].toDouble());
-          canvas.drawCircle(Offset(x0, y0), 12, Paint()..color = Colors.red..style = PaintingStyle.fill);
         }
       }
     }
