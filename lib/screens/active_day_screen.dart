@@ -162,11 +162,11 @@ class _ActiveDayScreenState extends State<ActiveDayScreen> with SingleTickerProv
                 ),
               ),
               const SizedBox(height: 32),
-              _statCard(theme, 'Expected', '${log.expectedMinutes} min'),
+              _statCard(theme, 'Expected', _fmtMins(log.expectedMinutes)),
               const SizedBox(height: 8),
-              _statCard(theme, 'Overhead', '${log.overheadMinutes} min'),
+              _statCard(theme, 'Overhead', _fmtMins(log.overheadMinutes)),
               const SizedBox(height: 8),
-              _statCard(theme, 'Total', '${log.expectedMinutes + log.overheadMinutes} min'),
+              _statCard(theme, 'Total', _fmtMins(log.expectedMinutes + log.overheadMinutes)),
             ],
           ),
         ),
@@ -195,6 +195,14 @@ class _ActiveDayScreenState extends State<ActiveDayScreen> with SingleTickerProv
         ),
       ),
     );
+  }
+
+  String _fmtMins(int minutes) {
+    final abs = minutes.abs();
+    final h = abs ~/ 60;
+    final m = abs % 60;
+    if (h == 0) return '$m min';
+    return '${h}h ${m}m';
   }
 
   String _formatHMS(Duration d) {

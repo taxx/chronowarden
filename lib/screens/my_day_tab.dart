@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../app_state.dart';
+import '../models/time_log.dart';
 import '../services/notification_service.dart';
 import '../services/preferences_service.dart';
 import '../services/user_settings_service.dart';
@@ -238,12 +239,12 @@ class _MyDayTabState extends State<MyDayTab> with SingleTickerProviderStateMixin
               ],
             ),
             const SizedBox(height: 24),
-            _statRow(theme, 'Expected', '${log.expectedMinutes} min work'),
+            _statRow(theme, 'Expected', _fmtMins(log.expectedMinutes)),
             if (log.morningOverheadMinutes + log.eveningOverheadMinutes > 0)
               _statRow(theme, 'Commute overhead', '${log.morningOverheadMinutes}/${log.eveningOverheadMinutes} min (am/pm)'),
             if (log.morningProductiveCommuteMinutes + log.eveningProductiveCommuteMinutes > 0)
               _statRow(theme, 'Productive commute', '${log.morningProductiveCommuteMinutes}/${log.eveningProductiveCommuteMinutes} min (am/pm)'),
-            _statRow(theme, 'Total', '${log.expectedMinutes + log.overheadMinutes + log.productiveCommuteMinutes} min'),
+            _statRow(theme, 'Total', _fmtMins(log.expectedMinutes + log.overheadMinutes + log.productiveCommuteMinutes)),
 
             InkWell(
               onTap: () => _showEditLunchDialog(context, lunch),
@@ -317,9 +318,7 @@ class _MyDayTabState extends State<MyDayTab> with SingleTickerProviderStateMixin
             _statRow(
               theme,
               'Overtime',
-              log.overtimeMinutes >= 0
-                  ? '+${log.overtimeMinutes} min'
-                  : '${log.overtimeMinutes} min',
+              _formatBankMinutes(log.overtimeMinutes),
             ),
             if (log.lunchMinutes != null && log.lunchMinutes > 0)
               _statRow(theme, 'Lunch', '${log.lunchMinutes} min'),
@@ -372,6 +371,14 @@ class _MyDayTabState extends State<MyDayTab> with SingleTickerProviderStateMixin
     final m = (d.inMinutes % 60).toString().padLeft(2, '0');
     final s = (d.inSeconds % 60).toString().padLeft(2, '0');
     return '$h:$m:$s';
+  }
+
+  String _fmtMins(int minutes) {
+    final abs = minutes.abs();
+    final h = abs ~/ 60;
+    final m = abs % 60;
+    if (h == 0) return '$m min';
+    return '${h}h ${m}m';
   }
 
   String _formatBankMinutes(int minutes) {
@@ -1047,7 +1054,7 @@ class _EditDayDialogState extends State<_EditDayDialog> {
     _startTime = _timeOfDayFromStr(widget.log.startTime);
     _endTime = widget.log.endTime != null ? _timeOfDayFromStr(widget.log.endTime!) : null;
     _selectedPeriod = _matchPeriod(widget.workPeriods, widget.log.expectedMinutes);
-    _selectedPreset = _matchPreset(widget.travelPresets, widget.log.overheadMinutes);
+    _selectedPreset = _matchPreset(widget.travelPresets, widget.log);
     _lunch = widget.log.lunchMinutes ?? 0;
     _note = widget.log.note ?? '';
   }
@@ -1059,9 +1066,14 @@ class _EditDayDialogState extends State<_EditDayDialog> {
     return periods.first;
   }
 
-  static dynamic _matchPreset(List<dynamic> presets, int mins) {
+  static dynamic _matchPreset(List<dynamic> presets, TimeLog log) {
     for (final p in presets) {
-      if (p.defaultOverheadMinutes == mins) return p;
+      if (p.morningOverheadMinutes == log.morningOverheadMinutes &&
+          p.morningProductiveCommuteMinutes == log.morningProductiveCommuteMinutes &&
+          p.eveningOverheadMinutes == log.eveningOverheadMinutes &&
+          p.eveningProductiveCommuteMinutes == log.eveningProductiveCommuteMinutes) {
+        return p;
+      }
     }
     return presets.first;
   }

@@ -753,8 +753,8 @@ String _overtimeStr(int minutes) {
   final sign = minutes > 0 ? '+' : '';
   final h = minutes.abs() ~/ 60;
   final m = minutes.abs() % 60;
-  if (h == 0) return '$sign${m}min';
-  return '$sign${h}h${m}min';
+  if (h == 0) return '$sign$m min';
+  return '$sign${h}h ${m}min';
 }
 
 // ---------------------------------------------------------------------------
@@ -897,7 +897,7 @@ class _EditDayDialogState extends State<_EditDayDialog> {
     _startTime = _timeOfDayFromStr(widget.log.startTime);
     _endTime = widget.log.endTime != null ? _timeOfDayFromStr(widget.log.endTime!) : null;
     _selectedPeriod = _matchPeriod(widget.workPeriods, widget.log.expectedMinutes);
-    _selectedPreset = widget.travelPresets.first;
+    _selectedPreset = _matchPreset(widget.travelPresets, widget.log);
     _lunch = widget.log.lunchMinutes;
     _note = widget.log.note ?? '';
   }
@@ -912,6 +912,18 @@ class _EditDayDialogState extends State<_EditDayDialog> {
       if (p.expectedMinutes == mins) return p;
     }
     return periods.first;
+  }
+
+  static dynamic _matchPreset(List<dynamic> presets, TimeLog log) {
+    for (final p in presets) {
+      if (p.morningOverheadMinutes == log.morningOverheadMinutes &&
+          p.morningProductiveCommuteMinutes == log.morningProductiveCommuteMinutes &&
+          p.eveningOverheadMinutes == log.eveningOverheadMinutes &&
+          p.eveningProductiveCommuteMinutes == log.eveningProductiveCommuteMinutes) {
+        return p;
+      }
+    }
+    return presets.first;
   }
 
 
@@ -1719,9 +1731,9 @@ class _ChartPainter extends CustomPainter {
     final abs = mins.abs();
     final h = abs ~/ 60;
     final m = abs % 60;
-    if (h == 0) return '$sign${m}min';
+    if (h == 0) return '$sign$m min';
     if (m == 0) return '$sign${h}h';
-    return '$sign${h}h${m}m';
+    return '$sign${h}h ${m}m';
   }
 
   @override

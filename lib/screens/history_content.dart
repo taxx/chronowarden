@@ -4,6 +4,14 @@ import '../app_state.dart';
 import '../models/time_log.dart';
 import '../services/preferences_service.dart';
 
+String _fmtMins(int minutes) {
+  final abs = minutes.abs();
+  final h = abs ~/ 60;
+  final m = abs % 60;
+  if (h == 0) return '$m min';
+  return '${h}h ${m}m';
+}
+
 /// History content widget — lists past logs with cumulative time-bank balance.
 /// No Scaffold wrapper — meant for use inside MainShell.
 class HistoryContent extends StatefulWidget {
@@ -356,7 +364,7 @@ class _LogCard extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                '${log.startTime}${log.endTime != null ? ' → ${log.endTime}' : ' → …'}  ·  ${log.expectedMinutes} min work + ${log.overheadMinutes} min overhead${log.lunchMinutes > 0 ? ' · ${log.lunchMinutes} min lunch' : ''}',
+                '${log.startTime}${log.endTime != null ? ' → ${log.endTime}' : ' → …'}  ·  ${_fmtMins(log.expectedMinutes)} work + ${_fmtMins(log.overheadMinutes)} overhead${log.lunchMinutes > 0 ? ' · ${_fmtMins(log.lunchMinutes)} lunch' : ''}',
                 style: theme.textTheme.bodySmall,
               ),
               if (hasNote)
@@ -370,7 +378,7 @@ class _LogCard extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(
-                isCompleted ? (overtime == 0 ? '✓' : '$overtime min') : 'active',
+                isCompleted ? (overtime == 0 ? '✓' : _fmtMins(overtime)) : 'active',
                 style: theme.textTheme.titleMedium?.copyWith(
                   fontWeight: FontWeight.bold,
                   color: isCompleted
@@ -468,7 +476,7 @@ class _EditDayDialogState extends State<_EditDayDialog> {
     _startTime = _timeOfDayFromStr(widget.log.startTime);
     _endTime = widget.log.endTime != null ? _timeOfDayFromStr(widget.log.endTime!) : null;
     _selectedPeriod = _matchPeriod(widget.workPeriods, widget.log.expectedMinutes);
-    _selectedPreset = widget.travelPresets.first;
+    _selectedPreset = _matchPreset(widget.travelPresets, widget.log);
     _lunch = widget.log.lunchMinutes;
     _note = widget.log.note ?? '';
   }
@@ -483,6 +491,18 @@ class _EditDayDialogState extends State<_EditDayDialog> {
       if (p.expectedMinutes == mins) return p;
     }
     return periods.first;
+  }
+
+  static dynamic _matchPreset(List<dynamic> presets, TimeLog log) {
+    for (final p in presets) {
+      if (p.morningOverheadMinutes == log.morningOverheadMinutes &&
+          p.morningProductiveCommuteMinutes == log.morningProductiveCommuteMinutes &&
+          p.eveningOverheadMinutes == log.eveningOverheadMinutes &&
+          p.eveningProductiveCommuteMinutes == log.eveningProductiveCommuteMinutes) {
+        return p;
+      }
+    }
+    return presets.first;
   }
 
 
