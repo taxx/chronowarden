@@ -547,7 +547,7 @@ class _EditDayDialogState extends State<_EditDayDialog> {
             DropdownButtonFormField(
               initialValue: _selectedPeriod,
               items: widget.workPeriods.map<DropdownMenuItem>((p) {
-                return DropdownMenuItem(value: p, child: Text('${p.name} (${p.expectedMinutes} min)'));
+                return DropdownMenuItem(value: p, child: Text('${p.name} (${_fmtMins(p.expectedMinutes)})'));
               }).toList(),
               onChanged: (v) { if (v != null) setState(() => _selectedPeriod = v); },
             ),
@@ -851,7 +851,7 @@ class _AddDayDialogState extends State<_AddDayDialog> {
             DropdownButtonFormField(
               initialValue: _selectedPeriod,
               items: widget.workPeriods.map<DropdownMenuItem>((p) {
-                return DropdownMenuItem(value: p, child: Text('${p.name} (${p.expectedMinutes} min)'));
+                return DropdownMenuItem(value: p, child: Text('${p.name} (${_fmtMins(p.expectedMinutes)})'));
               }).toList(),
               onChanged: (v) { if (v != null) setState(() => _selectedPeriod = v); },
             ),

@@ -1,9 +1,16 @@
 import 'package:flutter/material.dart';
 
 import '../app_state.dart';
-
 import '../models/time_log.dart';
 import '../services/preferences_service.dart';
+
+String _fmtMins(int minutes) {
+  final abs = minutes.abs();
+  final h = abs ~/ 60;
+  final m = abs % 60;
+  if (h == 0) return '$m min';
+  return '${h}h ${m}m';
+}
 
 /// Aggregated overview: week / month / year summaries with period navigation.
 class OverviewTab extends StatefulWidget {
@@ -968,7 +975,7 @@ class _EditDayDialogState extends State<_EditDayDialog> {
             DropdownButtonFormField(
               initialValue: _selectedPeriod,
               items: widget.workPeriods.map<DropdownMenuItem>((p) {
-                return DropdownMenuItem(value: p, child: Text('${p.name} (${p.expectedMinutes} min)'));
+                return DropdownMenuItem(value: p, child: Text('${p.name} (${_fmtMins(p.expectedMinutes)})'));
               }).toList(),
               onChanged: (v) { if (v != null) setState(() => _selectedPeriod = v); },
             ),
@@ -978,7 +985,7 @@ class _EditDayDialogState extends State<_EditDayDialog> {
             DropdownButtonFormField(
               initialValue: _selectedPreset,
               items: widget.travelPresets.map<DropdownMenuItem>((p) {
-                return DropdownMenuItem(value: p, child: Text('${p.name} (+${p.defaultOverheadMinutes} min)'));
+                return DropdownMenuItem(value: p, child: Text('${p.name} (+${_fmtMins(p.defaultOverheadMinutes)})'));
               }).toList(),
               onChanged: (v) { if (v != null) setState(() => _selectedPreset = v); },
             ),
@@ -1266,7 +1273,7 @@ class _AddDayDialogState extends State<_AddDayDialog> {
             DropdownButtonFormField(
               initialValue: _selectedPeriod,
               items: widget.workPeriods.map<DropdownMenuItem>((p) {
-                return DropdownMenuItem(value: p, child: Text('${p.name} (${p.expectedMinutes} min)'));
+                return DropdownMenuItem(value: p, child: Text('${p.name} (${_fmtMins(p.expectedMinutes)})'));
               }).toList(),
               onChanged: (v) { if (v != null) setState(() => _selectedPeriod = v); },
             ),
@@ -1276,7 +1283,7 @@ class _AddDayDialogState extends State<_AddDayDialog> {
             DropdownButtonFormField(
               initialValue: _selectedPreset,
               items: widget.travelPresets.map<DropdownMenuItem>((p) {
-                return DropdownMenuItem(value: p, child: Text('${p.name} (+${p.defaultOverheadMinutes} min)'));
+                return DropdownMenuItem(value: p, child: Text('${p.name} (+${_fmtMins(p.defaultOverheadMinutes)})'));
               }).toList(),
               onChanged: (v) { if (v != null) setState(() => _selectedPreset = v); },
             ),

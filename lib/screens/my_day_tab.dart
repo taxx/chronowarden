@@ -8,6 +8,14 @@ import '../services/notification_service.dart';
 import '../services/preferences_service.dart';
 import '../services/user_settings_service.dart';
 
+String _fmtMins(int minutes) {
+  final abs = minutes.abs();
+  final h = abs ~/ 60;
+  final m = abs % 60;
+  if (h == 0) return '$m min';
+  return '${h}h ${m}m';
+}
+
 /// The "My Day" content widget — shows today's time tracking.
 /// This is a standalone widget (no Scaffold) meant for use inside MainShell.
 class MyDayTab extends StatefulWidget {
@@ -371,14 +379,6 @@ class _MyDayTabState extends State<MyDayTab> with SingleTickerProviderStateMixin
     final m = (d.inMinutes % 60).toString().padLeft(2, '0');
     final s = (d.inSeconds % 60).toString().padLeft(2, '0');
     return '$h:$m:$s';
-  }
-
-  String _fmtMins(int minutes) {
-    final abs = minutes.abs();
-    final h = abs ~/ 60;
-    final m = abs % 60;
-    if (h == 0) return '$m min';
-    return '${h}h ${m}m';
   }
 
   String _formatBankMinutes(int minutes) {
@@ -1122,7 +1122,7 @@ class _EditDayDialogState extends State<_EditDayDialog> {
             DropdownButtonFormField(
               initialValue: _selectedPeriod,
               items: _validPeriods.map<DropdownMenuItem>((p) {
-                return DropdownMenuItem(value: p, child: Text('${p.name} (${p.expectedMinutes} min)'));
+                return DropdownMenuItem(value: p, child: Text('${p.name} (${_fmtMins(p.expectedMinutes)})'));
               }).toList(),
               onChanged: (v) { if (v != null) setState(() => _selectedPeriod = v); },
             ),

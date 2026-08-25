@@ -8,6 +8,14 @@ import '../services/preferences_service.dart';
 import '../services/user_settings_service.dart';
 import '../utils/csv_export.dart';
 
+String _fmtMins(int minutes) {
+  final abs = minutes.abs();
+  final h = abs ~/ 60;
+  final m = abs % 60;
+  if (h == 0) return '$m min';
+  return '${h}h ${m}m';
+}
+
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
 
@@ -52,7 +60,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           title: 'Work Periods',
           subtitle: 'Seasonal work-day lengths',
           items: _state.workPeriods,
-          itemBuilder: (p) => Text('${p.name}: ${p.expectedMinutes} min (${p.startDate} → ${p.endDate})'),
+          itemBuilder: (p) => Text('${p.name}: ${_fmtMins(p.expectedMinutes)} (${p.startDate} → ${p.endDate})'),
           onEdit: (p) => _showEditPeriodDialog(context, p),
           onDelete: (p) => _confirmDeletePeriod(context, p),
           onAdd: () => _showAddPeriodDialog(context),
