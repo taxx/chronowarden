@@ -57,7 +57,6 @@ create policy "Manage own settings" on user_settings
 
 -- 0. Clean slate — drop tables (cascade removes their policies automatically)
 drop table if exists time_logs cascade;
-drop table if exists work_period_settings cascade;
 drop table if exists travel_presets cascade;
 drop table if exists invites cascade;
 drop table if exists profiles cascade;
@@ -89,19 +88,7 @@ create table invites (
   created_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
 
--- 3. SEASONAL WORK PERIODS
-create table work_period_settings (
-  id uuid default gen_random_uuid() primary key,
-  user_id uuid references auth.users on delete cascade not null,
-  name text not null,
-  start_date date not null,
-  end_date date not null,
-  expected_minutes int not null,
-  created_at timestamp with time zone default timezone('utc'::text, now()) not null,
-  constraint date_range_check check (start_date <= end_date)
-);
-
--- 4. TRAVEL PRESETS
+-- 3. TRAVEL PRESETS
 create table travel_presets (
   id uuid default gen_random_uuid() primary key,
   user_id uuid references auth.users on delete cascade not null,
@@ -139,7 +126,12 @@ create table user_settings (
   id uuid default gen_random_uuid() primary key,
   user_id uuid references auth.users on delete cascade not null,
   default_flex_minutes int not null default 0,
+  default_expected_minutes int not null default 480,
+  reduced_expected_minutes int,
+  reduced_start_week int,
+  reduced_end_week int,
   created_at timestamp with time zone default timezone('utc'::text, now()) not null,
+  updated_at timestamp with time zone default timezone('utc'::text, now()),
   unique(user_id)
 );
 alter table user_settings enable row level security;
@@ -198,7 +190,6 @@ $$;
 -- 7. ROW LEVEL SECURITY
 alter table profiles enable row level security;
 alter table invites enable row level security;
-alter table work_period_settings enable row level security;
 alter table travel_presets enable row level security;
 alter table time_logs enable row level security;
 
@@ -214,9 +205,6 @@ create policy "admin_manage_invites" on invites
   for all using (is_admin());
 
 -- user data tables: owner only
-create policy "Manage own work periods" on work_period_settings
-  for all using (auth.uid() = user_id);
-
 create policy "Manage own travel presets" on travel_presets
   for all using (auth.uid() = user_id);
 
@@ -249,7 +237,7 @@ class _SetupScreenState extends State<SetupScreen> {
     bool ok = false;
     try {
       // Probe all 5 tables with a simple select query.
-      final tables = ['profiles', 'invites', 'work_period_settings', 'travel_presets', 'time_logs'];
+    final tables = ['profiles', 'invites', 'travel_presets', 'time_logs'];
       for (final table in tables) {
         await client.from(table).select('id').limit(1);
       }

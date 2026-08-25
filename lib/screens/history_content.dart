@@ -170,20 +170,21 @@ class _HistoryContentState extends State<HistoryContent> {
 
   Future<void> _showAddDayDialog(BuildContext ctx) async {
     final state = _state;
-    if (state.workPeriods.isEmpty || state.travelPresets.isEmpty) {
+    if (state.travelPresets.isEmpty) {
       ScaffoldMessenger.of(ctx).showSnackBar(
-        const SnackBar(content: Text('Add at least one work period and one travel preset in Settings.')),
+        const SnackBar(content: Text('Add at least one travel preset in Settings.')),
       );
       return;
     }
+
+    final expected = state.expectedMinutesForDate(DateTime.now().subtract(const Duration(days: 1)));
 
     final result = await showDialog<_AddDayResult>(
       context: ctx,
       builder: (_) => _AddDayDialog(
         initialDate: DateTime.now().subtract(const Duration(days: 1)),
-        expectedMinutes: state.activePeriod?.expectedMinutes ?? 480,
+        expectedMinutes: expected,
         travelPresets: state.travelPresets,
-        workPeriods: state.workPeriods,
       ),
     );
 
@@ -269,18 +270,20 @@ class _HistoryContentState extends State<HistoryContent> {
 
   Future<void> _showEditDayDialog(BuildContext ctx, TimeLog log) async {
     final state = _state;
-    if (state.workPeriods.isEmpty || state.travelPresets.isEmpty) {
+    if (state.travelPresets.isEmpty) {
       ScaffoldMessenger.of(ctx).showSnackBar(
         const SnackBar(content: Text('Settings not loaded yet. Try again.')),
       );
       return;
     }
 
+    final expected = state.expectedMinutesForDate(DateTime.parse(log.date));
+
     final result = await showDialog<_EditDayResult>(
       context: ctx,
       builder: (_) => _EditDayDialog(
         log: log,
-        workPeriods: state.workPeriods,
+        expectedMinutes: expected,
         travelPresets: state.travelPresets,
       ),
     );
@@ -443,12 +446,12 @@ class _EditDayResult {
 
 class _EditDayDialog extends StatefulWidget {
   final TimeLog log;
-  final List<dynamic> workPeriods;
+  final int expectedMinutes;
   final List<dynamic> travelPresets;
 
   const _EditDayDialog({
     required this.log,
-    required this.workPeriods,
+    required this.expectedMinutes,
     required this.travelPresets,
   });
 
@@ -459,12 +462,11 @@ class _EditDayDialog extends StatefulWidget {
 class _EditDayDialogState extends State<_EditDayDialog> {
   late TimeOfDay _startTime;
   TimeOfDay? _endTime;
-  late dynamic _selectedPeriod;
   late dynamic _selectedPreset;
   late int _lunch;
   late String _note;
 
-  int get _expected => _selectedPeriod.expectedMinutes;
+  int get _expected => widget.expectedMinutes;
   int get _morningOverhead => _selectedPreset.morningOverheadMinutes;
   int get _morningProductive => _selectedPreset.morningProductiveCommuteMinutes;
   int get _eveningOverhead => _selectedPreset.eveningOverheadMinutes;
@@ -475,7 +477,6 @@ class _EditDayDialogState extends State<_EditDayDialog> {
     super.initState();
     _startTime = _timeOfDayFromStr(widget.log.startTime);
     _endTime = widget.log.endTime != null ? _timeOfDayFromStr(widget.log.endTime!) : null;
-    _selectedPeriod = _matchPeriod(widget.workPeriods, widget.log.expectedMinutes);
     _selectedPreset = _matchPreset(widget.travelPresets, widget.log);
     _lunch = widget.log.lunchMinutes;
     _note = widget.log.note ?? '';
@@ -484,13 +485,6 @@ class _EditDayDialogState extends State<_EditDayDialog> {
   TimeOfDay _timeOfDayFromStr(String timeStr) {
     final parts = timeStr.split(':');
     return TimeOfDay(hour: int.parse(parts[0]), minute: int.parse(parts[1]));
-  }
-
-  static dynamic _matchPeriod(List<dynamic> periods, int mins) {
-    for (final p in periods) {
-      if (p.expectedMinutes == mins) return p;
-    }
-    return periods.first;
   }
 
   static dynamic _matchPreset(List<dynamic> presets, TimeLog log) {
@@ -542,14 +536,18 @@ class _EditDayDialogState extends State<_EditDayDialog> {
                   : '— not set —'),
             ),
             const SizedBox(height: 16),
-            Text('Work period', style: theme.textTheme.titleSmall),
+            Text('Expected work', style: theme.textTheme.titleSmall),
             const SizedBox(height: 4),
-            DropdownButtonFormField(
-              initialValue: _selectedPeriod,
-              items: widget.workPeriods.map<DropdownMenuItem>((p) {
-                return DropdownMenuItem(value: p, child: Text('${p.name} (${_fmtMins(p.expectedMinutes)})'));
-              }).toList(),
-              onChanged: (v) { if (v != null) setState(() => _selectedPeriod = v); },
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text(
+                '${_fmtMins(widget.expectedMinutes)} per day',
+                style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+              ),
             ),
             const SizedBox(height: 16),
             Text('Travel preset', style: theme.textTheme.titleSmall),
@@ -672,7 +670,6 @@ class _AddDayResult {
   final int eveningOverheadMinutes;
   final int eveningProductiveCommuteMinutes;
   final String? note;
-  final String? periodId;
   final String? presetId;
   _AddDayResult({
     required this.date,
@@ -686,7 +683,6 @@ class _AddDayResult {
     required this.eveningOverheadMinutes,
     required this.eveningProductiveCommuteMinutes,
     this.note,
-    this.periodId,
     this.presetId,
   });
 }
@@ -698,17 +694,13 @@ class _AddDayResult {
 class _AddDayDialog extends StatefulWidget {
   final DateTime initialDate;
   final int expectedMinutes;
-  final List<dynamic> workPeriods;
   final List<dynamic> travelPresets;
-  final String? initialPeriodId;
   final String? initialPresetId;
 
   const _AddDayDialog({
     required this.initialDate,
     required this.expectedMinutes,
-    required this.workPeriods,
     required this.travelPresets,
-    this.initialPeriodId,
     this.initialPresetId,
   });
 
@@ -720,12 +712,11 @@ class _AddDayDialogState extends State<_AddDayDialog> {
   late DateTime _date;
   late TimeOfDay _startTime;
   late TimeOfDay _endTime;
-  late dynamic _selectedPeriod;
   late dynamic _selectedPreset;
   int _lunch = 0;
   String _note = '';
 
-  int get _expected => _selectedPeriod.expectedMinutes;
+  int get _expected => widget.expectedMinutes;
   int get _morningOverhead => _selectedPreset.morningOverheadMinutes;
   int get _morningProductive => _selectedPreset.morningProductiveCommuteMinutes;
   int get _eveningOverhead => _selectedPreset.eveningOverheadMinutes;
@@ -737,27 +728,7 @@ class _AddDayDialogState extends State<_AddDayDialog> {
     _date = widget.initialDate;
     _startTime = const TimeOfDay(hour: 8, minute: 0);
     _endTime = const TimeOfDay(hour: 16, minute: 0);
-    _selectedPeriod = _matchPeriod(widget.workPeriods, widget.expectedMinutes);
     _selectedPreset = widget.travelPresets.first;
-  }
-
-  static dynamic _matchPeriod(List<dynamic> periods, int mins) {
-    for (final p in periods) {
-      if (p.expectedMinutes == mins) return p;
-    }
-    return periods.first;
-  }
-
-  dynamic _initialPeriod(int expected) {
-    if (widget.initialPeriodId != null) {
-      for (final p in widget.workPeriods) {
-        if (p.id == widget.initialPeriodId) return p;
-      }
-    }
-    for (final p in widget.workPeriods) {
-      if (p.expectedMinutes == expected) return p;
-    }
-    return widget.workPeriods.first;
   }
 
   dynamic _initialPreset() {
@@ -846,14 +817,18 @@ class _AddDayDialogState extends State<_AddDayDialog> {
               ],
             ),
             const SizedBox(height: 16),
-            Text('Work period', style: theme.textTheme.titleSmall),
+            Text('Expected work', style: theme.textTheme.titleSmall),
             const SizedBox(height: 4),
-            DropdownButtonFormField(
-              initialValue: _selectedPeriod,
-              items: widget.workPeriods.map<DropdownMenuItem>((p) {
-                return DropdownMenuItem(value: p, child: Text('${p.name} (${_fmtMins(p.expectedMinutes)})'));
-              }).toList(),
-              onChanged: (v) { if (v != null) setState(() => _selectedPeriod = v); },
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text(
+                '${_fmtMins(widget.expectedMinutes)} per day',
+                style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+              ),
             ),
             const SizedBox(height: 16),
             Text('Travel preset', style: theme.textTheme.titleSmall),
@@ -933,7 +908,6 @@ class _AddDayDialogState extends State<_AddDayDialog> {
             eveningOverheadMinutes: _eveningOverhead,
             eveningProductiveCommuteMinutes: _eveningProductive,
             note: _note.isEmpty ? null : _note,
-            periodId: _selectedPeriod?.id,
             presetId: _selectedPreset?.id,
           )),
           child: const Text('Add'),

@@ -11,7 +11,6 @@ class PreferencesService {
   static final PreferencesService _instance = PreferencesService._();
   factory PreferencesService() => _instance;
 
-  static const _keyPeriodId = 'last_work_period_id';
   static const _keyPresetId = 'last_travel_preset_id';
   static const _keyShowWeekends = 'show_weekends';
 
@@ -23,21 +22,7 @@ class PreferencesService {
     showWeekends.value = prefs.getBool(_keyShowWeekends) ?? false;
   }
 
-  // -- Last-used period/preset ----------------------------------------------
-
-  Future<String?> getLastWorkPeriodId() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getString(_keyPeriodId);
-  }
-
-  Future<void> setLastWorkPeriodId(String? id) async {
-    final prefs = await SharedPreferences.getInstance();
-    if (id == null) {
-      await prefs.remove(_keyPeriodId);
-    } else {
-      await prefs.setString(_keyPeriodId, id);
-    }
-  }
+  // -- Last-used preset ----------------------------------------------
 
   Future<String?> getLastTravelPresetId() async {
     final prefs = await SharedPreferences.getInstance();

@@ -2,10 +2,10 @@ import 'package:flutter/foundation.dart';
 
 import 'models/time_log.dart';
 import 'models/travel_preset.dart';
-import 'models/work_period_setting.dart';
+import 'models/work_config.dart';
 import 'services/time_log_service.dart';
 import 'services/travel_preset_service.dart';
-import 'services/work_period_service.dart';
+import 'services/work_config_service.dart';
 import 'services/supabase_service.dart';
 import 'utils/csv_import.dart';
 
@@ -17,17 +17,17 @@ class AppState extends ChangeNotifier {
 
   // Lazily initialised — only accessed after Supabase is ready.
   TimeLogService? _logs;
-  WorkPeriodService? _periods;
+  WorkConfigService? _config;
   TravelPresetService? _presets;
 
   TimeLogService get logs => _logs ??= TimeLogService();
-  WorkPeriodService get periods => _periods ??= WorkPeriodService();
+  WorkConfigService get config => _config ??= WorkConfigService();
   TravelPresetService get presets => _presets ??= TravelPresetService();
 
   // -- cached data ---------------------------------------------------
   TimeLog? _todayLog;
   List<TimeLog> _allLogs = [];
-  List<WorkPeriodSetting> _periodsList = [];
+  WorkConfig? _workConfig;
   List<TravelPreset> _presetsList = [];
   int _timeBankMinutes = 0;
   bool _tablesReady = false;
@@ -35,7 +35,7 @@ class AppState extends ChangeNotifier {
 
   TimeLog? get todayLog => _todayLog;
   List<TimeLog> get allLogs => _allLogs;
-  List<WorkPeriodSetting> get workPeriods => _periodsList;
+  WorkConfig? get workConfig => _workConfig;
   List<TravelPreset> get travelPresets => _presetsList;
   int get timeBankMinutes => _timeBankMinutes;
   bool get tablesReady => _tablesReady;
@@ -44,17 +44,13 @@ class AppState extends ChangeNotifier {
   /// Clear the last error after the UI has consumed it.
   void clearLastError() => _lastError = null;
 
-  WorkPeriodSetting? get activePeriod {
-    final now = DateTime.now();
-    for (final p in _periodsList) {
-      if (p.isActiveOn(now)) return p;
+  /// Returns the expected work minutes for [date], derived from the
+  /// work config (default vs reduced period by ISO week).
+  int expectedMinutesForDate(DateTime date) {
+    if (_workConfig != null) {
+      return _workConfig!.expectedMinutesForDate(date);
     }
-    return null;
-  }
-
-  // -- helpers: is item in use by any time log? ----------------------
-  bool isPeriodInUse(WorkPeriodSetting period) {
-    return _allLogs.any((l) => l.expectedMinutes == period.expectedMinutes);
+    return 480; // fallback default
   }
 
   bool isPresetInUse(TravelPreset preset) {
@@ -67,7 +63,7 @@ class AppState extends ChangeNotifier {
       await Future.wait([
         _loadToday(),
         _loadAll(),
-        _loadPeriods(),
+        _loadConfig(),
         _loadPresets(),
         _loadBalance(),
       ]);
@@ -89,31 +85,15 @@ class AppState extends ChangeNotifier {
 
   Future<void> _loadToday() async => _todayLog = await logs.today();
   Future<void> _loadAll() async => _allLogs = await logs.all();
-  Future<void> _loadPeriods() async => _periodsList = await periods.all();
+  Future<void> _loadConfig() async => _workConfig = await config.get();
   Future<void> _loadPresets() async => _presetsList = await presets.all();
   Future<void> _loadBalance() async => _timeBankMinutes = await logs.totalOvertime();
 
-  // -- work-period CRUD ----------------------------------------------
-  Future<void> addWorkPeriod(WorkPeriodSetting p) async {
+  // -- work-config CRUD ----------------------------------------------
+  Future<void> saveWorkConfig(WorkConfig c) async {
     try {
-      await periods.insert(p);
-      await _loadPeriods();
-    } catch (e) { _lastError = e.toString(); }
-    notifyListeners();
-  }
-
-  Future<void> updateWorkPeriod(WorkPeriodSetting p) async {
-    try {
-      await periods.update(p.id!, p.toJson()..remove('id'));
-      await _loadPeriods();
-    } catch (e) { _lastError = e.toString(); }
-    notifyListeners();
-  }
-
-  Future<void> deleteWorkPeriod(String id) async {
-    try {
-      await periods.delete(id);
-      await _loadPeriods();
+      await config.save(c);
+      await _loadConfig();
     } catch (e) { _lastError = e.toString(); }
     notifyListeners();
   }

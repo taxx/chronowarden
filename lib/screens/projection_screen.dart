@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 
 import '../app_state.dart';
 import '../models/time_log.dart';
-import '../models/work_period_setting.dart';
 
 /// Projection calculator — shows how daily flex minutes reduce the time bank.
 class ProjectionScreen extends StatefulWidget {
@@ -21,7 +20,6 @@ class _ProjectionScreenState extends State<ProjectionScreen> {
   // Computed projection data
   late int _currentBalance;
   late List<TimeLog> _allLogs;
-  late List<WorkPeriodSetting> _workPeriods;
 
   @override
   void initState() {
@@ -34,7 +32,6 @@ class _ProjectionScreenState extends State<ProjectionScreen> {
     if (mounted) setState(() {
       _currentBalance = _state.timeBankMinutes;
       _allLogs = _state.allLogs;
-      _workPeriods = _state.workPeriods;
       _loading = false;
     });
   }
@@ -56,7 +53,6 @@ class _ProjectionScreenState extends State<ProjectionScreen> {
         builder: (context, _) {
           _currentBalance = _state.timeBankMinutes;
           _allLogs = _state.allLogs;
-          _workPeriods = _state.workPeriods;
           return _buildContent(theme);
         },
       ),

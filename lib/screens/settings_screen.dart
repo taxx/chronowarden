@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../app_state.dart';
 import '../models/travel_preset.dart';
-import '../models/work_period_setting.dart';
+import '../models/work_config.dart';
 import '../services/notification_service.dart';
 import '../services/preferences_service.dart';
 import '../services/user_settings_service.dart';
@@ -56,15 +56,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
-        _Section<WorkPeriodSetting>(
-          title: 'Work Periods',
-          subtitle: 'Seasonal work-day lengths',
-          items: _state.workPeriods,
-          itemBuilder: (p) => Text('${p.name}: ${_fmtMins(p.expectedMinutes)} (${p.startDate} → ${p.endDate})'),
-          onEdit: (p) => _showEditPeriodDialog(context, p),
-          onDelete: (p) => _confirmDeletePeriod(context, p),
-          onAdd: () => _showAddPeriodDialog(context),
-        ),
+        _WorkConfigSection(onEdit: () => _showWorkConfigDialog(context)),
         const SizedBox(height: 24),
         _Section<TravelPreset>(
           title: 'Travel Presets',
@@ -87,105 +79,107 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  // -- Work period dialogs -------------------------------------------
+  // -- Work config section -------------------------------------------
 
-  Future<void> _showAddPeriodDialog(BuildContext ctx) async {
-    final result = await _showPeriodDialog(ctx);
-    if (result != null) {
-      await _state.addWorkPeriod(result);
-      if (ctx.mounted) _showResult(ctx);
-    }
-  }
-
-  Future<void> _showEditPeriodDialog(BuildContext ctx, WorkPeriodSetting period) async {
-    final result = await _showPeriodDialog(ctx, existing: period);
-    if (result != null) {
-      await _state.updateWorkPeriod(result);
-      if (ctx.mounted) _showResult(ctx);
-    }
-  }
-
-  Future<WorkPeriodSetting?> _showPeriodDialog(
-    BuildContext ctx, {
-    WorkPeriodSetting? existing,
-  }) async {
-    final nameCtrl = TextEditingController(text: existing?.name ?? '');
-    final startCtrl = TextEditingController(text: existing?.startDate ?? '');
-    final endCtrl = TextEditingController(text: existing?.endDate ?? '');
-    final minsCtrl = TextEditingController(text: existing?.expectedMinutes.toString() ?? '480');
+  Future<void> _showWorkConfigDialog(BuildContext ctx) async {
+    final cfg = _state.workConfig;
+    final dfltCtrl = TextEditingController(text: (cfg?.defaultExpectedMinutes ?? 480).toString());
+    final reducedCtrl = TextEditingController(text: cfg?.reducedExpectedMinutes?.toString() ?? '');
+    final startWeekCtrl = TextEditingController(text: cfg?.reducedStartWeek?.toString() ?? '');
+    final endWeekCtrl = TextEditingController(text: cfg?.reducedEndWeek?.toString() ?? '');
 
     final result = await showDialog<bool>(
       context: ctx,
-      builder: (_) => AlertDialog(
-        title: Text(existing == null ? 'Add Work Period' : 'Edit Work Period'),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(controller: nameCtrl, decoration: const InputDecoration(labelText: 'Name')),
-              const SizedBox(height: 8),
-              TextField(controller: startCtrl, decoration: const InputDecoration(labelText: 'Start (YYYY-MM-DD)'), keyboardType: TextInputType.datetime),
-              const SizedBox(height: 8),
-              TextField(controller: endCtrl, decoration: const InputDecoration(labelText: 'End (YYYY-MM-DD)'), keyboardType: TextInputType.datetime),
-              const SizedBox(height: 8),
-              TextField(controller: minsCtrl, decoration: const InputDecoration(labelText: 'Expected minutes'), keyboardType: const TextInputType.numberWithOptions()),
-            ],
+      builder: (_) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text('Work Hours Configuration'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: dfltCtrl,
+                  decoration: const InputDecoration(labelText: 'Default minutes per day'),
+                  keyboardType: TextInputType.number,
+                ),
+                const SizedBox(height: 16),
+                const Text('Reduced period (optional — e.g. summer time)', style: TextStyle(fontWeight: FontWeight.bold)),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: reducedCtrl,
+                  decoration: const InputDecoration(labelText: 'Reduced minutes per day'),
+                  keyboardType: TextInputType.number,
+                ),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: startWeekCtrl,
+                  decoration: const InputDecoration(labelText: 'Start week (ISO, 1-53)'),
+                  keyboardType: TextInputType.number,
+                ),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: endWeekCtrl,
+                  decoration: const InputDecoration(labelText: 'End week (ISO, 1-53)'),
+                  keyboardType: TextInputType.number,
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Leave reduced fields empty to disable the reduced period.',
+                  style: const TextStyle(color: Colors.grey, fontSize: 12),
+                ),
+              ],
+            ),
           ),
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
-          FilledButton(
-            onPressed: () {
-              if (nameCtrl.text.isNotEmpty && startCtrl.text.isNotEmpty && endCtrl.text.isNotEmpty && int.tryParse(minsCtrl.text) != null) {
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+            FilledButton(
+              onPressed: () {
+                final dflt = int.tryParse(dfltCtrl.text);
+                if (dflt == null) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Default minutes must be a valid number')),
+                  );
+                  return;
+                }
+                final hasReduced = reducedCtrl.text.isNotEmpty ||
+                    startWeekCtrl.text.isNotEmpty || endWeekCtrl.text.isNotEmpty;
+                if (hasReduced) {
+                  final r = int.tryParse(reducedCtrl.text);
+                  final sw = int.tryParse(startWeekCtrl.text);
+                  final ew = int.tryParse(endWeekCtrl.text);
+                  if (r == null || sw == null || ew == null) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('All reduced fields must be valid numbers')),
+                    );
+                    return;
+                  }
+                  if (sw < 1 || sw > 53 || ew < 1 || ew > 53) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Weeks must be between 1 and 53')),
+                    );
+                    return;
+                  }
+                }
                 Navigator.pop(ctx, true);
-              }
-            },
-            child: Text(existing == null ? 'Add' : 'Save'),
-          ),
-        ],
+              },
+              child: const Text('Save'),
+            ),
+          ],
+        ),
       ),
     );
 
     if (result == true) {
-      return WorkPeriodSetting(
-        id: existing?.id,
-        name: nameCtrl.text,
-        startDate: startCtrl.text,
-        endDate: endCtrl.text,
-        expectedMinutes: int.parse(minsCtrl.text),
+      final dflt = int.parse(dfltCtrl.text);
+      final hasReduced = reducedCtrl.text.isNotEmpty;
+      final cfg = WorkConfig(
+        defaultExpectedMinutes: dflt,
+        reducedExpectedMinutes: hasReduced ? int.parse(reducedCtrl.text) : null,
+        reducedStartWeek: hasReduced ? int.parse(startWeekCtrl.text) : null,
+        reducedEndWeek: hasReduced ? int.parse(endWeekCtrl.text) : null,
       );
-    }
-    return null;
-  }
-
-  Future<void> _confirmDeletePeriod(BuildContext ctx, WorkPeriodSetting p) async {
-    final inUse = _state.isPeriodInUse(p);
-    final confirmed = await showDialog<bool>(
-      context: ctx,
-      builder: (_) => AlertDialog(
-        title: const Text('Delete Work Period'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Delete "${p.name}"?'),
-            if (inUse) ...[
-              const SizedBox(height: 12),
-              Text(
-                '⚠ This period matches one or more logged days. Deleting it won\'t affect those logs (they store their own copy of the minutes).',
-                style: const TextStyle(color: Colors.orange),
-              ),
-            ],
-          ],
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
-          FilledButton(onPressed: () => Navigator.pop(ctx, true), style: FilledButton.styleFrom(backgroundColor: Colors.red), child: const Text('Delete')),
-        ],
-      ),
-    );
-    if (confirmed == true) {
-      await _state.deleteWorkPeriod(p.id!);
+      await _state.saveWorkConfig(cfg);
+      if (ctx.mounted) _showResult(ctx);
     }
   }
 
@@ -631,6 +625,100 @@ class _ToggleRow extends StatelessWidget {
         ),
       ],
     );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Work config card
+// ---------------------------------------------------------------------------
+
+class _WorkConfigSection extends StatelessWidget {
+  final VoidCallback onEdit;
+
+  const _WorkConfigSection({required this.onEdit});
+
+  @override
+  Widget build(BuildContext context) {
+    final state = AppState();
+    final theme = Theme.of(context);
+    final cfg = state.workConfig;
+    final dflt = cfg?.defaultExpectedMinutes ?? 480;
+    final hasReduced = cfg?.hasReducedPeriod ?? false;
+    final reducedMinutes = cfg?.reducedExpectedMinutes;
+    final reducedStartWeek = cfg?.reducedStartWeek;
+    final reducedEndWeek = cfg?.reducedEndWeek;
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.work_outlined, color: theme.colorScheme.primary),
+                const SizedBox(width: 12),
+                Expanded(child: Text('Work Hours', style: theme.textTheme.titleLarge)),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Configure your expected work time per day.',
+              style: theme.textTheme.bodySmall,
+            ),
+            const SizedBox(height: 16),
+            _statRow(theme, 'Default', '${_fmtMins(dflt)} per day'),
+            if (hasReduced) ...[
+              _statRow(
+                theme,
+                'Reduced period',
+                '${_fmtMins(reducedMinutes!)} per day',
+              ),
+              _statRow(
+                theme,
+                'ISO weeks',
+                '$reducedStartWeek – $reducedEndWeek',
+              ),
+            ] else ...[
+              _statRow(theme, 'Reduced period', 'Not configured'),
+            ],
+            const SizedBox(height: 16),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: onEdit,
+                icon: const Icon(Icons.edit, size: 18),
+                label: const Text('Edit configuration'),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _statRow(ThemeData theme, String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(label, style: theme.textTheme.bodyMedium),
+          Text(
+            value,
+            style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _fmtMins(int minutes) {
+    final abs = minutes.abs();
+    final h = abs ~/ 60;
+    final m = abs % 60;
+    if (h == 0) return '$m min';
+    return '${h}h ${m}m';
   }
 }
 
