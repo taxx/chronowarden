@@ -525,10 +525,10 @@ Widget _dayCell(ThemeData theme, {
       label = '✓';
     } else if (ot > 0) {
       bgColor = theme.colorScheme.errorContainer.withValues(alpha: 0.35);
-      label = '+${ot}min';
+      label = _overtimeStr(ot);
     } else {
       bgColor = Colors.green.shade100.withValues(alpha: 0.35);
-      label = '${ot}min';
+      label = _overtimeStr(ot);
     }
   } else if (log != null && log.endTime == null) {
     bgColor = theme.colorScheme.secondaryContainer.withValues(alpha: 0.35);
@@ -539,7 +539,7 @@ Widget _dayCell(ThemeData theme, {
     padding: const EdgeInsets.symmetric(horizontal: 4),
     child: Tooltip(
       message: log != null
-          ? '${log.date}: ${log.startTime}${log.endTime != null ? ' → ${log.endTime}' : ' → …'}\n${log.expectedMinutes} min work${log.note != null ? '\n📝 ${log.note}' : ''}'
+          ? '${log.date}: ${log.startTime}${log.endTime != null ? ' → ${log.endTime}' : ' → …'}\n${_fmtMins(log.expectedMinutes)} work${log.note != null ? '\n📝 ${log.note}' : ''}'
           : '',
       child: InkWell(
         onTap: log != null ? onTap : onEmptyPastDayTap,
@@ -695,7 +695,7 @@ List<Widget> _buildMonthRows(BuildContext context, double cellWidth, Map<String,
         borderRadius: BorderRadius.circular(8),
         child: Tooltip(
           message: log != null
-              ? '${log.date}: ${log.startTime}${log.endTime != null ? ' → ${log.endTime}' : ' → …'}\n${log.expectedMinutes} min work${log.note != null ? '\n📝 ${log.note}' : ''}'
+              ? '${log.date}: ${log.startTime}${log.endTime != null ? ' → ${log.endTime}' : ' → …'}\n${_fmtMins(log.expectedMinutes)} work${log.note != null ? '\n📝 ${log.note}' : ''}'
               : '',
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
