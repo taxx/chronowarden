@@ -8,14 +8,6 @@ import '../services/preferences_service.dart';
 import '../services/user_settings_service.dart';
 import '../utils/csv_export.dart';
 
-String _fmtMins(int minutes) {
-  final abs = minutes.abs();
-  final h = abs ~/ 60;
-  final m = abs % 60;
-  if (h == 0) return '$m min';
-  return '${h}h ${m}m';
-}
-
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
 
@@ -522,10 +514,12 @@ class _DefaultFlexSettingState extends State<_DefaultFlexSetting> {
 
   Future<void> _load() async {
     final minutes = await _settings.getDefaultFlexMinutes();
-    if (mounted) setState(() {
-      _flexMinutes = minutes;
-      _loading = false;
-    });
+    if (mounted) {
+      setState(() {
+        _flexMinutes = minutes;
+        _loading = false;
+      });
+    }
   }
 
   @override
@@ -577,11 +571,10 @@ class _DefaultFlexSettingState extends State<_DefaultFlexSetting> {
                     ? null
                     : () async {
                         await _settings.setDefaultFlexMinutes(_flexMinutes);
-                        if (mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Default flex time saved')),
-                          );
-                        }
+                        if (!context.mounted) return;
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Default flex time saved')),
+                        );
                       },
                 child: const Text('Save'),
               ),

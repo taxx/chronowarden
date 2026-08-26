@@ -645,8 +645,8 @@ class _EditDayDialogState extends State<_EditDayDialog> {
         children: [
           Text('Commute breakdown', style: theme.textTheme.labelSmall?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
           const SizedBox(height: 4),
-          Text('Morning: ${_morningOverhead} min walk, ${_morningProductive} min train work', style: theme.textTheme.bodySmall),
-          Text('Evening: ${_eveningOverhead} min walk, ${_eveningProductive} min train work', style: theme.textTheme.bodySmall),
+          Text('Morning: $_morningOverhead min walk, $_morningProductive min train work', style: theme.textTheme.bodySmall),
+          Text('Evening: $_eveningOverhead min walk, $_eveningProductive min train work', style: theme.textTheme.bodySmall),
           Text('Total: $totalCommute min commute', style: theme.textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w600)),
         ],
       ),
@@ -695,13 +695,11 @@ class _AddDayDialog extends StatefulWidget {
   final DateTime initialDate;
   final int expectedMinutes;
   final List<dynamic> travelPresets;
-  final String? initialPresetId;
 
   const _AddDayDialog({
     required this.initialDate,
     required this.expectedMinutes,
     required this.travelPresets,
-    this.initialPresetId,
   });
 
   @override
@@ -729,15 +727,6 @@ class _AddDayDialogState extends State<_AddDayDialog> {
     _startTime = const TimeOfDay(hour: 8, minute: 0);
     _endTime = const TimeOfDay(hour: 16, minute: 0);
     _selectedPreset = widget.travelPresets.first;
-  }
-
-  dynamic _initialPreset() {
-    if (widget.initialPresetId != null) {
-      for (final p in widget.travelPresets) {
-        if (p.id == widget.initialPresetId) return p;
-      }
-    }
-    return widget.travelPresets.first;
   }
 
 
@@ -932,8 +921,8 @@ class _AddDayDialogState extends State<_AddDayDialog> {
         children: [
           Text('Commute breakdown', style: theme.textTheme.labelSmall?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
           const SizedBox(height: 4),
-          Text('Morning: ${_morningOverhead} min walk, ${_morningProductive} min train work', style: theme.textTheme.bodySmall),
-          Text('Evening: ${_eveningOverhead} min walk, ${_eveningProductive} min train work', style: theme.textTheme.bodySmall),
+          Text('Morning: $_morningOverhead min walk, $_morningProductive min train work', style: theme.textTheme.bodySmall),
+          Text('Evening: $_eveningOverhead min walk, $_eveningProductive min train work', style: theme.textTheme.bodySmall),
           Text('Total: $totalCommute min commute', style: theme.textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w600)),
         ],
       ),

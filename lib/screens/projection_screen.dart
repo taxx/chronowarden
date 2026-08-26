@@ -29,11 +29,13 @@ class _ProjectionScreenState extends State<ProjectionScreen> {
 
   Future<void> _load() async {
     await _state.refresh();
-    if (mounted) setState(() {
-      _currentBalance = _state.timeBankMinutes;
-      _allLogs = _state.allLogs;
-      _loading = false;
-    });
+    if (mounted) {
+      setState(() {
+        _currentBalance = _state.timeBankMinutes;
+        _allLogs = _state.allLogs;
+        _loading = false;
+      });
+    }
   }
 
   @override
@@ -362,7 +364,7 @@ class _ProjectionScreenState extends State<ProjectionScreen> {
     final abs = minutes.abs();
     final h = abs ~/ 60;
     final m = abs % 60;
-    if (h == 0) return '$sign${m} min';
+    if (h == 0) return '$sign$m min';
     if (m == 0) return '$sign${h}h';
     return '$sign${h}h ${m}m';
   }
@@ -470,8 +472,11 @@ class _ProjectionChartPainter extends CustomPainter {
         for (int i = 0; i <= splitIndex && i < balances.length; i++) {
           final x = leftPad + i * stepX;
           final y = yOf(balances[i].toDouble());
-          if (i == 0) histPath.moveTo(x, y);
-          else histPath.lineTo(x, y);
+          if (i == 0) {
+            histPath.moveTo(x, y);
+          } else {
+            histPath.lineTo(x, y);
+          }
         }
         canvas.drawPath(histPath, Paint()
           ..color = greenColor
@@ -489,8 +494,11 @@ class _ProjectionChartPainter extends CustomPainter {
         for (int i = splitIndex; i < balances.length; i++) {
           final x = leftPad + i * stepX;
           final y = yOf(balances[i].toDouble());
-          if (i == splitIndex) projPath.moveTo(x, y);
-          else projPath.lineTo(x, y);
+          if (i == splitIndex) {
+            projPath.moveTo(x, y);
+          } else {
+            projPath.lineTo(x, y);
+          }
         }
         canvas.drawPath(projPath, projPaint);
         // Draw dots on each projected data point
