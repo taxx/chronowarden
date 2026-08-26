@@ -3,6 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'screens/main_shell.dart';
 import 'screens/login_screen.dart';
+import 'screens/migration_screen.dart';
 import 'screens/pending_screen.dart';
 import 'screens/setup_screen.dart';
 import 'screens/signup_screen.dart';
@@ -122,6 +123,11 @@ class _ChronoWardenAppState extends State<ChronoWardenApp> {
 
         if (!profile.isApproved) {
           return const PendingScreen();
+        }
+
+        // Check if user needs to migrate to encryption
+        if (_auth.needsMigration) {
+          return const MigrationScreen();
         }
 
         return ListenableBuilder(

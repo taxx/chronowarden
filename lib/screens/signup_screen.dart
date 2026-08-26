@@ -3,8 +3,10 @@ import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
 import 'login_screen.dart';
 
-/// Sign-up screen with optional invite token.
+/// Sign-up screen with encryption passphrase setup.
+///
 /// [isFirstAdmin] → skip invite token, create admin directly.
+/// All new users set up encryption at signup time.
 class SignupScreen extends StatefulWidget {
   final bool isFirstAdmin;
 
@@ -19,9 +21,13 @@ class _SignupScreenState extends State<SignupScreen> {
   final _passCtrl = TextEditingController();
   final _nameCtrl = TextEditingController();
   final _tokenCtrl = TextEditingController();
+  final _encCtrl = TextEditingController();
+  final _encConfirmCtrl = TextEditingController();
   bool _loading = false;
   bool _validatingToken = false;
   bool? _tokenValid;
+  bool _obscurePass = true;
+  final bool _obscureEnc = true;
   final _auth = AuthService();
 
   @override
@@ -30,6 +36,8 @@ class _SignupScreenState extends State<SignupScreen> {
     _passCtrl.dispose();
     _nameCtrl.dispose();
     _tokenCtrl.dispose();
+    _encCtrl.dispose();
+    _encConfirmCtrl.dispose();
     super.dispose();
   }
 
@@ -45,11 +53,34 @@ class _SignupScreenState extends State<SignupScreen> {
   }
 
   Future<void> _signUp() async {
-    if (_emailCtrl.text.isEmpty || _passCtrl.text.isEmpty || _nameCtrl.text.isEmpty) return;
+    if (_emailCtrl.text.isEmpty ||
+        _passCtrl.text.isEmpty ||
+        _nameCtrl.text.isEmpty) {
+      return;
+    }
 
-    // If not first admin and no valid token, warn but allow pending signup.
-    if (!widget.isFirstAdmin && _tokenValid == false && _tokenCtrl.text.isNotEmpty) {
+    // Validate encryption passphrase
+    if (_encCtrl.text.length < 8) {
       if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Encryption passphrase must be at least 8 characters'),
+        ),
+      );
+      return;
+    }
+    if (_encCtrl.text != _encConfirmCtrl.text) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Encryption passphrases do not match')),
+      );
+      return;
+    }
+
+    if (!widget.isFirstAdmin && _tokenValid == false && _tokenCtrl.text.isNotEmpty) {
+      if (!mounted) {
+        return;
+      }
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Invalid or expired invite token')),
       );
@@ -61,6 +92,7 @@ class _SignupScreenState extends State<SignupScreen> {
       email: _emailCtrl.text,
       password: _passCtrl.text,
       fullName: _nameCtrl.text,
+      encryptionPassphrase: _encCtrl.text,
       inviteToken: _tokenCtrl.text.trim().isEmpty ? null : _tokenCtrl.text.trim(),
       isFirstAdmin: widget.isFirstAdmin,
     );
@@ -72,9 +104,14 @@ class _SignupScreenState extends State<SignupScreen> {
     final theme = Theme.of(context);
     final err = _auth.error;
     final showToken = !widget.isFirstAdmin;
+    final encOk = _encCtrl.text.length >= 8;
+    final encMatch =
+        encOk && _encCtrl.text == _encConfirmCtrl.text;
 
     return Scaffold(
-      appBar: AppBar(title: Text(widget.isFirstAdmin ? 'Create Admin' : 'Create Account')),
+      appBar: AppBar(
+        title: Text(widget.isFirstAdmin ? 'Create Admin' : 'Create Account'),
+      ),
       body: Center(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24),
@@ -87,11 +124,16 @@ class _SignupScreenState extends State<SignupScreen> {
                   Padding(
                     padding: const EdgeInsets.only(bottom: 16),
                     child: Text(
-                      'You are the first user. This account will have admin privileges.',
-                      style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.primary),
+                      'You are the first user. This account will have '
+                      'admin privileges.',
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: theme.colorScheme.primary,
+                      ),
                       textAlign: TextAlign.center,
                     ),
                   ),
+
+                // --- Name ---
                 TextField(
                   controller: _nameCtrl,
                   decoration: const InputDecoration(
@@ -101,6 +143,8 @@ class _SignupScreenState extends State<SignupScreen> {
                   ),
                 ),
                 const SizedBox(height: 12),
+
+                // --- Email ---
                 TextField(
                   controller: _emailCtrl,
                   keyboardType: TextInputType.emailAddress,
@@ -111,15 +155,65 @@ class _SignupScreenState extends State<SignupScreen> {
                   ),
                 ),
                 const SizedBox(height: 12),
+
+                // --- Password ---
                 TextField(
                   controller: _passCtrl,
-                  obscureText: true,
-                  decoration: const InputDecoration(
+                  obscureText: _obscurePass,
+                  decoration: InputDecoration(
                     labelText: 'Password (min 6 characters)',
-                    border: OutlineInputBorder(),
-                    prefixIcon: Icon(Icons.lock_outline),
+                    border: const OutlineInputBorder(),
+                    prefixIcon: const Icon(Icons.lock_outline),
+                    suffixIcon: IconButton(
+                      icon: Icon(_obscurePass
+                          ? Icons.visibility_off
+                          : Icons.visibility),
+                      onPressed: () =>
+                          setState(() => _obscurePass = !_obscurePass),
+                    ),
                   ),
                 ),
+                const SizedBox(height: 12),
+
+                // --- Encryption passphrase ---
+                TextField(
+                  controller: _encCtrl,
+                  obscureText: _obscureEnc,
+                  decoration: InputDecoration(
+                    labelText: 'Encryption passphrase',
+                    hintText: 'At least 8 characters',
+                    border: const OutlineInputBorder(),
+                    prefixIcon: const Icon(Icons.shield_outlined),
+                    suffixIcon: encOk
+                        ? const Icon(Icons.check_circle,
+                            color: Colors.green, size: 20)
+                        : null,
+                    helperText: '🔐 This passphrase encrypts ALL your data. '
+                        'If lost, your data is gone forever.',
+                    helperStyle: theme.textTheme.bodySmall?.copyWith(
+                      color: Colors.orange.shade800,
+                    ),
+                    helperMaxLines: 2,
+                  ),
+                ),
+                const SizedBox(height: 12),
+
+                // --- Confirm encryption passphrase ---
+                TextField(
+                  controller: _encConfirmCtrl,
+                  obscureText: _obscureEnc,
+                  decoration: InputDecoration(
+                    labelText: 'Confirm encryption passphrase',
+                    border: const OutlineInputBorder(),
+                    prefixIcon: const Icon(Icons.shield_outlined),
+                    suffixIcon: encMatch
+                        ? const Icon(Icons.check_circle,
+                            color: Colors.green, size: 20)
+                        : null,
+                  ),
+                ),
+
+                // --- Invite token ---
                 if (showToken) ...[
                   const SizedBox(height: 12),
                   Row(
@@ -130,18 +224,38 @@ class _SignupScreenState extends State<SignupScreen> {
                           decoration: InputDecoration(
                             labelText: 'Invite token (optional)',
                             border: const OutlineInputBorder(),
-                            prefixIcon: const Icon(Icons.confirmation_number_outlined),
+                            prefixIcon: const Icon(
+                                Icons.confirmation_number_outlined),
                             suffixIcon: _validatingToken
-                                ? const Padding(padding: EdgeInsets.all(12), child: SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)))
+                                ? const Padding(
+                                    padding: EdgeInsets.all(12),
+                                    child: SizedBox(
+                                      width: 16,
+                                      height: 16,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                      ),
+                                    ),
+                                  )
                                 : (_tokenValid == true
-                                    ? const Padding(padding: EdgeInsets.all(12), child: Icon(Icons.check_circle, color: Colors.green))
+                                    ? const Padding(
+                                        padding: EdgeInsets.all(12),
+                                        child: Icon(Icons.check_circle,
+                                            color: Colors.green),
+                                      )
                                     : (_tokenValid == false
-                                        ? const Padding(padding: EdgeInsets.all(12), child: Icon(Icons.cancel, color: Colors.red))
+                                        ? const Padding(
+                                            padding: EdgeInsets.all(12),
+                                            child: Icon(Icons.cancel,
+                                                color: Colors.red),
+                                          )
                                         : IconButton(
-                                            icon: const Icon(Icons.verified_outlined),
+                                            icon: const Icon(
+                                                Icons.verified_outlined),
                                             onPressed: _validateToken,
                                           ))),
-                            helperText: 'Without a token your account will need admin approval',
+                            helperText: 'Without a token your account will '
+                                'need admin approval',
                             helperStyle: theme.textTheme.bodySmall,
                           ),
                         ),
@@ -149,35 +263,62 @@ class _SignupScreenState extends State<SignupScreen> {
                     ],
                   ),
                 ],
+
+                // --- Error ---
                 if (err != null) ...[
                   const SizedBox(height: 12),
-                  Text(err, style: TextStyle(color: theme.colorScheme.error)),
+                  Text(err,
+                      style: TextStyle(color: theme.colorScheme.error)),
                 ],
                 const SizedBox(height: 20),
+
+                // --- Sign up button ---
                 SizedBox(
                   width: double.infinity,
                   child: FilledButton.icon(
                     onPressed: _loading ? null : _signUp,
                     icon: _loading
-                        ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
-                        : Icon(widget.isFirstAdmin ? Icons.admin_panel_settings : Icons.app_registration),
-                    label: Text(widget.isFirstAdmin ? 'Create Admin Account' : 'Create Account'),
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                            ),
+                          )
+                        : Icon(widget.isFirstAdmin
+                            ? Icons.admin_panel_settings
+                            : Icons.app_registration),
+                    label: Text(widget.isFirstAdmin
+                        ? 'Create Admin Account'
+                        : 'Create Account'),
                   ),
                 ),
                 const SizedBox(height: 16),
+
+                // --- Sign in link ---
                 TextButton(
                   onPressed: widget.isFirstAdmin
-                      // First-admin screen: navigate to login.
-                      // We push LoginScreen on top because the root widget
-                      // routes here based on DB state — popping won't re-evaluate.
                       ? () => Navigator.pushReplacement(
-                            context,
-                            MaterialPageRoute(builder: (_) => const LoginScreen()),
-                          )
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const LoginScreen(),
+                          ),
+                        )
                       : () => Navigator.of(context).maybePop(),
                   child: Text(widget.isFirstAdmin
                       ? 'Already signed up before? Sign in'
                       : 'Already have an account? Sign in'),
+                ),
+
+                // --- Encryption info ---
+                const SizedBox(height: 16),
+                Text(
+                  '🔐 Your data will be encrypted with AES-256-GCM. '
+                  'No one — not even the admin — can read it.',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                  textAlign: TextAlign.center,
                 ),
               ],
             ),

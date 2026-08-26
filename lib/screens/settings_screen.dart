@@ -1,12 +1,16 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../app_state.dart';
 import '../models/travel_preset.dart';
 import '../models/work_config.dart';
+import '../services/auth_service.dart';
+import '../services/crypto_service.dart';
 import '../services/notification_service.dart';
 import '../services/preferences_service.dart';
 import '../services/user_settings_service.dart';
 import '../utils/csv_export.dart';
+import 'about_encryption_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -67,6 +71,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
         _DefaultFlexSetting(),
         const SizedBox(height: 24),
         _ExportSection(),
+        const SizedBox(height: 24),
+        _EncryptionSection(),
       ],
     );
   }
@@ -775,6 +781,181 @@ class _Section<T> extends StatelessWidget {
           label: Text('Add ${title.split(' ').first.toLowerCase()}'),
         ),
       ],
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Encryption section
+// ---------------------------------------------------------------------------
+
+class _EncryptionSection extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final auth = AuthService();
+    final hasDek = auth.dek != null;
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  hasDek ? Icons.lock : Icons.lock_open,
+                  color: hasDek ? Colors.green : theme.colorScheme.onSurfaceVariant,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    'Encryption',
+                    style: theme.textTheme.titleLarge,
+                  ),
+                ),
+                if (hasDek)
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.green.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Text(
+                      'ACTIVE',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.green,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Text(
+              hasDek
+                  ? 'Your data is encrypted with AES-256-GCM. '
+                      'No one — not even the admin — can read it.'
+                  : 'Encryption not yet set up. Your data is stored '
+                      'in plaintext.',
+              style: theme.textTheme.bodySmall,
+            ),
+            const SizedBox(height: 16),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const AboutEncryptionScreen(),
+                    ),
+                  );
+                },
+                icon: const Icon(Icons.info_outlined, size: 18),
+                label: const Text('How encryption works'),
+              ),
+            ),
+            if (hasDek) ...[const SizedBox(height: 8),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: () => _showRecoveryPhrase(context),
+                icon: const Icon(Icons.key, size: 18),
+                label: const Text('Show recovery phrase'),
+              ),
+            ),],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _showRecoveryPhrase(BuildContext context) async {
+    final theme = Theme.of(context);
+    final auth = AuthService();
+    if (auth.dek == null) return;
+
+    final phrase = await CryptoService.dekToMnemonic(auth.dek!);
+    if (!context.mounted) return;
+
+    await showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Recovery Phrase'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.amber.shade50,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.amber.shade300),
+              ),
+              child: SelectableText(
+                phrase,
+                style: const TextStyle(
+                  fontFamily: 'monospace',
+                  fontSize: 14,
+                  height: 1.5,
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'If you forget your encryption passphrase, this 24-word '
+              'phrase is the only way to recover your data. Store it '
+              'somewhere safe.',
+              style: theme.textTheme.bodySmall,
+            ),
+            const SizedBox(height: 12),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.red.shade50,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text(
+                '⚠ Without this phrase, lost data is gone forever. '
+                'No one — not even the admin — can recover it.',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Colors.red.shade800,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Close'),
+          ),
+          FilledButton.icon(
+            onPressed: () {
+              Clipboard.setData(ClipboardData(text: phrase));
+              Navigator.pop(context);
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Recovery phrase copied')),
+                );
+              }
+            },
+            icon: const Icon(Icons.copy, size: 18),
+            label: const Text('Copy'),
+          ),
+        ],
+      ),
     );
   }
 }

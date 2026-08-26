@@ -1,11 +1,17 @@
+import 'dart:convert';
+
+import 'package:cryptography/cryptography.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/work_config.dart';
+import 'auth_service.dart';
+import 'crypto_service.dart';
 import 'supabase_service.dart';
 
 /// Reads and writes the per-user work-time configuration.
 ///
-/// Data lives in columns of the [user_settings] table (one row per user).
+/// Data lives inside the `encrypted_data` column of `user_settings`,
+/// encrypted with the user's DEK.
 class WorkConfigService {
   SupabaseClient get _client => SupabaseService.instance.client;
 
@@ -14,41 +20,80 @@ class WorkConfigService {
     return session?.user.id;
   }
 
+  SecretKey? get _dek => AuthService().dek;
+
   /// Fetch the current work config, or `null` if no row exists yet.
   Future<WorkConfig?> get() async {
     final userId = _userId;
-    if (userId == null) return null;
+    final dek = _dek;
+    if (userId == null || dek == null) return null;
+
     final resp = await _client
         .from('user_settings')
-        .select(
-          'default_expected_minutes, reduced_expected_minutes, '
-          'reduced_start_week, reduced_end_week',
-        )
+        .select('encrypted_data')
         .eq('user_id', userId)
         .limit(1);
     final rows = resp as List<dynamic>;
     if (rows.isEmpty) return null;
     final row = rows.first as Map<String, dynamic>;
-    return WorkConfig(
-      userId: userId,
-      defaultExpectedMinutes:
-          (row['default_expected_minutes'] as int?) ?? 480,
-      reducedExpectedMinutes: row['reduced_expected_minutes'] as int?,
-      reducedStartWeek: row['reduced_start_week'] as int?,
-      reducedEndWeek: row['reduced_end_week'] as int?,
-    );
+    final encrypted = row['encrypted_data'] as String?;
+    if (encrypted == null || encrypted.isEmpty) return null;
+
+    try {
+      final plaintext = await CryptoService.decrypt(encrypted, dek);
+      final json = jsonDecode(plaintext) as Map<String, dynamic>;
+      json['user_id'] = userId;
+      return WorkConfig.fromJson(json);
+    } catch (_) {
+      return null;
+    }
   }
 
   /// Save (upsert) a work config for the current user.
+  ///
+  /// Reads the existing encrypted_data, merges in the new config fields,
+  /// re-encrypts, and stores.
   Future<void> save(WorkConfig config) async {
     final userId = _userId;
-    if (userId == null) return;
+    final dek = _dek;
+    if (userId == null || dek == null) return;
+
+    // Read existing encrypted settings to merge
+    final existing = await _readEncryptedSettings(userId, dek);
+    existing.addAll(config.toJson());
+    existing.remove('user_id');
+    existing.remove('id');
+
+    final plaintext = jsonEncode(existing);
+    final ciphertext = await CryptoService.encrypt(plaintext, dek);
+
     await _client.from('user_settings').upsert({
       'user_id': userId,
-      'default_expected_minutes': config.defaultExpectedMinutes,
-      'reduced_expected_minutes': config.reducedExpectedMinutes,
-      'reduced_start_week': config.reducedStartWeek,
-      'reduced_end_week': config.reducedEndWeek,
+      'encrypted_data': ciphertext,
     }, onConflict: 'user_id');
+  }
+
+  /// Read all encrypted settings from user_settings, decrypted.
+  /// Returns a mutable map that can be merged into.
+  Future<Map<String, dynamic>> _readEncryptedSettings(
+    String userId,
+    SecretKey dek,
+  ) async {
+    try {
+      final resp = await _client
+          .from('user_settings')
+          .select('encrypted_data')
+          .eq('user_id', userId)
+          .limit(1);
+      final rows = resp as List<dynamic>;
+      if (rows.isEmpty) return {};
+      final row = rows.first as Map<String, dynamic>;
+      final encrypted = row['encrypted_data'] as String?;
+      if (encrypted == null || encrypted.isEmpty) return {};
+      final plaintext = await CryptoService.decrypt(encrypted, dek);
+      return jsonDecode(plaintext) as Map<String, dynamic>;
+    } catch (_) {
+      return {};
+    }
   }
 }
