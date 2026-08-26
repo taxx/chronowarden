@@ -113,13 +113,14 @@ class AuthService extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Sign in WITHOUT encryption passphrase — used only for admin scenarios
-  /// where encryption is not yet set up (e.g., first admin bootstrap).
+  /// Sign in WITHOUT encryption passphrase — for users who haven't set up
+  /// encryption yet. Detects if migration is needed and sets the flag.
   Future<void> signInWithoutEncryption({
     required String email,
     required String password,
   }) async {
     _error = null;
+    _needsMigration = false;
     notifyListeners();
     try {
       final response = await _client.auth.signInWithPassword(
@@ -132,6 +133,14 @@ class AuthService extends ChangeNotifier {
       if (_profile == null) {
         await _ensureProfile(response.user!);
         _profile = await _fetchProfile(response.user!.id);
+      }
+
+      // Detect if user has an encryption envelope
+      final userId = response.user!.id;
+      final salt = await _fetchSalt(userId);
+      final wrappedB64 = await _fetchEncryptedDek(userId);
+      if (salt == null || wrappedB64 == null || wrappedB64.isEmpty) {
+        _needsMigration = true;
       }
     } on AuthException catch (e) {
       _error = _userFriendlyError(e);
