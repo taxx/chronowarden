@@ -29,8 +29,7 @@ class TimeLogService {
 
   Future<List<TimeLog>> all() async {
     final userId = _userId;
-    final dek = _dek;
-    if (userId == null || dek == null) return [];
+    if (userId == null) return [];
 
     final resp = await _client
         .from('time_logs')
@@ -39,10 +38,9 @@ class TimeLogService {
         .order('date', ascending: false);
     final rows = resp as List<dynamic>;
     final results = <TimeLog>[];
+    final dek = _dek;
     for (final r in rows) {
       final map = r as Map<String, dynamic>;
-      final encrypted = map['encrypted_data'] as String?;
-      if (encrypted == null || encrypted.isEmpty) continue;
       final timeLog = await _decryptTimeLog(map, dek);
       if (timeLog != null) results.add(timeLog);
     }
@@ -51,8 +49,7 @@ class TimeLogService {
 
   Future<TimeLog?> today() async {
     final userId = _userId;
-    final dek = _dek;
-    if (userId == null || dek == null) return null;
+    if (userId == null) return null;
 
     final dateStr = _dateStr(DateTime.now());
     final resp = await _client
@@ -62,10 +59,9 @@ class TimeLogService {
         .eq('user_id', userId)
         .limit(1);
     final rows = resp as List<dynamic>;
+    final dek = _dek;
     for (final r in rows) {
       final map = r as Map<String, dynamic>;
-      final encrypted = map['encrypted_data'] as String?;
-      if (encrypted == null || encrypted.isEmpty) continue;
       return await _decryptTimeLog(map, dek);
     }
     return null;
@@ -73,8 +69,7 @@ class TimeLogService {
 
   Future<TimeLog?> activeToday() async {
     final userId = _userId;
-    final dek = _dek;
-    if (userId == null || dek == null) return null;
+    if (userId == null) return null;
 
     final dateStr = _dateStr(DateTime.now());
     final resp = await _client
@@ -84,11 +79,10 @@ class TimeLogService {
         .eq('user_id', userId)
         .limit(1);
     final rows = resp as List<dynamic>;
+    final dek = _dek;
     for (final r in rows) {
       final map = r as Map<String, dynamic>;
       if (map['end_time'] == null) {
-        final encrypted = map['encrypted_data'] as String?;
-        if (encrypted == null || encrypted.isEmpty) continue;
         return await _decryptTimeLog(map, dek);
       }
     }
@@ -101,49 +95,67 @@ class TimeLogService {
 
   Future<TimeLog> insert(TimeLog log) async {
     final userId = _userId;
-    final dek = _dek;
     if (userId == null) throw Exception('Not authenticated');
-    if (dek == null) throw Exception('Encryption key not loaded');
 
+    final dek = _dek;
     final json = log.toJson();
     json.remove('id');
     json.remove('created_at');
     json.remove('encrypted_data');
     json['user_id'] = userId;
 
-    // Encrypt the full model JSON
-    final plaintext = jsonEncode(json);
-    final ciphertext = await CryptoService.encrypt(plaintext, dek);
-
-    // Store: encrypted_data + plaintext date/user_id for filtering
-    final row = await _client.from('time_logs').insert({
-      'user_id': userId,
-      'date': log.date,
-      'encrypted_data': ciphertext,
-    }).select().single();
-
-    final decrypted = await _decryptTimeLog(Map<String, dynamic>.from(row), dek);
-    return decrypted ??
-        TimeLog.fromJson({'date': log.date, 'start_time': log.startTime, 'expected_minutes': log.expectedMinutes, 'overtime_minutes': log.overtimeMinutes});
+    if (dek != null) {
+      // Post-migration: encrypt and store
+      final plaintext = jsonEncode(json);
+      final ciphertext = await CryptoService.encrypt(plaintext, dek);
+      final row = await _client.from('time_logs').insert({
+        'user_id': userId,
+        'date': log.date,
+        'encrypted_data': ciphertext,
+      }).select().single();
+      final decrypted = await _decryptTimeLog(Map<String, dynamic>.from(row), dek);
+      return decrypted ?? log;
+    } else {
+      // Pre-migration: store in plaintext columns directly
+      json['date'] = log.date;
+      json['start_time'] = log.startTime;
+      json['end_time'] = log.endTime;
+      json['expected_minutes'] = log.expectedMinutes;
+      json['lunch_minutes'] = log.lunchMinutes;
+      json['flex_minutes'] = log.flexMinutes;
+      json['morning_overhead_minutes'] = log.morningOverheadMinutes;
+      json['morning_productive_commute_minutes'] = log.morningProductiveCommuteMinutes;
+      json['evening_overhead_minutes'] = log.eveningOverheadMinutes;
+      json['evening_productive_commute_minutes'] = log.eveningProductiveCommuteMinutes;
+      json['overtime_minutes'] = log.overtimeMinutes;
+      json['note'] = log.note;
+      final row = await _client.from('time_logs').insert(json).select().single();
+      return TimeLog.fromJson(Map<String, dynamic>.from(row));
+    }
   }
 
   Future<void> update(String id, Map<String, dynamic> fields) async {
     final userId = _userId;
-    final dek = _dek;
-    if (userId == null || dek == null) return;
+    if (userId == null) return;
 
-    // Encrypt any changed fields
     fields.remove('user_id');
     fields.remove('id');
     fields.remove('date');
     fields.remove('encrypted_data');
 
-    if (fields.isNotEmpty) {
+    if (fields.isEmpty) return;
+
+    final dek = _dek;
+    if (dek != null) {
+      // Post-migration: encrypt changed fields
       final plaintext = jsonEncode(fields);
       final ciphertext = await CryptoService.encrypt(plaintext, dek);
       await _client.from('time_logs').update({
         'encrypted_data': ciphertext,
       }).eq('id', id).eq('user_id', userId);
+    } else {
+      // Pre-migration: update plaintext columns directly
+      await _client.from('time_logs').update(fields).eq('id', id).eq('user_id', userId);
     }
   }
 
@@ -166,12 +178,19 @@ class TimeLogService {
   // -----------------------------------------------------------------
 
   /// Decrypt an encrypted time_log row into a [TimeLog] model.
+  ///
+  /// Falls back to plaintext columns if [encrypted_data] is empty
+  /// (pre-migration state).
   Future<TimeLog?> _decryptTimeLog(
     Map<String, dynamic> row,
-    SecretKey dek,
+    SecretKey? dek,
   ) async {
     final encrypted = row['encrypted_data'] as String?;
-    if (encrypted == null || encrypted.isEmpty) return null;
+
+    // Fallback: if no encrypted data or no DEK, read plaintext columns directly
+    if (encrypted == null || encrypted.isEmpty || dek == null) {
+      return TimeLog.fromJson(row);
+    }
 
     try {
       final plaintext = await CryptoService.decrypt(encrypted, dek);
@@ -185,7 +204,8 @@ class TimeLogService {
 
       return TimeLog.fromJson(json);
     } catch (_) {
-      return null;
+      // Fallback on decryption failure: read plaintext
+      return TimeLog.fromJson(row);
     }
   }
 

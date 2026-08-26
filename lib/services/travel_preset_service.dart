@@ -21,8 +21,7 @@ class TravelPresetService {
 
   Future<List<TravelPreset>> all() async {
     final userId = _userId;
-    final dek = _dek;
-    if (userId == null || dek == null) return [];
+    if (userId == null) return [];
 
     final resp = await _client
         .from('travel_presets')
@@ -31,10 +30,9 @@ class TravelPresetService {
         .order('name');
     final rows = resp as List<dynamic>;
     final results = <TravelPreset>[];
+    final dek = _dek;
     for (final r in rows) {
       final map = r as Map<String, dynamic>;
-      final encrypted = map['encrypted_data'] as String?;
-      if (encrypted == null || encrypted.isEmpty) continue;
       final preset = await _decryptPreset(map, dek);
       if (preset != null) results.add(preset);
     }
@@ -43,33 +41,41 @@ class TravelPresetService {
 
   Future<TravelPreset> insert(TravelPreset preset) async {
     final userId = _userId;
-    final dek = _dek;
     if (userId == null) throw Exception('Not authenticated');
-    if (dek == null) throw Exception('Encryption key not loaded');
 
+    final dek = _dek;
     final json = preset.toJson();
     json.remove('id');
     json.remove('created_at');
     json.remove('encrypted_data');
     json['user_id'] = userId;
 
-    final plaintext = jsonEncode(json);
-    final ciphertext = await CryptoService.encrypt(plaintext, dek);
-
-    final row = await _client.from('travel_presets').insert({
-      'user_id': userId,
-      'name': preset.name,
-      'encrypted_data': ciphertext,
-    }).select().single();
-
-    final decrypted = await _decryptPreset(Map<String, dynamic>.from(row), dek);
-    return decrypted ?? preset;
+    if (dek != null) {
+      // Post-migration: encrypt and store
+      final plaintext = jsonEncode(json);
+      final ciphertext = await CryptoService.encrypt(plaintext, dek);
+      final row = await _client.from('travel_presets').insert({
+        'user_id': userId,
+        'name': preset.name,
+        'encrypted_data': ciphertext,
+      }).select().single();
+      final decrypted = await _decryptPreset(Map<String, dynamic>.from(row), dek);
+      return decrypted ?? preset;
+    } else {
+      // Pre-migration: store in plaintext columns directly
+      json['name'] = preset.name;
+      json['morning_overhead_minutes'] = preset.morningOverheadMinutes;
+      json['morning_productive_commute_minutes'] = preset.morningProductiveCommuteMinutes;
+      json['evening_overhead_minutes'] = preset.eveningOverheadMinutes;
+      json['evening_productive_commute_minutes'] = preset.eveningProductiveCommuteMinutes;
+      final row = await _client.from('travel_presets').insert(json).select().single();
+      return TravelPreset.fromJson(Map<String, dynamic>.from(row));
+    }
   }
 
   Future<void> update(String id, Map<String, dynamic> fields) async {
     final userId = _userId;
-    final dek = _dek;
-    if (userId == null || dek == null) return;
+    if (userId == null) return;
 
     fields.remove('id');
     fields.remove('user_id');
@@ -77,7 +83,11 @@ class TravelPresetService {
     fields.remove('encrypted_data');
     final name = fields.remove('name') as String?;
 
-    if (fields.isNotEmpty) {
+    if (fields.isEmpty) return;
+
+    final dek = _dek;
+    if (dek != null) {
+      // Post-migration: encrypt changed fields
       final plaintext = jsonEncode(fields);
       final ciphertext = await CryptoService.encrypt(plaintext, dek);
       final updateFields = <String, dynamic>{
@@ -85,6 +95,10 @@ class TravelPresetService {
       };
       if (name != null) updateFields['name'] = name;
       await _client.from('travel_presets').update(updateFields).eq('id', id).eq('user_id', userId);
+    } else {
+      // Pre-migration: update plaintext columns directly
+      if (name != null) fields['name'] = name;
+      await _client.from('travel_presets').update(fields).eq('id', id).eq('user_id', userId);
     }
   }
 
@@ -99,10 +113,14 @@ class TravelPresetService {
 
   Future<TravelPreset?> _decryptPreset(
     Map<String, dynamic> row,
-    SecretKey dek,
+    SecretKey? dek,
   ) async {
     final encrypted = row['encrypted_data'] as String?;
-    if (encrypted == null || encrypted.isEmpty) return null;
+
+    // Fallback: if no encrypted data or no DEK, read plaintext columns directly
+    if (encrypted == null || encrypted.isEmpty || dek == null) {
+      return TravelPreset.fromJson(row);
+    }
 
     try {
       final plaintext = await CryptoService.decrypt(encrypted, dek);
@@ -116,7 +134,8 @@ class TravelPresetService {
 
       return TravelPreset.fromJson(json);
     } catch (_) {
-      return null;
+      // Fallback on decryption failure: read plaintext
+      return TravelPreset.fromJson(row);
     }
   }
 }
