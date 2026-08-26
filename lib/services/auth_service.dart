@@ -27,6 +27,8 @@ class AuthService extends ChangeNotifier {
   bool _isAuthenticated = false;
   bool _isInitializing = true;
   bool _needsMigration = false;
+  bool _needsPassphrase = false;
+  bool _hasEnvelope = false;
   String? _error;
 
   UserProfile? get profile => _profile;
@@ -34,6 +36,8 @@ class AuthService extends ChangeNotifier {
   bool get isAuthenticated => _isAuthenticated;
   bool get isInitializing => _isInitializing;
   bool get needsMigration => _needsMigration;
+  bool get needsPassphrase => _needsPassphrase;
+  bool get hasEnvelope => _hasEnvelope;
   String? get error => _error;
 
   // -----------------------------------------------------------------
@@ -114,13 +118,15 @@ class AuthService extends ChangeNotifier {
   }
 
   /// Sign in WITHOUT encryption passphrase — for users who haven't set up
-  /// encryption yet. Detects if migration is needed and sets the flag.
+  /// encryption yet. Detects if migration is needed or if passphrase is required.
   Future<void> signInWithoutEncryption({
     required String email,
     required String password,
   }) async {
     _error = null;
     _needsMigration = false;
+    _needsPassphrase = false;
+    _hasEnvelope = false;
     notifyListeners();
     try {
       final response = await _client.auth.signInWithPassword(
@@ -137,10 +143,14 @@ class AuthService extends ChangeNotifier {
 
       // Detect if user has an encryption envelope
       final userId = response.user!.id;
-      final salt = await _fetchSalt(userId);
       final wrappedB64 = await _fetchEncryptedDek(userId);
-      if (salt == null || wrappedB64 == null || wrappedB64.isEmpty) {
+      if (wrappedB64 == null || wrappedB64.isEmpty) {
+        // No envelope — user needs to migrate
         _needsMigration = true;
+      } else {
+        // Envelope exists — user must enter their passphrase to unlock
+        _hasEnvelope = true;
+        _needsPassphrase = true;
       }
     } on AuthException catch (e) {
       _error = _userFriendlyError(e);
@@ -247,6 +257,27 @@ class AuthService extends ChangeNotifier {
     }
     CryptoService.cacheDekInSession(_dek!);
     _needsMigration = false;
+    _needsPassphrase = false;
+    notifyListeners();
+  }
+
+  /// Unlock encryption with a passphrase (user already logged in,
+  /// has an envelope, but hasn't entered their passphrase yet).
+  Future<void> unlockEncryption(String encryptionPassphrase) async {
+    final userId = _profile?.id;
+    if (userId == null) throw Exception('Not authenticated');
+
+    final salt = await _fetchSalt(userId);
+    final wrappedB64 = await _fetchEncryptedDek(userId);
+    if (salt == null || wrappedB64 == null || wrappedB64.isEmpty) {
+      throw Exception('No encryption envelope found');
+    }
+
+    final saltBytes = _saltFromBase64(salt);
+    final masterKey = await CryptoService.deriveMasterKey(encryptionPassphrase, saltBytes);
+    _dek = await CryptoService.unwrapDekBase64(wrappedB64, masterKey);
+    _needsPassphrase = false;
+    CryptoService.cacheDekInSession(_dek!);
     notifyListeners();
   }
 
@@ -303,8 +334,11 @@ class AuthService extends ChangeNotifier {
     if (salt == null || wrappedB64 == null || wrappedB64.isEmpty) {
       // No envelope exists — user needs to migrate
       _needsMigration = true;
+      _hasEnvelope = false;
       return;
     }
+
+    _hasEnvelope = true;
 
     // Derive Master Key and unwrap DEK
     final saltBytes = _saltFromBase64(salt);

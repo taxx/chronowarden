@@ -187,11 +187,15 @@ class TimeLogService {
   ) async {
     final encrypted = row['encrypted_data'] as String?;
 
-    // Fallback: if no encrypted data or no DEK, read plaintext columns directly
-    if (encrypted == null || encrypted.isEmpty || dek == null) {
+    // Pre-migration: no encrypted data yet — fall back to plaintext columns
+    if (encrypted == null || encrypted.isEmpty) {
       return TimeLog.fromJson(row);
     }
 
+    // Post-migration but no DEK loaded — user must enter passphrase
+    if (dek == null) return null;
+
+    // Normal path: decrypt
     try {
       final plaintext = await CryptoService.decrypt(encrypted, dek);
       final json = jsonDecode(plaintext) as Map<String, dynamic>;
@@ -204,8 +208,8 @@ class TimeLogService {
 
       return TimeLog.fromJson(json);
     } catch (_) {
-      // Fallback on decryption failure: read plaintext
-      return TimeLog.fromJson(row);
+      // Decryption failed — don't fall back to plaintext
+      return null;
     }
   }
 

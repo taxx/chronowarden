@@ -76,8 +76,8 @@ class UserSettingsService {
       final row = rows.first as Map<String, dynamic>;
       final encrypted = row['encrypted_data'] as String?;
 
-      // Fallback: if no encrypted data or no DEK, read plaintext columns directly
-      if (encrypted == null || encrypted.isEmpty || dek == null) {
+      // Pre-migration: no encrypted data yet — fall back to plaintext columns
+      if (encrypted == null || encrypted.isEmpty) {
         final result = <String, dynamic>{};
         if (row['default_flex_minutes'] != null) {
           result['default_flex_minutes'] = row['default_flex_minutes'];
@@ -96,6 +96,9 @@ class UserSettingsService {
         }
         return result;
       }
+
+      // Post-migration but no DEK loaded — user must enter passphrase
+      if (dek == null) return {};
 
       final plaintext = await CryptoService.decrypt(encrypted, dek);
       return jsonDecode(plaintext) as Map<String, dynamic>;

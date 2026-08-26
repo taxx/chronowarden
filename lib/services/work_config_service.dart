@@ -38,19 +38,23 @@ class WorkConfigService {
     final row = rows.first as Map<String, dynamic>;
     final encrypted = row['encrypted_data'] as String?;
 
-    // Fallback: if no encrypted data yet, read plaintext columns directly
-    if (encrypted == null || encrypted.isEmpty || dek == null) {
+    // Pre-migration: no encrypted data yet — fall back to plaintext columns
+    if (encrypted == null || encrypted.isEmpty) {
       return WorkConfig.fromJson(row);
     }
 
+    // Post-migration but no DEK loaded — user must enter passphrase
+    if (dek == null) return null;
+
+    // Normal path: decrypt
     try {
       final plaintext = await CryptoService.decrypt(encrypted, dek);
       final json = jsonDecode(plaintext) as Map<String, dynamic>;
       json['user_id'] = userId;
       return WorkConfig.fromJson(json);
     } catch (_) {
-      // Fallback on decryption failure: read plaintext
-      return WorkConfig.fromJson(row);
+      // Decryption failed — don't fall back to plaintext
+      return null;
     }
   }
 
