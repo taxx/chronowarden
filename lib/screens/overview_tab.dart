@@ -481,13 +481,19 @@ Widget _weekCalendar(BuildContext context, Map<String, TimeLog> logByDate, {
   final weekStart = refDate.subtract(Duration(days: refDate.weekday - 1));
   const dayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
+  // Count visible days
+  final visibleDays = showWeekends ? 7 : 5;
+  // Available width minus the 16px padding on each side
+  final availWidth = MediaQuery.of(context).size.width - 32;
+  final cellWidth = (availWidth - (visibleDays - 1) * 4) / visibleDays;
+
   return Column(
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
       Text('Daily overview', style: theme.textTheme.titleMedium),
       const SizedBox(height: 8),
-      SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
+      SizedBox(
+        width: availWidth,
         child: Row(
           children: List.generate(7, (i) {
             final day = weekStart.add(Duration(days: i));
@@ -495,7 +501,7 @@ Widget _weekCalendar(BuildContext context, Map<String, TimeLog> logByDate, {
             if (!showWeekends && day.weekday > 5) return const SizedBox.shrink();
             final dateStr = _dateStr(day);
             final log = logByDate[dateStr];
-            return _dayCell(theme, dayName: dayNames[i], day: day, log: log, onTap: log != null && onDayTap != null ? () => onDayTap(log) : null, onEmptyPastDayTap: log == null && onEmptyPastDayTap != null ? () => onEmptyPastDayTap(day) : null);
+            return _dayCell(theme, dayName: dayNames[i], day: day, log: log, width: cellWidth, onTap: log != null && onDayTap != null ? () => onDayTap(log) : null, onEmptyPastDayTap: log == null && onEmptyPastDayTap != null ? () => onEmptyPastDayTap(day) : null);
           }),
         ),
       ),
@@ -510,6 +516,7 @@ Widget _dayCell(ThemeData theme, {
   required String dayName,
   required DateTime day,
   TimeLog? log,
+  double width = 80,
   VoidCallback? onTap,
   VoidCallback? onEmptyPastDayTap,
 }) {
@@ -546,7 +553,7 @@ Widget _dayCell(ThemeData theme, {
         onTap: log != null ? onTap : onEmptyPastDayTap,
         borderRadius: BorderRadius.circular(12),
         child: Container(
-        width: 80,
+        width: width,
         decoration: BoxDecoration(
           color: bgColor ?? (isToday ? theme.colorScheme.surfaceContainerHigh : null),
           borderRadius: BorderRadius.circular(12),
