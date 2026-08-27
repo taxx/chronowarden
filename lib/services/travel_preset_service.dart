@@ -65,7 +65,8 @@ class TravelPresetService {
 
   Future<void> update(String id, Map<String, dynamic> fields) async {
     final userId = _userId;
-    if (userId == null) return;
+    final dek = _dek;
+    if (userId == null || dek == null) return;
 
     fields.remove('id');
     fields.remove('user_id');
@@ -73,13 +74,26 @@ class TravelPresetService {
     fields.remove('encrypted_data');
     final name = fields.remove('name') as String?;
 
-    if (fields.isEmpty) return;
+    if (fields.isEmpty && name == null) return;
 
-    final dek = _dek;
-    if (dek == null) return;
+    // Read existing encrypted data, merge changes, re-encrypt full payload
+    final row = await _client
+        .from('travel_presets')
+        .select('encrypted_data')
+        .eq('id', id)
+        .eq('user_id', userId)
+        .limit(1)
+        .single();
 
-    final plaintext = jsonEncode(fields);
-    final ciphertext = await CryptoService.encrypt(plaintext, dek);
+    final existingEncrypted = Map<String, dynamic>.from(row)['encrypted_data'] as String?;
+    if (existingEncrypted == null || existingEncrypted.isEmpty) return;
+
+    final existingPlaintext = await CryptoService.decrypt(existingEncrypted, dek);
+    final existingJson = jsonDecode(existingPlaintext) as Map<String, dynamic>;
+    existingJson.addAll(fields);
+
+    final merged = jsonEncode(existingJson);
+    final ciphertext = await CryptoService.encrypt(merged, dek);
     final updateFields = <String, dynamic>{
       'encrypted_data': ciphertext,
     };
