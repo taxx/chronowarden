@@ -194,3 +194,83 @@ After all users migrated, legacy plaintext columns were dropped:
 
 All data now lives exclusively in `encrypted_data` columns. The app never
 reads from legacy columns. See `LEGACY_COLUMN_CLEANUP.md` for the full plan.
+
+---
+
+## Cross-Device Realtime Sync
+
+ChronoWarden uses Supabase Realtime to sync time log changes across devices
+without requiring page reloads.
+
+### How it works
+1. `AppState` subscribes to `postgres_changes` on `time_logs` filtered by `user_id`
+2. When any device starts/stops/edits a day, the subscription fires
+3. `AppState` re-fetches `todayLog` if the changed row matches today's date
+4. The time bank balance is always refreshed
+
+### Setup
+- `time_logs` must be in the `supabase_realtime` publication
+- Run `migration_enable_realtime.sql` if needed:
+  ```sql
+  ALTER PUBLICATION supabase_realtime ADD TABLE time_logs;
+  ```
+- Subscription is created in `AppState._subscribeRealtime()`
+- Subscription is cleaned up on sign out via `AppState.onSignOut()`
+
+### Key files
+| File | Purpose |
+|------|---------|
+| `lib/app_state.dart` | `_subscribeRealtime()`, `_onRealtimeEvent()`, `onSignOut()` |
+| `migration_enable_realtime.sql` | Enable Realtime for time_logs table |
+
+---
+
+## LocalStorage DEK Cache
+
+The Data Encryption Key (DEK) is cached in `localStorage` instead of
+`sessionStorage` so it survives closing and reopening the browser tab.
+The user only needs to enter their encryption passphrase once per browser.
+
+- **Cache read**: `CryptoService.loadDekFromLocal()`
+- **Cache write**: `CryptoService.cacheDekLocally()`
+- **Cache clear**: `CryptoService.clearLocalCache()` (called on logout)
+- **Missing DEK detection**: `AuthService.init()` checks for envelope and
+  sets `needsPassphrase` / `needsMigration` if no cached DEK is found
+
+---
+
+## Slider Interval Setting
+
+Users can configure the tick interval for lunch and flex time sliders
+in **Settings → Slider step size**.
+
+- **Default**: 5 minutes
+- **Range**: 1–30 minutes
+- **Storage**: `SharedPreferences` (local, not encrypted)
+- **Helper**: `_sliderDivisions(min, max)` in `my_day_tab.dart` and
+  `history_content.dart`
+
+---
+
+## iOS Safari Paste Compatibility
+
+Flutter web on iOS Safari doesn't fire paste events to canvas-rendered
+TextFields. A `PasteButton` widget provides an explicit paste button
+that reads from the Flutter `Clipboard` API directly.
+
+### Where paste buttons appear
+| Screen | Fields |
+|--------|--------|
+| PassphraseScreen | Recovery phrase dialog |
+| LoginScreen | Encryption passphrase |
+| SignupScreen | Encryption passphrase + Confirm |
+
+### Usage
+```dart
+TextField(
+  controller: ctrl,
+  decoration: InputDecoration(
+    suffixIcon: PasteButton(controller: ctrl),
+  ),
+)
+```

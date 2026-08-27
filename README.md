@@ -98,6 +98,12 @@ Passphrase → PBKDF2(310k) → Master Key → wrap DEK → AES-256-GCM encrypt 
 - 24-word BIP39 mnemonic encodes the DEK directly
 - If passphrase + recovery phrase are both lost, data is gone forever
 
+### DEK Cache
+- The unwrapped DEK is cached in `localStorage` (not `sessionStorage`)
+- Survives closing and reopening the browser tab
+- Cleared on logout
+- If the cached DEK is missing but an envelope exists, the app prompts for passphrase
+
 See `ENCRYPTION_PLAN.md` for the full architecture decision record.
 
 ---
@@ -118,6 +124,44 @@ pg_restore --dbname="$DB_CONNECTION_STRING" --format=tar chronowarden_backup_*.t
 ```
 
 Backup files are gitignored (`chronowarden_backup_*.tar`).
+
+---
+
+## Cross-Device Realtime Sync
+
+ChronoWarden uses Supabase Realtime to sync time log changes across devices
+without page reloads. When you start/stop a day on one device, all other
+devices update automatically within seconds.
+
+### Setup
+- `time_logs` must be in the `supabase_realtime` publication
+- Run `migration_enable_realtime.sql` if needed
+
+### How it works
+1. `AppState` subscribes to Postgres changes on `time_logs` filtered by `user_id`
+2. The subscription fires on INSERT, UPDATE, DELETE
+3. If the changed row matches today's date, `todayLog` is re-fetched
+4. The time bank balance is always refreshed
+
+---
+
+## Slider Interval Setting
+
+Users can configure the tick interval for lunch and flex time sliders
+in **Settings → Slider step size** (1–30 minutes, default 5).
+Stored locally in `SharedPreferences`.
+
+---
+
+## iOS Safari Paste Compatibility
+
+Flutter web on iOS Safari doesn't fire paste events to canvas-rendered
+TextFields. A `PasteButton` widget provides an explicit paste button
+that reads from the Flutter `Clipboard` API directly.
+
+Paste buttons appear on:
+- Recovery phrase dialog (PassphraseScreen)
+- Encryption passphrase fields (LoginScreen, SignupScreen)
 
 ---
 
