@@ -175,34 +175,43 @@ class CryptoService {
   }
 
   // -----------------------------------------------------------------
-  // Session cache (web sessionStorage)
+  // Persistent cache (web localStorage)
   // -----------------------------------------------------------------
+  //
+  // Stores the unwrapped DEK in localStorage so it survives closing and
+  // reopening the browser tab. The user only needs to enter their
+  // encryption passphrase once per browser, not once per session.
+  // Cleared on logout.
+  //
+  // Security: localStorage is accessible to same-origin JavaScript, but
+  // the DEK alone is useless without the encrypted data from Supabase
+  // (which requires the user's auth session).
 
-  static const _sessionKey = 'cw_dek';
+  static const _dekStorageKey = 'cw_dek';
 
-  /// Save DEK to sessionStorage (survives F5, cleared on tab close).
-  static void cacheDekInSession(SecretKey dek) async {
+  /// Save DEK to localStorage (survives tab close + reopen).
+  static void cacheDekLocally(SecretKey dek) async {
     if (!kIsWeb) return;
     final bytes = await dek.extractBytes();
     // ignore: avoid_web_libraries_in_flutter
-    html.window.sessionStorage[_sessionKey] = base64.encode(bytes);
+    html.window.localStorage[_dekStorageKey] = base64.encode(bytes);
   }
 
-  /// Load DEK from sessionStorage (returns null if not cached).
-  static Future<SecretKey?> loadDekFromSession() async {
+  /// Load DEK from localStorage (returns null if not cached).
+  static Future<SecretKey?> loadDekFromLocal() async {
     if (!kIsWeb) return null;
     // ignore: avoid_web_libraries_in_flutter
-    final cached = html.window.sessionStorage[_sessionKey];
+    final cached = html.window.localStorage[_dekStorageKey];
     if (cached == null || cached.isEmpty) return null;
     final bytes = base64.decode(cached);
     return SecretKey(Uint8List.fromList(bytes));
   }
 
-  /// Clear DEK from sessionStorage (on logout).
-  static void clearSessionCache() {
+  /// Clear DEK from localStorage (on logout).
+  static void clearLocalCache() {
     if (!kIsWeb) return;
     // ignore: avoid_web_libraries_in_flutter
-    html.window.sessionStorage.remove(_sessionKey);
+    html.window.localStorage.remove(_dekStorageKey);
   }
 }
 

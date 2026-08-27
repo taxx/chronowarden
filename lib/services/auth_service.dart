@@ -48,12 +48,14 @@ class AuthService extends ChangeNotifier {
 
   /// Check for an existing session and load (or create) the profile.
   ///
-  /// On page refresh, tries the sessionStorage cache first so the user
-  /// doesn't need to re-enter their encryption passphrase.
+  /// On page load, tries the localStorage cache first so the user doesn't
+  /// need to re-enter their encryption passphrase every time they open the app.
+  /// If no cached DEK but a session exists, detects the encryption envelope
+  /// and prompts for passphrase.
   Future<void> init() async {
     try {
-      // Try sessionStorage cache first
-      final cachedDek = await CryptoService.loadDekFromSession();
+      // Try localStorage cache first
+      final cachedDek = await CryptoService.loadDekFromLocal();
       if (cachedDek != null) {
         _dek = cachedDek;
       }
@@ -68,6 +70,19 @@ class AuthService extends ChangeNotifier {
           if (_profile == null) {
             await _client.auth.signOut();
             _isAuthenticated = false;
+          }
+        }
+
+        // If we have a session but no cached DEK, check for envelope
+        if (_dek == null && _profile != null) {
+          final wrappedB64 = await _fetchEncryptedDek(session.user.id);
+          if (wrappedB64 != null && wrappedB64.isNotEmpty) {
+            // Envelope exists — user must enter passphrase
+            _hasEnvelope = true;
+            _needsPassphrase = true;
+          } else {
+            // No envelope — user needs to migrate
+            _needsMigration = true;
           }
         }
       }
@@ -228,7 +243,7 @@ class AuthService extends ChangeNotifier {
   }
 
   Future<void> signOut() async {
-    CryptoService.clearSessionCache();
+    CryptoService.clearLocalCache();
     _dek = null;
     _needsMigration = false;
     _pendingRecoveryPhrase = null;
@@ -247,7 +262,7 @@ class AuthService extends ChangeNotifier {
   Future<void> setDekAfterMigration(SecretKey dek) async {
     _dek = dek;
     _needsMigration = false;
-    CryptoService.cacheDekInSession(dek);
+    CryptoService.cacheDekLocally(dek);
     notifyListeners();
   }
 
@@ -266,7 +281,7 @@ class AuthService extends ChangeNotifier {
         }
       }
     }
-    CryptoService.cacheDekInSession(_dek!);
+    CryptoService.cacheDekLocally(_dek!);
     _needsMigration = false;
     _needsPassphrase = false;
     notifyListeners();
@@ -288,7 +303,7 @@ class AuthService extends ChangeNotifier {
     final masterKey = await CryptoService.deriveMasterKey(encryptionPassphrase, saltBytes);
     _dek = await CryptoService.unwrapDekBase64(wrappedB64, masterKey);
     _needsPassphrase = false;
-    CryptoService.cacheDekInSession(_dek!);
+    CryptoService.cacheDekLocally(_dek!);
     notifyListeners();
   }
 
@@ -357,7 +372,7 @@ class AuthService extends ChangeNotifier {
     _dek = await CryptoService.unwrapDekBase64(wrappedB64, masterKey);
 
     // Cache in sessionStorage for page-refresh survival
-    CryptoService.cacheDekInSession(_dek!);
+    CryptoService.cacheDekLocally(_dek!);
   }
 
   /// Create a fresh encryption envelope for a new user.
@@ -380,7 +395,7 @@ class AuthService extends ChangeNotifier {
     }, onConflict: 'user_id');
 
     _dek = dek;
-    CryptoService.cacheDekInSession(dek);
+    CryptoService.cacheDekLocally(dek);
     return recoveryPhrase;
   }
 
