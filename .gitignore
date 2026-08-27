@@ -1,6 +1,7 @@
 # Secrets — never commit API credentials
 secrets.json
 .env
+.env.db
 
 # Flutter build output
 /.dart_tool/

@@ -31,7 +31,14 @@ See `AUTH.md` for the full authentication architecture.
 
 ## Getting Started & Secrets Management
 ChronoWarden uses `--dart-define-from-file` to inject API credentials at compile time.
-Secrets are kept out of version control via `.gitignore` (both `secrets.json` and `.env`).
+Secrets are kept out of version control via `.gitignore` (both `secrets.json`, `.env`, and `.env.db`).
+
+### Build-time secrets (`secrets.json`)
+Used for Flutter/Docker builds. Never committed.
+
+### Database credentials (`.env.db`)
+Used by the AI agent for direct database operations (SQL migrations, backups).
+See `.env.db.sample` for the template. Never committed.
 
 ### Local Development
 1. Create a file named `secrets.json` in the root directory:
@@ -64,6 +71,55 @@ docker compose up --build
 The app will be available at `http://localhost:8080`.
 
 The final image is a slim nginx container (~40 MB) — the bulky Flutter build stage is discarded. Any change to secrets requires a full rebuild since `String.fromEnvironment` bakes values into the compiled JS at build time.
+
+---
+
+## Encryption & Zero-Knowledge
+
+ChronoWarden uses **envelope encryption** to ensure even the database administrator
+cannot read user data. Each user has their own encryption passphrase that unlocks
+a Data Encryption Key (DEK) stored encrypted on the server.
+
+### Key hierarchy
+```
+Passphrase → PBKDF2(310k) → Master Key → wrap DEK → AES-256-GCM encrypt data
+```
+
+### What's encrypted
+- All time logs, travel presets, and settings
+- Encrypted with AES-256-GCM, keyed with a per-user 256-bit DEK
+- DEK is wrapped with a Master Key derived from the user's passphrase
+
+### What stays plaintext
+- `user_id` (for RLS), `date` (for server-side filtering)
+- Travel preset `name` (for dropdown display)
+
+### Recovery
+- 24-word BIP39 mnemonic encodes the DEK directly
+- If passphrase + recovery phrase are both lost, data is gone forever
+
+See `ENCRYPTION_PLAN.md` for the full architecture decision record.
+
+---
+
+## Database Backups
+
+Before destructive schema changes, create a backup:
+```bash
+source .env.db
+pg_dump --dbname="$DB_CONNECTION_STRING" --format=tar \
+  --file=chronowarden_backup_$(date +%Y-%m-%d).tar --no-owner
+```
+
+To restore:
+```bash
+source .env.db
+pg_restore --dbname="$DB_CONNECTION_STRING" --format=tar chronowarden_backup_*.tar
+```
+
+Backup files are gitignored (`chronowarden_backup_*.tar`).
+
+---
 
 ## Project Structure
 ```

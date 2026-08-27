@@ -29,6 +29,19 @@ const supabaseAnonKey = String.fromEnvironment('SUPABASE_ANON_KEY');
 ```
 These values are **compile-time constants** — changing secrets requires a full rebuild.
 
+### Database Access (AI Agent Tooling)
+For database operations (SQL migrations, backups, verification), credentials live in `.env.db`:
+```
+.env.db          — real credentials (gitignored)
+.env.db.sample   — template without secrets
+```
+
+The AI agent reads `.env.db` for `pg_dump`, `psql`, and `pg_restore` commands.
+Always use `PGPASSWORD` environment variable rather than inlining the password:
+```bash
+PGPASSWORD="$DB_PASSWORD" psql --dbname="$DB_CONNECTION_STRING" -c "SELECT ..."
+```
+
 ### Docker & Deployment
 The project includes a multi-stage Dockerfile + docker-compose.yaml for containerized deployment:
 - **Stage 1**: Flutter SDK builds the web release with secrets injected via `docker build --build-arg`. A temporary `secrets.json` is generated from the env vars, used for the build, then immediately deleted.
@@ -80,3 +93,104 @@ This does three things:
 # Check all containers are running
 ssh tobbe@192.168.1.50 "cd /opt/appdata/chronowarden && docker compose ps"
 ```
+
+---
+
+## Database Operations
+
+### Backup (before destructive changes)
+
+```bash
+cd /path/to/chronowarden
+source .env.db
+pg_dump \
+  --dbname="$DB_CONNECTION_STRING" \
+  --format=tar \
+  --file=chronowarden_backup_$(date +%Y-%m-%d).tar \
+  --no-owner
+```
+
+Backup files are gitignored (`chronowarden_backup_*.tar`).
+
+### Restore
+
+```bash
+cd /path/to/chronowarden
+source .env.db
+pg_restore \
+  --dbname="$DB_CONNECTION_STRING" \
+  --format=tar \
+  chronowarden_backup_2026-08-26.tar
+```
+
+### Run SQL migration
+
+```bash
+cd /path/to/chronowarden
+source .env.db
+PGPASSWORD="$DB_PASSWORD" psql --dbname="$DB_CONNECTION_STRING" -f migration_name.sql
+```
+
+### Verify data
+
+```bash
+cd /path/to/chronowarden
+source .env.db
+PGPASSWORD="$DB_PASSWORD" psql --dbname="$DB_CONNECTION_STRING" -c "\dt"
+```
+
+---
+
+## Encryption Architecture
+
+ChronoWarden uses **envelope encryption** (zero-knowledge) to protect user data.
+
+### Key hierarchy
+```
+Passphrase → PBKDF2(310k) → Master Key (KEK)
+  └─ AES-GCM wrap ──→ Data Encryption Key (DEK)
+                        └─ AES-GCM encrypt ──→ Encrypted data
+```
+
+### What's encrypted
+- All `time_logs` rows → `encrypted_data` column (AES-256-GCM)
+- All `travel_presets` rows → `encrypted_data` column
+- `user_settings` → `encrypted_data` column (work config + flex minutes)
+
+### What stays plaintext
+- `user_id` (for RLS scoping)
+- `date` (for server-side filtering: `WHERE date = today`)
+- `name` on travel presets (for dropdown display)
+- Envelope metadata: `encrypted_dek`, `kek_salt`, `kek_iterations`, `recovery_hash`
+
+### Key files
+| File | Purpose |
+|------|---------|
+| `lib/services/crypto_service.dart` | PBKDF2, AES-256-GCM, key wrap, BIP39 mnemonic, sessionStorage |
+| `lib/services/auth_service.dart` | DEK lifecycle, passphrase unlock, migration detection |
+| `lib/services/migration_service.dart` | One-time encryption of legacy plaintext data |
+| `lib/screens/migration_screen.dart` | Migration UI with passphrase setup + recovery display |
+| `lib/screens/about_encryption_screen.dart` | Full encryption explainer with key hierarchy diagram |
+| `lib/screens/passphrase_screen.dart` | Passphrase entry on new devices |
+
+### Recovery phrase
+- 24-word BIP39-style mnemonic encodes the DEK directly
+- SHA-256 hash stored in `user_settings.recovery_hash` for verification
+- Shown once during migration or signup; accessible from Settings → Encryption
+
+### Critical warning (displayed in UI)
+> If you lose both your encryption passphrase AND your recovery phrase,
+> your data is gone forever. No one — not even the app administrator —
+> can recover it.
+
+---
+
+## Legacy column cleanup
+
+After all users migrated, legacy plaintext columns were dropped:
+- `time_logs`: `start_time`, `end_time`, `expected_minutes`, `lunch_minutes`, etc.
+- `travel_presets`: `default_overhead_minutes`, `morning_overhead_minutes`, etc.
+- `user_settings`: `default_flex_minutes`, `default_expected_minutes`, etc.
+
+All data now lives exclusively in `encrypted_data` columns. The app never
+reads from legacy columns. See `LEGACY_COLUMN_CLEANUP.md` for the full plan.
