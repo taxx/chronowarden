@@ -1,4 +1,7 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'models/time_log.dart';
 import 'models/travel_preset.dart';
@@ -26,6 +29,7 @@ class AppState extends ChangeNotifier {
 
   // -- cached data ---------------------------------------------------
   TimeLog? _todayLog;
+  RealtimeChannel? _rtChannel;
   List<TimeLog> _allLogs = [];
   WorkConfig? _workConfig;
   List<TravelPreset> _presetsList = [];
@@ -69,6 +73,9 @@ class AppState extends ChangeNotifier {
       ]);
       _tablesReady = true;
       _lastError = null;
+
+      // Subscribe to realtime changes for the current user's time logs
+      _subscribeRealtime();
     } catch (e) {
       final msg = e.toString().toLowerCase();
       if (msg.contains('could not find the table') || msg.contains('relation')) {
@@ -81,6 +88,81 @@ class AppState extends ChangeNotifier {
     }
     notifyListeners();
     return _tablesReady;
+  }
+
+  // -- realtime sync ------------------------------------------------
+
+  /// Subscribe to changes on the user's time_logs via Supabase Realtime.
+  ///
+  /// When another device starts/stops a day, the subscription fires and
+  /// we re-fetch the affected row without needing a page reload.
+  void _subscribeRealtime() {
+    final session = SupabaseService.instance.client.auth.currentSession;
+    final userId = session?.user.id;
+    if (userId == null) return;
+
+    // Unsubscribe any existing channel before creating a new one
+    _unsubscribeRealtime();
+
+    final client = SupabaseService.instance.client;
+    _rtChannel = client.channel(
+      'public:time_logs',
+      opts: RealtimeChannelConfig(
+        ack: true,
+      ),
+    );
+
+    // Listen for INSERT, UPDATE, DELETE on time_logs filtered by user_id
+    _rtChannel!.onPostgresChanges(
+      event: PostgresChangeEvent.all,
+      schema: 'public',
+      table: 'time_logs',
+      filter: PostgresChangeFilter(
+        type: PostgresChangeFilterType.eq,
+        column: 'user_id',
+        value: userId,
+      ),
+      callback: (payload) {
+        _onRealtimeEvent(payload);
+      },
+    );
+
+    _rtChannel!.subscribe();
+  }
+
+  /// Handle a Realtime event — re-fetch today's log if the changed row
+  /// matches today's date.
+  void _onRealtimeEvent(PostgresChangePayload payload) {
+    final newRecord = payload.newRecord;
+    if (newRecord.isEmpty) return;
+
+    final newDate = newRecord['date'] as String?;
+    final todayStr = _dateStr(DateTime.now());
+    if (newDate == todayStr) {
+      // Today's row changed — re-fetch todayLog
+      _loadToday().then((_) => notifyListeners());
+    }
+
+    // Always re-fetch balance since overtime might have changed
+    _loadBalance().then((_) => notifyListeners());
+  }
+
+  /// Unsubscribe from Realtime and release the channel.
+  void _unsubscribeRealtime() {
+    _rtChannel?.unsubscribe();
+    _rtChannel = null;
+  }
+
+  /// Called when the user signs out — clean up the Realtime subscription.
+  void onSignOut() {
+    _unsubscribeRealtime();
+    _todayLog = null;
+    _allLogs = [];
+    _workConfig = null;
+    _presetsList = [];
+    _timeBankMinutes = 0;
+    _tablesReady = false;
+    notifyListeners();
   }
 
   Future<void> _loadToday() async => _todayLog = await logs.today();

@@ -67,6 +67,8 @@ class _ChronoWardenAppState extends State<ChronoWardenApp> {
   void _onAuthChanged() {
     if (_auth.isAuthenticated && _auth.profile?.isApproved == true) {
       _state.refresh();
+    } else {
+      _state.onSignOut();
     }
   }
 
