@@ -174,20 +174,113 @@ class _PassphraseScreenState extends State<PassphraseScreen> {
           ),
           FilledButton(
             onPressed: () async {
-              try {
-                await _auth.recoverWithMnemonic(ctrl.text.trim());
-                if (ctx.mounted) Navigator.pop(ctx, true);
-              } catch (e) {
-                if (ctx.mounted) {
-                  ScaffoldMessenger.of(ctx).showSnackBar(
-                    SnackBar(content: Text('Error: $e')),
-                  );
-                }
-              }
+              // First verify the recovery phrase
+              final phrase = ctrl.text.trim();
+              if (phrase.isEmpty) return;
+
+              // Close the recovery dialog
+              if (ctx.mounted) Navigator.pop(ctx, false);
+
+              // Now show the new passphrase dialog
+              if (!mounted) return;
+              await _showSetNewPassphraseDialog(context, phrase);
             },
             child: const Text('Recover'),
           ),
         ],
+      ),
+    );
+  }
+
+  Future<void> _showSetNewPassphraseDialog(
+    BuildContext ctx,
+    String recoveryPhrase,
+  ) async {
+    final newPassCtrl = TextEditingController();
+    final confirmCtrl = TextEditingController();
+    bool obscureNew = true;
+    String? error;
+
+    await showDialog<bool>(
+      context: ctx,
+      builder: (dialogCtx) => StatefulBuilder(
+        builder: (dialogCtx, setDialogState) => AlertDialog(
+          title: const Text('Set New Passphrase'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'Your recovery phrase is valid. Now set a new encryption '
+                'passphrase to protect your data.',
+                style: Theme.of(ctx).textTheme.bodyMedium,
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: newPassCtrl,
+                obscureText: obscureNew,
+                decoration: InputDecoration(
+                  labelText: 'New encryption passphrase',
+                  hintText: 'At least 8 characters',
+                  border: const OutlineInputBorder(),
+                  prefixIcon: const Icon(Icons.shield_outlined),
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: confirmCtrl,
+                obscureText: obscureNew,
+                decoration: InputDecoration(
+                  labelText: 'Confirm new passphrase',
+                  border: const OutlineInputBorder(),
+                  prefixIcon: const Icon(Icons.shield_outlined),
+                  suffixIcon: newPassCtrl.text == confirmCtrl.text &&
+                          newPassCtrl.text.length >= 8
+                      ? const Icon(Icons.check_circle,
+                          color: Colors.green, size: 20)
+                      : null,
+                ),
+                onChanged: (_) => setDialogState(() {}),
+              ),
+              if (error != null) ...[
+                const SizedBox(height: 8),
+                Text(error!, style: TextStyle(color: Theme.of(ctx).colorScheme.error)),
+              ],
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogCtx),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () async {
+                final newPass = newPassCtrl.text;
+                final confirm = confirmCtrl.text;
+
+                if (newPass.length < 8) {
+                  setDialogState(() =>
+                      error = 'Passphrase must be at least 8 characters');
+                  return;
+                }
+                if (newPass != confirm) {
+                  setDialogState(() => error = 'Passphrases do not match');
+                  return;
+                }
+
+                try {
+                  await _auth.recoverAndSetNewPassphrase(
+                    recoveryPhrase,
+                    newPass,
+                  );
+                  if (dialogCtx.mounted) Navigator.pop(dialogCtx);
+                } catch (e) {
+                  setDialogState(() => error = e.toString());
+                }
+              },
+              child: const Text('Set Passphrase'),
+            ),
+          ],
+        ),
       ),
     );
   }

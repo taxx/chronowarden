@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../services/auth_service.dart';
+import '../services/supabase_service.dart';
 import '../utils/paste_button.dart';
 import 'migration_screen.dart';
 import 'signup_screen.dart';
@@ -196,6 +197,14 @@ class _LoginScreenState extends State<LoginScreen> {
                     label: const Text('Sign In'),
                   ),
                 ),
+                const SizedBox(height: 8),
+
+                // --- Forgot password ---
+                TextButton(
+                  onPressed: () => _showForgotPasswordDialog(context),
+                  child: const Text('Forgot password?'),
+                ),
+
                 const SizedBox(height: 16),
 
                 // --- Sign up link ---
@@ -221,6 +230,68 @@ class _LoginScreenState extends State<LoginScreen> {
             ),
           ),
         ),
+      ),
+    );
+  }
+
+  // -----------------------------------------------------------------
+  // Forgot password (Supabase Auth)
+  // -----------------------------------------------------------------
+
+  Future<void> _showForgotPasswordDialog(BuildContext ctx) async {
+    final emailCtrl = TextEditingController();
+    await showDialog<bool>(
+      context: ctx,
+      builder: (_) => AlertDialog(
+        title: const Text('Reset Password'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text(
+              'Enter your email address. We\'ll send a password reset link.',
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: emailCtrl,
+              decoration: const InputDecoration(
+                labelText: 'Email',
+                border: OutlineInputBorder(),
+                prefixIcon: Icon(Icons.email_outlined),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () async {
+              final email = emailCtrl.text.trim();
+              if (email.isEmpty) return;
+              try {
+                await SupabaseService.instance.client.auth
+                    .resetPasswordForEmail(email);
+                if (ctx.mounted) {
+                  Navigator.pop(ctx);
+                  ScaffoldMessenger.of(ctx).showSnackBar(
+                    const SnackBar(
+                      content: Text('Check your email for the reset link.'),
+                    ),
+                  );
+                }
+              } catch (e) {
+                if (ctx.mounted) {
+                  ScaffoldMessenger.of(ctx).showSnackBar(
+                    SnackBar(content: Text('Error: $e')),
+                  );
+                }
+              }
+            },
+            child: const Text('Send Reset Link'),
+          ),
+        ],
       ),
     );
   }

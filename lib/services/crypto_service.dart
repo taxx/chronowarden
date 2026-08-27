@@ -88,6 +88,24 @@ class CryptoService {
     return base64.encode(secretBox.concatenation());
   }
 
+  /// Wrap a DEK with a new passphrase: generate salt, derive KEK, wrap.
+  ///
+  /// Returns the wrapped DEK (base64), the salt (base64), and the iterations.
+  /// Use this when the user sets a new encryption passphrase via recovery phrase.
+  static Future<Map<String, dynamic>> wrapDekWithPassphrase(
+    SecretKey dek,
+    String passphrase,
+  ) async {
+    final salt = generateSalt();
+    final masterKey = await deriveMasterKey(passphrase, salt);
+    final wrappedB64 = await wrapDekBase64(dek, masterKey);
+    return {
+      'wrapped_b64': wrappedB64,
+      'salt_b64': base64.encode(salt),
+      'iterations': kekIterations,
+    };
+  }
+
   /// Unwrap (decrypt) a DEK with a Master Key.
   ///
   /// Expects base64-encoded [nonce (12) + ciphertext + mac (16)].

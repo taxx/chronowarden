@@ -308,6 +308,59 @@ class AuthService extends ChangeNotifier {
   }
 
   // -----------------------------------------------------------------
+  // Recovery phrase → new encryption passphrase
+  // -----------------------------------------------------------------
+
+  /// Recover the DEK from a mnemonic phrase and set a new encryption passphrase.
+  ///
+  /// Steps:
+  /// 1. Verify recovery phrase against stored hash
+  /// 2. Derive DEK from phrase
+  /// 3. Derive new KEK from new passphrase
+  /// 4. Re-wrap DEK with new KEK
+  /// 5. Update DB with new encrypted_dek, kek_salt, kek_iterations
+  /// 6. Cache DEK in localStorage
+  Future<void> recoverAndSetNewPassphrase(
+    String recoveryPhrase,
+    String newPassphrase,
+  ) async {
+    final userId = _profile?.id;
+    if (userId == null) throw Exception('Not authenticated');
+
+    // 1. Verify recovery phrase
+    final expectedHash = await _fetchRecoveryHash(userId);
+    if (expectedHash != null) {
+      final actualHash = CryptoService.hashRecoveryPhrase(recoveryPhrase);
+      if (actualHash != expectedHash) {
+        throw Exception('Recovery phrase is incorrect');
+      }
+    }
+
+    // 2. Derive DEK from phrase
+    _dek = await CryptoService.mnemonicToDek(recoveryPhrase);
+
+    // 3–4. Wrap DEK with new passphrase
+    final wrapResult = await CryptoService.wrapDekWithPassphrase(
+      _dek!,
+      newPassphrase,
+    );
+
+    // 5. Update DB
+    await _client.from('user_settings').upsert({
+      'user_id': userId,
+      'encrypted_dek': wrapResult['wrapped_b64'],
+      'kek_salt': wrapResult['salt_b64'],
+      'kek_iterations': wrapResult['iterations'],
+    }, onConflict: 'user_id');
+
+    // 6. Cache DEK
+    CryptoService.cacheDekLocally(_dek!);
+    _needsPassphrase = false;
+    _needsMigration = false;
+    notifyListeners();
+  }
+
+  // -----------------------------------------------------------------
   // Database state checks (unchanged)
   // -----------------------------------------------------------------
 
