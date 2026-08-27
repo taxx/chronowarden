@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../services/auth_service.dart';
 import 'login_screen.dart';
+import 'pending_screen.dart';
 
 /// Sign-up screen with encryption passphrase setup.
 ///
@@ -96,7 +97,23 @@ class _SignupScreenState extends State<SignupScreen> {
       inviteToken: _tokenCtrl.text.trim().isEmpty ? null : _tokenCtrl.text.trim(),
       isFirstAdmin: widget.isFirstAdmin,
     );
-    if (mounted) setState(() => _loading = false);
+    if (mounted) {
+      setState(() => _loading = false);
+      _handlePostSignUp();
+    }
+  }
+
+  void _handlePostSignUp() {
+    if (!_auth.isAuthenticated) return;
+    final profile = _auth.profile;
+    if (profile == null) return;
+
+    if (!profile.isApproved) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const PendingScreen()),
+      );
+    }
   }
 
   @override
