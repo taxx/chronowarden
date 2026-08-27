@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../services/auth_service.dart';
+import '../utils/paste_button.dart';
 
 /// Screen shown when a user has an encryption envelope but hasn't entered
 /// their passphrase yet (e.g., logging in on a new device).
@@ -160,9 +161,10 @@ class _PassphraseScreenState extends State<PassphraseScreen> {
         content: TextField(
           controller: ctrl,
           maxLines: 4,
-          decoration: const InputDecoration(
+          decoration: InputDecoration(
             labelText: 'Enter your 24-word recovery phrase',
-            border: OutlineInputBorder(),
+            border: const OutlineInputBorder(),
+            suffixIcon: PasteButton(controller: ctrl),
           ),
         ),
         actions: [

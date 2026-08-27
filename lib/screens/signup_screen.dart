@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../services/auth_service.dart';
+import '../utils/paste_button.dart';
 import 'login_screen.dart';
 import 'pending_screen.dart';
 
@@ -215,10 +216,15 @@ class _SignupScreenState extends State<SignupScreen> {
                     hintText: 'At least 8 characters',
                     border: const OutlineInputBorder(),
                     prefixIcon: const Icon(Icons.shield_outlined),
-                    suffixIcon: encOk
-                        ? const Icon(Icons.check_circle,
-                            color: Colors.green, size: 20)
-                        : null,
+                    suffixIcon: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        PasteButton(controller: _encCtrl),
+                        if (encOk)
+                          const Icon(Icons.check_circle,
+                              color: Colors.green, size: 20),
+                      ],
+                    ),
                     helperText: '🔐 This passphrase encrypts ALL your data. '
                         'If lost, your data is gone forever.',
                     helperStyle: theme.textTheme.bodySmall?.copyWith(
@@ -237,10 +243,15 @@ class _SignupScreenState extends State<SignupScreen> {
                     labelText: 'Confirm encryption passphrase',
                     border: const OutlineInputBorder(),
                     prefixIcon: const Icon(Icons.shield_outlined),
-                    suffixIcon: encMatch
-                        ? const Icon(Icons.check_circle,
-                            color: Colors.green, size: 20)
-                        : null,
+                    suffixIcon: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        PasteButton(controller: _encConfirmCtrl),
+                        if (encMatch)
+                          const Icon(Icons.check_circle,
+                              color: Colors.green, size: 20),
+                      ],
+                    ),
                   ),
                 ),
 

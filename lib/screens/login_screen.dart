@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../services/auth_service.dart';
+import '../utils/paste_button.dart';
 import 'migration_screen.dart';
 import 'signup_screen.dart';
 
@@ -131,12 +132,18 @@ class _LoginScreenState extends State<LoginScreen> {
                       hintText: 'Enter to unlock your encrypted data',
                       border: const OutlineInputBorder(),
                       prefixIcon: const Icon(Icons.shield_outlined),
-                      suffixIcon: IconButton(
-                        icon: Icon(_obscureEnc
-                            ? Icons.visibility_off
-                            : Icons.visibility),
-                        onPressed: () =>
-                            setState(() => _obscureEnc = !_obscureEnc),
+                      suffixIcon: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          PasteButton(controller: _encCtrl),
+                          IconButton(
+                            icon: Icon(_obscureEnc
+                                ? Icons.visibility_off
+                                : Icons.visibility),
+                            onPressed: () =>
+                                setState(() => _obscureEnc = !_obscureEnc),
+                          ),
+                        ],
                       ),
                     ),
                   ),
