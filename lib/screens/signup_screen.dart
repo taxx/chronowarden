@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'package:flutter/services.dart';
+
 import '../services/auth_service.dart';
 import 'login_screen.dart';
 import 'pending_screen.dart';
@@ -112,6 +114,18 @@ class _SignupScreenState extends State<SignupScreen> {
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (_) => const PendingScreen()),
+      );
+      return;
+    }
+
+    // Approved user: show recovery phrase if one was generated
+    final phrase = _auth.pendingRecoveryPhrase;
+    if (phrase != null && phrase.isNotEmpty) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (_) => _RecoveryOnboardingScreen(phrase: phrase),
+        ),
       );
     }
   }
@@ -338,6 +352,139 @@ class _SignupScreenState extends State<SignupScreen> {
                   textAlign: TextAlign.center,
                 ),
               ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// One-time recovery phrase onboarding shown after signup for approved users.
+class _RecoveryOnboardingScreen extends StatelessWidget {
+  final String phrase;
+  const _RecoveryOnboardingScreen({required this.phrase});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Scaffold(
+      body: SafeArea(
+        child: Center(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(24),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 480),
+              child: Column(
+                children: [
+                  Icon(Icons.key, color: Colors.amber, size: 48),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Your Recovery Phrase',
+                    style: theme.textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    'This is the only way to recover your encrypted data if '
+                    'you forget your encryption passphrase. Write it down '
+                    'and keep it in a safe place.',
+                    textAlign: TextAlign.center,
+                    style: theme.textTheme.bodyMedium,
+                  ),
+                  const SizedBox(height: 24),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      color: Colors.amber.shade50,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.amber.shade300),
+                    ),
+                    child: Column(
+                      children: [
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: theme.colorScheme.surface,
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(
+                                color: Colors.amber.shade200),
+                          ),
+                          child: SelectableText(
+                            phrase,
+                            style: TextStyle(
+                              fontFamily: 'monospace',
+                              fontSize: 14,
+                              height: 1.5,
+                              color: theme.colorScheme.onSurface,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        OutlinedButton.icon(
+                          onPressed: () {
+                            Clipboard.setData(
+                              ClipboardData(text: phrase),
+                            );
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content:
+                                    Text('Recovery phrase copied'),
+                              ),
+                            );
+                          },
+                          icon:
+                              const Icon(Icons.copy, size: 18),
+                          label: const Text('Copy'),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.red.shade50,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.red.shade200),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(Icons.warning,
+                            color: Colors.red.shade800, size: 28),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            'If you lose both your passphrase AND this '
+                            'recovery phrase, your data is gone forever. '
+                            'No one — not even the app administrator — '
+                            'can recover it.',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.red.shade800,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 32),
+                  FilledButton.icon(
+                    onPressed: () {
+                      AuthService().clearPendingRecoveryPhrase();
+                      Navigator.of(context).popUntil(
+                          (route) => route.isFirst);
+                    },
+                    icon: const Icon(Icons.arrow_forward),
+                    label: const Text('Continue to App'),
+                  ),
+                ],
+              ),
             ),
           ),
         ),

@@ -29,6 +29,7 @@ class AuthService extends ChangeNotifier {
   bool _needsMigration = false;
   bool _needsPassphrase = false;
   bool _hasEnvelope = false;
+  String? _pendingRecoveryPhrase;  // shown once after signup, then cleared
   String? _error;
 
   UserProfile? get profile => _profile;
@@ -38,6 +39,7 @@ class AuthService extends ChangeNotifier {
   bool get needsMigration => _needsMigration;
   bool get needsPassphrase => _needsPassphrase;
   bool get hasEnvelope => _hasEnvelope;
+  String? get pendingRecoveryPhrase => _pendingRecoveryPhrase;
   String? get error => _error;
 
   // -----------------------------------------------------------------
@@ -199,7 +201,9 @@ class AuthService extends ChangeNotifier {
         }
 
         // Create encryption envelope for the new user
-        await _createEnvelope(encryptionPassphrase, response.user!.id);
+        final phrase = await _createEnvelope(encryptionPassphrase, response.user!.id);
+        // Store recovery phrase so the UI can show it
+        _pendingRecoveryPhrase = phrase;
       }
 
       if (inviteToken != null && response.user != null) {
@@ -217,10 +221,17 @@ class AuthService extends ChangeNotifier {
   // Sign out
   // -----------------------------------------------------------------
 
+  /// Clear the pending recovery phrase after it's been shown to the user.
+  void clearPendingRecoveryPhrase() {
+    _pendingRecoveryPhrase = null;
+    notifyListeners();
+  }
+
   Future<void> signOut() async {
     CryptoService.clearSessionCache();
     _dek = null;
     _needsMigration = false;
+    _pendingRecoveryPhrase = null;
     await _client.auth.signOut();
     _isAuthenticated = false;
     _profile = null;
@@ -350,7 +361,8 @@ class AuthService extends ChangeNotifier {
   }
 
   /// Create a fresh encryption envelope for a new user.
-  Future<void> _createEnvelope(String passphrase, String userId) async {
+  /// Returns the recovery phrase that should be shown to the user once.
+  Future<String> _createEnvelope(String passphrase, String userId) async {
     final salt = CryptoService.generateSalt();
     final masterKey = await CryptoService.deriveMasterKey(passphrase, salt);
     final dek = await CryptoService.generateDek();
@@ -369,6 +381,7 @@ class AuthService extends ChangeNotifier {
 
     _dek = dek;
     CryptoService.cacheDekInSession(dek);
+    return recoveryPhrase;
   }
 
   /// Fetch the salt from user_settings (base64 string or null).

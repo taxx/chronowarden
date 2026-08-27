@@ -54,10 +54,18 @@ class TravelPresetService {
       // Post-migration: encrypt and store
       final plaintext = jsonEncode(json);
       final ciphertext = await CryptoService.encrypt(plaintext, dek);
+      // Include legacy columns to satisfy NOT NULL constraints
       final row = await _client.from('travel_presets').insert({
         'user_id': userId,
         'name': preset.name,
         'encrypted_data': ciphertext,
+        // Legacy columns (will be dropped later)
+        'default_overhead_minutes': preset.defaultOverheadMinutes,
+        'productive_commute_minutes': preset.productiveCommuteMinutes,
+        'morning_overhead_minutes': preset.morningOverheadMinutes,
+        'morning_productive_commute_minutes': preset.morningProductiveCommuteMinutes,
+        'evening_overhead_minutes': preset.eveningOverheadMinutes,
+        'evening_productive_commute_minutes': preset.eveningProductiveCommuteMinutes,
       }).select().single();
       final decrypted = await _decryptPreset(Map<String, dynamic>.from(row), dek);
       return decrypted ?? preset;

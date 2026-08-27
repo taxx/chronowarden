@@ -124,7 +124,7 @@ class _MigrationScreenState extends State<MigrationScreen> {
                                 'To protect your privacy, we need to encrypt all your '
                                 'existing records. This is a one-time process.',
                                 style: theme.textTheme.bodySmall?.copyWith(
-                                  color: Colors.brown.shade700,
+                                  color: theme.colorScheme.onSurfaceVariant,
                                 ),
                               ),
                             ],
@@ -275,7 +275,7 @@ class _MigrationScreenState extends State<MigrationScreen> {
                           'If you forget your passphrase, this is the only '
                           'way to recover your data.',
                           style: theme.textTheme.bodySmall?.copyWith(
-                            color: Colors.brown.shade700,
+                            color: theme.colorScheme.onSurfaceVariant,
                           ),
                           textAlign: TextAlign.center,
                         ),
@@ -284,16 +284,17 @@ class _MigrationScreenState extends State<MigrationScreen> {
                           width: double.infinity,
                           padding: const EdgeInsets.all(16),
                           decoration: BoxDecoration(
-                            color: Colors.white,
+                            color: theme.colorScheme.surface,
                             borderRadius: BorderRadius.circular(8),
                             border: Border.all(color: Colors.amber.shade200),
                           ),
                           child: SelectableText(
                             _recoveryPhrase!,
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontFamily: 'monospace',
                               fontSize: 14,
                               height: 1.5,
+                              color: theme.colorScheme.onSurface,
                             ),
                           ),
                         ),
