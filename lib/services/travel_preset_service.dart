@@ -50,35 +50,17 @@ class TravelPresetService {
     json.remove('encrypted_data');
     json['user_id'] = userId;
 
-    if (dek != null) {
-      // Post-migration: encrypt and store
-      final plaintext = jsonEncode(json);
-      final ciphertext = await CryptoService.encrypt(plaintext, dek);
-      // Include legacy columns to satisfy NOT NULL constraints
-      final row = await _client.from('travel_presets').insert({
-        'user_id': userId,
-        'name': preset.name,
-        'encrypted_data': ciphertext,
-        // Legacy columns (will be dropped later)
-        'default_overhead_minutes': preset.defaultOverheadMinutes,
-        'productive_commute_minutes': preset.productiveCommuteMinutes,
-        'morning_overhead_minutes': preset.morningOverheadMinutes,
-        'morning_productive_commute_minutes': preset.morningProductiveCommuteMinutes,
-        'evening_overhead_minutes': preset.eveningOverheadMinutes,
-        'evening_productive_commute_minutes': preset.eveningProductiveCommuteMinutes,
-      }).select().single();
-      final decrypted = await _decryptPreset(Map<String, dynamic>.from(row), dek);
-      return decrypted ?? preset;
-    } else {
-      // Pre-migration: store in plaintext columns directly
-      json['name'] = preset.name;
-      json['morning_overhead_minutes'] = preset.morningOverheadMinutes;
-      json['morning_productive_commute_minutes'] = preset.morningProductiveCommuteMinutes;
-      json['evening_overhead_minutes'] = preset.eveningOverheadMinutes;
-      json['evening_productive_commute_minutes'] = preset.eveningProductiveCommuteMinutes;
-      final row = await _client.from('travel_presets').insert(json).select().single();
-      return TravelPreset.fromJson(Map<String, dynamic>.from(row));
-    }
+    if (dek == null) throw Exception('Encryption key not loaded');
+
+    final plaintext = jsonEncode(json);
+    final ciphertext = await CryptoService.encrypt(plaintext, dek);
+    final row = await _client.from('travel_presets').insert({
+      'user_id': userId,
+      'name': preset.name,
+      'encrypted_data': ciphertext,
+    }).select().single();
+    final decrypted = await _decryptPreset(Map<String, dynamic>.from(row), dek);
+    return decrypted ?? (throw Exception('Failed to decrypt inserted row'));
   }
 
   Future<void> update(String id, Map<String, dynamic> fields) async {
@@ -94,20 +76,15 @@ class TravelPresetService {
     if (fields.isEmpty) return;
 
     final dek = _dek;
-    if (dek != null) {
-      // Post-migration: encrypt changed fields
-      final plaintext = jsonEncode(fields);
-      final ciphertext = await CryptoService.encrypt(plaintext, dek);
-      final updateFields = <String, dynamic>{
-        'encrypted_data': ciphertext,
-      };
-      if (name != null) updateFields['name'] = name;
-      await _client.from('travel_presets').update(updateFields).eq('id', id).eq('user_id', userId);
-    } else {
-      // Pre-migration: update plaintext columns directly
-      if (name != null) fields['name'] = name;
-      await _client.from('travel_presets').update(fields).eq('id', id).eq('user_id', userId);
-    }
+    if (dek == null) return;
+
+    final plaintext = jsonEncode(fields);
+    final ciphertext = await CryptoService.encrypt(plaintext, dek);
+    final updateFields = <String, dynamic>{
+      'encrypted_data': ciphertext,
+    };
+    if (name != null) updateFields['name'] = name;
+    await _client.from('travel_presets').update(updateFields).eq('id', id).eq('user_id', userId);
   }
 
   Future<void> delete(String id) async {
@@ -125,15 +102,9 @@ class TravelPresetService {
   ) async {
     final encrypted = row['encrypted_data'] as String?;
 
-    // Pre-migration: no encrypted data yet — fall back to plaintext columns
-    if (encrypted == null || encrypted.isEmpty) {
-      return TravelPreset.fromJson(row);
-    }
+    // No encrypted data or no DEK loaded — can't decrypt
+    if (encrypted == null || encrypted.isEmpty || dek == null) return null;
 
-    // Post-migration but no DEK loaded — user must enter passphrase
-    if (dek == null) return null;
-
-    // Normal path: decrypt
     try {
       final plaintext = await CryptoService.decrypt(encrypted, dek);
       final json = jsonDecode(plaintext) as Map<String, dynamic>;
@@ -146,7 +117,6 @@ class TravelPresetService {
 
       return TravelPreset.fromJson(json);
     } catch (_) {
-      // Decryption failed — don't fall back to plaintext
       return null;
     }
   }

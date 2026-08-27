@@ -25,28 +25,20 @@ class UserSettingsService {
 
   Future<int> getDefaultFlexMinutes() async {
     final userId = _userId;
-    if (userId == null) return 0;
+    final dek = _dek;
+    if (userId == null || dek == null) return 0;
 
-    final settings = await _readSettings(userId, _dek);
+    final settings = await _readSettings(userId, dek);
     return (settings['default_flex_minutes'] as int?) ?? 0;
   }
 
   Future<void> setDefaultFlexMinutes(int minutes) async {
     final userId = _userId;
-    if (userId == null) return;
-
-    final settings = await _readSettings(userId, _dek);
-    settings['default_flex_minutes'] = minutes;
-
-    // If no DEK yet (pre-migration), just update the plaintext column
     final dek = _dek;
-    if (dek == null) {
-      await _client.from('user_settings').upsert({
-        'user_id': userId,
-        'default_flex_minutes': minutes,
-      }, onConflict: 'user_id');
-      return;
-    }
+    if (userId == null || dek == null) return;
+
+    final settings = await _readSettings(userId, dek);
+    settings['default_flex_minutes'] = minutes;
 
     final plaintext = jsonEncode(settings);
     final ciphertext = await CryptoService.encrypt(plaintext, dek);
@@ -68,7 +60,7 @@ class UserSettingsService {
     try {
       final resp = await _client
           .from('user_settings')
-          .select('*')
+          .select('encrypted_data')
           .eq('user_id', userId)
           .limit(1);
       final rows = resp as List<dynamic>;
@@ -76,29 +68,7 @@ class UserSettingsService {
       final row = rows.first as Map<String, dynamic>;
       final encrypted = row['encrypted_data'] as String?;
 
-      // Pre-migration: no encrypted data yet — fall back to plaintext columns
-      if (encrypted == null || encrypted.isEmpty) {
-        final result = <String, dynamic>{};
-        if (row['default_flex_minutes'] != null) {
-          result['default_flex_minutes'] = row['default_flex_minutes'];
-        }
-        if (row['default_expected_minutes'] != null) {
-          result['default_expected_minutes'] = row['default_expected_minutes'];
-        }
-        if (row['reduced_expected_minutes'] != null) {
-          result['reduced_expected_minutes'] = row['reduced_expected_minutes'];
-        }
-        if (row['reduced_start_week'] != null) {
-          result['reduced_start_week'] = row['reduced_start_week'];
-        }
-        if (row['reduced_end_week'] != null) {
-          result['reduced_end_week'] = row['reduced_end_week'];
-        }
-        return result;
-      }
-
-      // Post-migration but no DEK loaded — user must enter passphrase
-      if (dek == null) return {};
+      if (encrypted == null || encrypted.isEmpty || dek == null) return {};
 
       final plaintext = await CryptoService.decrypt(encrypted, dek);
       return jsonDecode(plaintext) as Map<String, dynamic>;

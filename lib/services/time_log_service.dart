@@ -104,34 +104,17 @@ class TimeLogService {
     json.remove('encrypted_data');
     json['user_id'] = userId;
 
-    if (dek != null) {
-      // Post-migration: encrypt and store
-      final plaintext = jsonEncode(json);
-      final ciphertext = await CryptoService.encrypt(plaintext, dek);
-      final row = await _client.from('time_logs').insert({
-        'user_id': userId,
-        'date': log.date,
-        'encrypted_data': ciphertext,
-      }).select().single();
-      final decrypted = await _decryptTimeLog(Map<String, dynamic>.from(row), dek);
-      return decrypted ?? log;
-    } else {
-      // Pre-migration: store in plaintext columns directly
-      json['date'] = log.date;
-      json['start_time'] = log.startTime;
-      json['end_time'] = log.endTime;
-      json['expected_minutes'] = log.expectedMinutes;
-      json['lunch_minutes'] = log.lunchMinutes;
-      json['flex_minutes'] = log.flexMinutes;
-      json['morning_overhead_minutes'] = log.morningOverheadMinutes;
-      json['morning_productive_commute_minutes'] = log.morningProductiveCommuteMinutes;
-      json['evening_overhead_minutes'] = log.eveningOverheadMinutes;
-      json['evening_productive_commute_minutes'] = log.eveningProductiveCommuteMinutes;
-      json['overtime_minutes'] = log.overtimeMinutes;
-      json['note'] = log.note;
-      final row = await _client.from('time_logs').insert(json).select().single();
-      return TimeLog.fromJson(Map<String, dynamic>.from(row));
-    }
+    if (dek == null) throw Exception('Encryption key not loaded');
+
+    final plaintext = jsonEncode(json);
+    final ciphertext = await CryptoService.encrypt(plaintext, dek);
+    final row = await _client.from('time_logs').insert({
+      'user_id': userId,
+      'date': log.date,
+      'encrypted_data': ciphertext,
+    }).select().single();
+    final decrypted = await _decryptTimeLog(Map<String, dynamic>.from(row), dek);
+    return decrypted ?? (throw Exception('Failed to decrypt inserted row'));
   }
 
   Future<void> update(String id, Map<String, dynamic> fields) async {
@@ -146,17 +129,13 @@ class TimeLogService {
     if (fields.isEmpty) return;
 
     final dek = _dek;
-    if (dek != null) {
-      // Post-migration: encrypt changed fields
-      final plaintext = jsonEncode(fields);
-      final ciphertext = await CryptoService.encrypt(plaintext, dek);
-      await _client.from('time_logs').update({
-        'encrypted_data': ciphertext,
-      }).eq('id', id).eq('user_id', userId);
-    } else {
-      // Pre-migration: update plaintext columns directly
-      await _client.from('time_logs').update(fields).eq('id', id).eq('user_id', userId);
-    }
+    if (dek == null) return;
+
+    final plaintext = jsonEncode(fields);
+    final ciphertext = await CryptoService.encrypt(plaintext, dek);
+    await _client.from('time_logs').update({
+      'encrypted_data': ciphertext,
+    }).eq('id', id).eq('user_id', userId);
   }
 
   Future<void> delete(String id) async {
@@ -187,15 +166,9 @@ class TimeLogService {
   ) async {
     final encrypted = row['encrypted_data'] as String?;
 
-    // Pre-migration: no encrypted data yet — fall back to plaintext columns
-    if (encrypted == null || encrypted.isEmpty) {
-      return TimeLog.fromJson(row);
-    }
+    // No encrypted data or no DEK loaded — can't decrypt
+    if (encrypted == null || encrypted.isEmpty || dek == null) return null;
 
-    // Post-migration but no DEK loaded — user must enter passphrase
-    if (dek == null) return null;
-
-    // Normal path: decrypt
     try {
       final plaintext = await CryptoService.decrypt(encrypted, dek);
       final json = jsonDecode(plaintext) as Map<String, dynamic>;
@@ -208,7 +181,6 @@ class TimeLogService {
 
       return TimeLog.fromJson(json);
     } catch (_) {
-      // Decryption failed — don't fall back to plaintext
       return null;
     }
   }
