@@ -620,7 +620,8 @@ Widget _monthCalendar(BuildContext context, Map<String, TimeLog> logByDate, {
   void Function(DateTime)? onEmptyPastDayTap,
 }) {
   final theme = Theme.of(context);
-  final cellWidth = (MediaQuery.of(context).size.width - 32) / 7;
+  final numDays = showWeekends ? 7 : 5;
+  final cellWidth = (MediaQuery.of(context).size.width - 32) / numDays;
   final firstDay = DateTime(refDate.year, refDate.month, 1);
   final lastDay = DateTime(refDate.year, refDate.month + 1, 0);
   // Monday = 0, Tuesday = 1, …, Sunday = 6
@@ -634,7 +635,7 @@ Widget _monthCalendar(BuildContext context, Map<String, TimeLog> logByDate, {
       const SizedBox(height: 8),
       // Day-of-week header
       Row(
-        children: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((d) {
+        children: (showWeekends ? ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] : ['Mon', 'Tue', 'Wed', 'Thu', 'Fri']).map((d) {
           return SizedBox(
             width: cellWidth,
             child: Text(d, textAlign: TextAlign.center,
@@ -644,116 +645,118 @@ Widget _monthCalendar(BuildContext context, Map<String, TimeLog> logByDate, {
       ),
       const SizedBox(height: 4),
       // Grid rows
-      ..._buildMonthRows(context, cellWidth, logByDate, firstDay, startWeekday, daysInMonth, showWeekends, onDayTap, onEmptyPastDayTap),
+      ..._buildMonthRows(context, cellWidth, logByDate, firstDay, startWeekday, daysInMonth, numDays, showWeekends, onDayTap, onEmptyPastDayTap),
     ],
   );
 }
 
 List<Widget> _buildMonthRows(BuildContext context, double cellWidth, Map<String, TimeLog> logByDate,
     DateTime firstDay, int startWeekday, int daysInMonth,
+    int numDays,
     bool showWeekends,
     void Function(TimeLog)? onDayTap,
     void Function(DateTime)? onEmptyPastDayTap) {
   final theme = Theme.of(context);
-  final cells = <Widget>[];
 
+  // Collect visible days (skip weekends when hidden)
+  final visibleDays = <DateTime>[];
   for (int day = 1; day <= daysInMonth; day++) {
     final date = DateTime(firstDay.year, firstDay.month, day);
-    final dateStr = _dateStr(date);
-    final log = logByDate[dateStr];
-    final isToday = _isToday(date);
-
-    // Hide weekend cells when toggle is off (keep cell width for grid alignment)
-    if (!showWeekends && date.weekday > 5) {
-      cells.add(Container(
-        width: cellWidth,
-        height: 48,
-        decoration: BoxDecoration(
-          color: Colors.transparent,
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: const SizedBox.shrink(),
-      ));
-      continue;
-    }
-
-    Color? bgColor;
-    if (log != null && log.endTime != null) {
-      final ot = log.overtimeMinutes;
-      bgColor = ot > 0
-          ? theme.colorScheme.errorContainer.withValues(alpha: 0.3)
-          : Colors.green.shade100.withValues(alpha: 0.35);
-    } else if (log != null && log.endTime == null) {
-      bgColor = Colors.amber.shade50;
-    }
-
-    final hasNote = log?.note?.isNotEmpty == true;
-    cells.add(Container(
-      width: cellWidth,
-      height: 48,
-      decoration: BoxDecoration(
-        color: bgColor,
-        borderRadius: BorderRadius.circular(8),
-        border: isToday ? Border.all(color: theme.colorScheme.primary, width: 2) : null,
-      ),
-      child: InkWell(
-        onTap: log != null
-            ? (onDayTap != null ? () => onDayTap(log) : null)
-            : (onEmptyPastDayTap != null ? () => onEmptyPastDayTap(date) : null),
-        borderRadius: BorderRadius.circular(8),
-        child: Tooltip(
-          message: log != null
-              ? '${log.date}: ${log.startTime}${log.endTime != null ? ' → ${log.endTime}' : ' → …'}\n${_fmtMins(log.expectedMinutes)} work${log.note != null ? '\n📝 ${log.note}' : ''}'
-              : '',
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text('$day', style: theme.textTheme.bodySmall?.copyWith(
-                    fontWeight: FontWeight.w600,
-                  )),
-                  if (hasNote)
-                    Padding(
-                      padding: const EdgeInsets.only(left: 3),
-                      child: Icon(Icons.note_outlined, size: 10, color: theme.colorScheme.onSurfaceVariant),
-                    ),
-                ],
-              ),
-              if (log != null && log.endTime != null)
-                Text(
-                  _overtimeStr(log.overtimeMinutes),
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 10,
-                    color: log.overtimeMinutes > 0
-                        ? theme.colorScheme.error
-                        : Colors.green.shade700,
-                  ),
-                ),
-            ],
-          ),
-        ),
-      ),
-    ));
+    if (!showWeekends && date.weekday > 5) continue;
+    visibleDays.add(date);
   }
 
-  // Build rows of 7
+  // Build rows of numDays
   final rows = <Widget>[];
   final totalCells = startWeekday + daysInMonth;
   final numRows = (totalCells / 7).ceil();
 
-  int cellIdx = 0;
+  // We iterate over the 7-column grid and only add cells for visible columns
   for (int r = 0; r < numRows; r++) {
     final rowChildren = <Widget>[];
-    for (int c = 0; c < 7; c++) {
-      if (cellIdx < startWeekday || cellIdx >= startWeekday + daysInMonth) {
-        rowChildren.add(SizedBox(width: cellWidth, child: const Text('')));
+    for (int col = 0; col < numDays; col++) {
+      // Find which day (if any) belongs at this position in the visible grid
+      final visibleDayIdx = r * numDays + col;
+      // Map visible index back to absolute day number
+      // visibleDays[visibleDayIdx] gives us the actual date if it exists
+      if (visibleDayIdx < visibleDays.length) {
+        final date = visibleDays[visibleDayIdx];
+        final dateStr = _dateStr(date);
+        final log = logByDate[dateStr];
+        final isToday = _isToday(date);
+
+        Color? bgColor;
+        if (log != null && log.endTime != null) {
+          final ot = log.overtimeMinutes;
+          bgColor = ot > 0
+              ? theme.colorScheme.errorContainer.withValues(alpha: 0.3)
+              : Colors.green.shade100.withValues(alpha: 0.35);
+        } else if (log != null && log.endTime == null) {
+          bgColor = Colors.amber.shade50;
+        }
+
+        final hasNote = log?.note?.isNotEmpty == true;
+        rowChildren.add(Container(
+          width: cellWidth,
+          height: 48,
+          decoration: BoxDecoration(
+            color: bgColor,
+            borderRadius: BorderRadius.circular(8),
+            border: isToday ? Border.all(color: theme.colorScheme.primary, width: 2) : null,
+          ),
+          child: InkWell(
+            onTap: log != null
+                ? (onDayTap != null ? () => onDayTap(log) : null)
+                : (onEmptyPastDayTap != null ? () => onEmptyPastDayTap(date) : null),
+            borderRadius: BorderRadius.circular(8),
+            child: Tooltip(
+              message: log != null
+                  ? '${log.date}: ${log.startTime}${log.endTime != null ? ' → ${log.endTime}' : ' → …'}\n${_fmtMins(log.expectedMinutes)} work${log.note != null ? '\n📝 ${log.note}' : ''}'
+                  : '',
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text('${date.day}', style: theme.textTheme.bodySmall?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      )),
+                      if (hasNote)
+                        Padding(
+                          padding: const EdgeInsets.only(left: 3),
+                          child: Icon(Icons.note_outlined, size: 10, color: theme.colorScheme.onSurfaceVariant),
+                        ),
+                    ],
+                  ),
+                  if (log != null && log.endTime != null)
+                    Text(
+                      _overtimeStr(log.overtimeMinutes),
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 10,
+                        color: log.overtimeMinutes > 0
+                            ? theme.colorScheme.error
+                            : Colors.green.shade700,
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ),
+        ));
       } else {
-        rowChildren.add(cells[cellIdx - startWeekday]);
+        // No more visible days — empty spacer
+        rowChildren.add(Container(
+          width: cellWidth,
+          height: 48,
+          decoration: BoxDecoration(
+            color: Colors.transparent,
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: const SizedBox.shrink(),
+        ));
       }
-      cellIdx++;
     }
     rows.add(Padding(
       padding: const EdgeInsets.symmetric(vertical: 2),
