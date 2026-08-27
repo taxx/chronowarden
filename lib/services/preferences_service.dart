@@ -13,13 +13,16 @@ class PreferencesService {
 
   static const _keyPresetId = 'last_travel_preset_id';
   static const _keyShowWeekends = 'show_weekends';
+  static const _keySliderInterval = 'slider_interval_minutes';
 
   // -- Reactive notifiers ---------------------------------------------------
   final showWeekends = ValueNotifier<bool>(false);
+  final sliderInterval = ValueNotifier<int>(5);
 
   Future<void> init() async {
     final prefs = await SharedPreferences.getInstance();
     showWeekends.value = prefs.getBool(_keyShowWeekends) ?? false;
+    sliderInterval.value = prefs.getInt(_keySliderInterval) ?? 5;
   }
 
   // -- Last-used preset ----------------------------------------------
@@ -49,5 +52,18 @@ class PreferencesService {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_keyShowWeekends, show);
     showWeekends.value = show;
+  }
+
+  // -- Slider interval -----------------------------------------------------
+
+  Future<int> getSliderInterval() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getInt(_keySliderInterval) ?? 5;
+  }
+
+  Future<void> setSliderInterval(int minutes) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt(_keySliderInterval, minutes);
+    sliderInterval.value = minutes;
   }
 }

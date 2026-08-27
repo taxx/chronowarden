@@ -70,6 +70,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
         const SizedBox(height: 24),
         _DefaultFlexSetting(),
         const SizedBox(height: 24),
+        _SliderIntervalSetting(),
+        const SizedBox(height: 24),
         _ExportSection(),
         const SizedBox(height: 24),
         _EncryptionSection(),
@@ -580,6 +582,105 @@ class _DefaultFlexSettingState extends State<_DefaultFlexSetting> {
                         if (!context.mounted) return;
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(content: Text('Default flex time saved')),
+                        );
+                      },
+                child: const Text('Save'),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Slider interval setting — step size for lunch/flex sliders.
+class _SliderIntervalSetting extends StatefulWidget {
+  @override
+  State<_SliderIntervalSetting> createState() => _SliderIntervalSettingState();
+}
+
+class _SliderIntervalSettingState extends State<_SliderIntervalSetting> {
+  final _prefs = PreferencesService();
+  int _interval = 5;
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    final interval = await _prefs.getSliderInterval();
+    if (mounted) {
+      setState(() {
+        _interval = interval;
+        _loading = false;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    if (_loading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.tune, color: theme.colorScheme.primary),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text('Slider step size',
+                      style: theme.textTheme.titleLarge),
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Interval between slider ticks for lunch and flex time.',
+              style: theme.textTheme.bodySmall,
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                const Text('Minutes: '),
+                Expanded(
+                  child: Slider(
+                    value: _interval.toDouble(),
+                    min: 1,
+                    max: 30,
+                    divisions: 29,
+                    label: '$_interval min',
+                    onChanged: (v) =>
+                        setState(() => _interval = v.round()),
+                  ),
+                ),
+                Text('$_interval min',
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                        fontWeight: FontWeight.w600)),
+              ],
+            ),
+            const SizedBox(height: 8),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton(
+                onPressed: _loading
+                    ? null
+                    : () async {
+                        await _prefs.setSliderInterval(_interval);
+                        if (!context.mounted) return;
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Slider interval saved'),
+                          ),
                         );
                       },
                 child: const Text('Save'),

@@ -4,6 +4,11 @@ import '../app_state.dart';
 import '../models/time_log.dart';
 import '../services/preferences_service.dart';
 
+int _sliderDivisions(double min, double max) {
+  final interval = PreferencesService().sliderInterval.value;
+  return ((max - min) / interval).round();
+}
+
 String _fmtMins(int minutes) {
   final abs = minutes.abs();
   final h = abs ~/ 60;
@@ -571,7 +576,7 @@ class _EditDayDialogState extends State<_EditDayDialog> {
                     value: _lunch.toDouble(),
                     min: 0,
                     max: 240,
-                    divisions: 48,
+                    divisions: _sliderDivisions(0, 240),
                     label: '$_lunch min',
                     onChanged: (v) => setState(() => _lunch = v.round()),
                   ),
@@ -841,7 +846,7 @@ class _AddDayDialogState extends State<_AddDayDialog> {
                     value: _lunch.toDouble(),
                     min: 0,
                     max: 240,
-                    divisions: 48,
+                    divisions: _sliderDivisions(0, 240),
                     label: '$_lunch min',
                     onChanged: (v) => setState(() => _lunch = v.round()),
                   ),
