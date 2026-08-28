@@ -37,6 +37,56 @@ class AppState extends ChangeNotifier {
   bool _tablesReady = false;
   String? _lastError;  // last user-facing error message
 
+  // -- lunch timer state (in-memory only, not persisted) ------------
+  DateTime? _lunchStartTime;
+  DateTime? _lunchEndTime;
+
+  DateTime? get lunchStartTime => _lunchStartTime;
+  DateTime? get lunchEndTime => _lunchEndTime;
+
+  /// True when lunch timer is running (started but not stopped).
+  bool get lunchActive => _lunchStartTime != null && _lunchEndTime == null;
+
+  /// Record the moment lunch started. Clears any previous stop time.
+  void startLunch() {
+    _lunchStartTime = DateTime.now();
+    _lunchEndTime = null;
+    notifyListeners();
+  }
+
+  /// Record the moment lunch stopped, calculate duration, update stored
+  /// lunch minutes, and reset timer state.
+  Future<void> stopLunch([int? overrideMinutes]) async {
+    final log = _todayLog;
+    if (log == null || log.id == null) {
+      _lunchStartTime = null;
+      _lunchEndTime = null;
+      notifyListeners();
+      return;
+    }
+
+    if (_lunchStartTime == null) return;
+
+    _lunchEndTime = DateTime.now();
+    final calculatedMinutes =
+        _lunchEndTime!.difference(_lunchStartTime!).inMinutes;
+    final lunchMinutes = overrideMinutes ?? calculatedMinutes;
+
+    await logs.update(log.id!, {'lunch_minutes': lunchMinutes});
+    await _loadToday();
+
+    _lunchStartTime = null;
+    _lunchEndTime = null;
+    notifyListeners();
+  }
+
+  /// Reset lunch timer without saving (e.g., user cancelled).
+  void resetLunchTimer() {
+    _lunchStartTime = null;
+    _lunchEndTime = null;
+    notifyListeners();
+  }
+
   TimeLog? get todayLog => _todayLog;
   List<TimeLog> get allLogs => _allLogs;
   WorkConfig? get workConfig => _workConfig;
@@ -162,6 +212,8 @@ class AppState extends ChangeNotifier {
     _presetsList = [];
     _timeBankMinutes = 0;
     _tablesReady = false;
+    _lunchStartTime = null;
+    _lunchEndTime = null;
     notifyListeners();
   }
 

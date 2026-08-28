@@ -259,27 +259,16 @@ class _MyDayTabState extends State<MyDayTab> with SingleTickerProviderStateMixin
               _statRow(theme, 'Productive commute', '${log.morningProductiveCommuteMinutes}/${log.eveningProductiveCommuteMinutes} min (am/pm)'),
             _statRow(theme, 'Total', _fmtMins(log.expectedMinutes + log.overheadMinutes + log.productiveCommuteMinutes)),
 
-            InkWell(
-              onTap: () => _showEditLunchDialog(context, lunch),
-              borderRadius: BorderRadius.circular(8),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 4),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Row(children: [
-                      Text('Lunch', style: theme.textTheme.bodyMedium),
-                      const SizedBox(width: 4),
-                      Icon(Icons.restaurant, size: 16, color: theme.colorScheme.onSurfaceVariant),
-                    ]),
-                    Row(children: [
-                      Text('$lunch min', style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600)),
-                      const SizedBox(width: 4),
-                      Icon(Icons.edit, size: 14, color: theme.colorScheme.primary),
-                    ]),
-                  ],
-                ),
-              ),
+            // Lunch timer section
+            _LunchTimerSection(
+              lunchMinutes: lunch,
+              lunchStartTime: _state.lunchStartTime,
+              lunchEndTime: _state.lunchEndTime,
+              lunchActive: _state.lunchActive,
+              onStartLunch: () => _state.startLunch(),
+              onStopLunch: () => _showStopLunchDialog(context),
+              onEditLunch: () => _showEditLunchDialog(context, lunch),
+              theme: theme,
             ),
 
             const SizedBox(height: 16),
@@ -485,6 +474,76 @@ class _MyDayTabState extends State<MyDayTab> with SingleTickerProviderStateMixin
               onPressed: () {
                 Navigator.pop(ctx);
                 _state.updateLunchMinutes(lunch);
+              },
+              child: const Text('Save'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Dialog shown after pressing "Stop Lunch" — shows calculated duration
+  /// and allows fine-tuning before saving.
+  Future<void> _showStopLunchDialog(BuildContext ctx) async {
+    final start = _state.lunchStartTime;
+    if (start == null) return;
+
+    final end = DateTime.now();
+    final calculatedMinutes = end.difference(start).inMinutes;
+
+    int lunch = calculatedMinutes.clamp(0, 240);
+    await showDialog<void>(
+      context: ctx,
+      builder: (_) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text('Lunch stopped'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Started: ${start.hour.toString().padLeft(2, '0')}:${start.minute.toString().padLeft(2, '0')}',
+                   style: Theme.of(ctx).textTheme.bodyMedium),
+              Text('Ended:   ${end.hour.toString().padLeft(2, '0')}:${end.minute.toString().padLeft(2, '0')}',
+                   style: Theme.of(ctx).textTheme.bodyMedium),
+              const SizedBox(height: 8),
+              Text('Duration: $calculatedMinutes min',
+                   style: Theme.of(ctx).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
+              const SizedBox(height: 16),
+              Text('Adjust if needed:', style: Theme.of(ctx).textTheme.titleSmall),
+              const SizedBox(height: 4),
+              Row(
+                children: [
+                  Expanded(
+                    child: Slider(
+                      value: lunch.toDouble(),
+                      min: 0,
+                      max: 240,
+                      divisions: _sliderDivisions(0, 240),
+                      label: '$lunch min',
+                      onChanged: (v) {
+                        lunch = v.round();
+                        setDialogState(() {});
+                      },
+                    ),
+                  ),
+                  Text('$lunch min', style: Theme.of(ctx).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600)),
+                ],
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                _state.resetLunchTimer();
+                Navigator.pop(ctx);
+              },
+              child: const Text('Discard'),
+            ),
+            FilledButton(
+              onPressed: () {
+                Navigator.pop(ctx);
+                _state.stopLunch(lunch);
               },
               child: const Text('Save'),
             ),
@@ -1176,6 +1235,127 @@ class _EditDayDialogState extends State<_EditDayDialog> {
           Text('Evening: $_eveningOverhead min walk, $_eveningProductive min train work', style: theme.textTheme.bodySmall),
           Text('Total: $totalCommute min commute', style: theme.textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w600)),
         ],
+      ),
+    );
+  }
+}
+
+/// Lunch timer section — Start/Stop buttons plus elapsed display.
+class _LunchTimerSection extends StatelessWidget {
+  final int lunchMinutes;
+  final DateTime? lunchStartTime;
+  final DateTime? lunchEndTime;
+  final bool lunchActive;
+  final VoidCallback onStartLunch;
+  final VoidCallback onStopLunch;
+  final VoidCallback onEditLunch;
+  final ThemeData theme;
+
+  const _LunchTimerSection({
+    required this.lunchMinutes,
+    required this.lunchStartTime,
+    required this.lunchEndTime,
+    required this.lunchActive,
+    required this.onStartLunch,
+    required this.onStopLunch,
+    required this.onEditLunch,
+    required this.theme,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    if (lunchActive) {
+      // Timer is running — show elapsed + Stop button
+      final elapsed = DateTime.now().difference(lunchStartTime!);
+      final mins = elapsed.inMinutes;
+      final secs = elapsed.inSeconds % 60;
+      return Container(
+        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+        decoration: BoxDecoration(
+          color: theme.colorScheme.tertiaryContainer.withValues(alpha: 0.3),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Row(
+          children: [
+            Icon(Icons.restaurant, size: 16, color: theme.colorScheme.tertiary),
+            const SizedBox(width: 4),
+            Text('Lunch  ', style: theme.textTheme.bodyMedium),
+            Text(
+              '${mins.toString().padLeft(2, '0')}:${secs.toString().padLeft(2, '0')}',
+              style: theme.textTheme.bodyMedium?.copyWith(
+                fontWeight: FontWeight.w600,
+                fontFamily: 'monospace',
+              ),
+            ),
+            const Spacer(),
+            _SmallButton(
+              onPressed: onStopLunch,
+              backgroundColor: theme.colorScheme.tertiary,
+              foregroundColor: theme.colorScheme.onTertiary,
+              label: 'Stop',
+            ),
+          ],
+        ),
+      );
+    }
+
+    // Timer not running — show stored lunch minutes + Start button
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        children: [
+          Icon(Icons.restaurant, size: 16, color: theme.colorScheme.onSurfaceVariant),
+          const SizedBox(width: 4),
+          Text('Lunch: $lunchMinutes min', style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600)),
+          if (lunchEndTime != null)
+            Text(' (timer)', style: TextStyle(fontStyle: FontStyle.italic, fontSize: 12)),
+          const Spacer(),
+          _SmallButton(
+            onPressed: onStartLunch,
+            backgroundColor: theme.colorScheme.primary,
+            foregroundColor: theme.colorScheme.onPrimary,
+            label: 'Start',
+          ),
+          const SizedBox(width: 4),
+          _SmallButton(
+            onPressed: onEditLunch,
+            backgroundColor: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+            foregroundColor: theme.colorScheme.onSurfaceVariant,
+            label: 'Edit',
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// A compact button with label, used in _LunchTimerSection.
+class _SmallButton extends StatelessWidget {
+  final VoidCallback onPressed;
+  final Color backgroundColor;
+  final Color foregroundColor;
+  final String label;
+
+  const _SmallButton({
+    required this.onPressed,
+    required this.backgroundColor,
+    required this.foregroundColor,
+    required this.label,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 28,
+      child: FilledButton(
+        onPressed: onPressed,
+        style: FilledButton.styleFrom(
+          backgroundColor: backgroundColor,
+          foregroundColor: foregroundColor,
+          padding: const EdgeInsets.symmetric(horizontal: 10),
+          textStyle: const TextStyle(fontSize: 12),
+        ),
+        child: Text(label),
       ),
     );
   }
