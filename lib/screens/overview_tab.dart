@@ -109,6 +109,17 @@ class _PeriodTabState extends State<_PeriodTab> {
   void initState() {
     super.initState();
     _prefs.init();
+    _state.addListener(_onStateChanged);
+  }
+
+  @override
+  void dispose() {
+    _state.removeListener(_onStateChanged);
+    super.dispose();
+  }
+
+  void _onStateChanged() {
+    if (mounted) setState(() {});
   }
 
   @override
