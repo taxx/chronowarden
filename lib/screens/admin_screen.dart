@@ -84,7 +84,18 @@ class _AdminScreenState extends State<AdminScreen> with SingleTickerProviderStat
         if (mounted) _snack('User deleted');
       } catch (e) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+          final msg = e.toString();
+          final longMsg = msg.contains('Supabase dashboard admin')
+              ? SnackBar(
+                  content: Text(msg),
+                  duration: const Duration(seconds: 8),
+                  action: SnackBarAction(
+                    label: 'Dismiss',
+                    onPressed: () => ScaffoldMessenger.of(context).hideCurrentSnackBar(),
+                  ),
+                )
+              : SnackBar(content: Text(msg));
+          ScaffoldMessenger.of(context).showSnackBar(longMsg);
         }
       }
     }

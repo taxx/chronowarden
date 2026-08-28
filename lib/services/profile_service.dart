@@ -1,10 +1,17 @@
+import 'dart:math';
+
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/invite.dart';
 import '../models/user_profile.dart';
+import 'auth_service.dart';
 import 'supabase_service.dart';
 
 /// Admin operations: list users, approve/reject, delete, manage invites.
+///
+/// Every method includes an application-level admin check for defense-in-depth.
+/// Even if RLS policies were accidentally disabled, these guards prevent
+/// non-admin users from calling admin operations.
 class ProfileService {
   ProfileService._();
   static final ProfileService _instance = ProfileService._();
@@ -12,9 +19,20 @@ class ProfileService {
 
   SupabaseClient get _client => SupabaseService.instance.client;
 
+  /// Returns true if the current user is an approved admin.
+  bool get _isAdmin => AuthService().profile?.isAdmin == true;
+
+  /// Throws if the current user is not an admin.
+  void _requireAdmin() {
+    if (!_isAdmin) {
+      throw Exception('Admin privileges required');
+    }
+  }
+
   // -- profiles --
 
   Future<List<UserProfile>> allUsers() async {
+    _requireAdmin();
     final resp = await _client
         .from('profiles')
         .select()
@@ -25,31 +43,42 @@ class ProfileService {
 
   /// Approve a pending user.
   Future<void> approveUser(String userId) async {
+    _requireAdmin();
     await _client.from('profiles').update({'status': 'approved'}).eq('id', userId);
   }
 
   /// Reject a pending user.
   Future<void> rejectUser(String userId) async {
+    _requireAdmin();
     await _client.from('profiles').update({'status': 'rejected'}).eq('id', userId);
   }
 
   /// Delete a user from the auth system.
+  ///
   /// Falls back to rejecting the profile if admin API isn't available
-  /// (anon key can't call auth.admin directly).
+  /// (anon key can't call auth.admin directly). When that happens, the
+  /// auth.user row remains but the account is disabled (status = rejected).
+  /// Full cleanup requires a Supabase dashboard admin to remove the orphaned
+  /// auth user.
   Future<void> deleteUser(String userId) async {
+    _requireAdmin();
     try {
       await _client.auth.admin.deleteUser(userId);
     } catch (_) {
-      // Fallback: reject the profile (effectively disables the account).
-      // The auth.user row remains but can't log in (status = rejected).
+      // Fallback: reject the profile — the auth.user row persists but
+      // the account is disabled and cannot log in.
       await _client.from('profiles').update({'status': 'rejected'}).eq('id', userId);
-      throw Exception('User account disabled (contact Supabase admin to fully delete)');
+      throw Exception(
+        'Profile disabled. The auth account still exists in Supabase Auth — '
+        'a Supabase dashboard admin must delete the orphaned user manually.',
+      );
     }
   }
 
   // -- invites --
 
   Future<List<Invite>> allInvites() async {
+    _requireAdmin();
     final resp = await _client
         .from('invites')
         .select()
@@ -63,6 +92,7 @@ class ProfileService {
     String? email,
     DateTime? expiresAt,
   }) async {
+    _requireAdmin();
     final token = _generateToken();
     final json = {
       'token': token,
@@ -75,17 +105,13 @@ class ProfileService {
 
   /// Delete an invite.
   Future<void> deleteInvite(String inviteId) async {
+    _requireAdmin();
     await _client.from('invites').delete().eq('id', inviteId);
   }
 
   String _generateToken() {
     const chars = 'abcdefghjkmnpqrstuvwxyz23456789';
-    // Simple pseudo-random token — sufficient for ≤5 users.
-    final seed = DateTime.now().millisecondsSinceEpoch;
-    final r = <int>[];
-    for (var i = 0; i < 6; i++) {
-      r.add(((seed * (i + 1) * 31) ^ (seed >> (i + 2))) % chars.length);
-    }
-    return r.map((i) => chars[i]).join();
+    final r = Random.secure();
+    return List.generate(12, (_) => chars[r.nextInt(chars.length)]).join();
   }
 }
