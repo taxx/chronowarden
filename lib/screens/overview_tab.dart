@@ -496,7 +496,9 @@ Widget _weekCalendar(BuildContext context, Map<String, TimeLog> logByDate, {
   final visibleDays = showWeekends ? 7 : 5;
   // Available width minus the 16px padding on each side
   final availWidth = MediaQuery.of(context).size.width - 32;
-  final cellWidth = (availWidth - (visibleDays - 1) * 4) / visibleDays;
+  // Each _dayCell has EdgeInsets.symmetric(horizontal: 4) = 8px padding per cell
+  final cellPadding = 8.0;
+  final cellWidth = (availWidth - visibleDays * cellPadding) / visibleDays;
 
   return Column(
     crossAxisAlignment: CrossAxisAlignment.start,
@@ -632,7 +634,9 @@ Widget _monthCalendar(BuildContext context, Map<String, TimeLog> logByDate, {
 }) {
   final theme = Theme.of(context);
   final numDays = showWeekends ? 7 : 5;
-  final cellWidth = (MediaQuery.of(context).size.width - 32) / numDays;
+  // Account for 4px gap between cells for visual separation
+  final availWidth = MediaQuery.of(context).size.width - 32;
+  final cellWidth = (availWidth - (numDays - 1) * 4) / numDays;
   final firstDay = DateTime(refDate.year, refDate.month, 1);
   final lastDay = DateTime(refDate.year, refDate.month + 1, 0);
   // Monday = 0, Tuesday = 1, …, Sunday = 6
@@ -644,21 +648,31 @@ Widget _monthCalendar(BuildContext context, Map<String, TimeLog> logByDate, {
     children: [
       Text('Daily overview', style: theme.textTheme.titleMedium),
       const SizedBox(height: 8),
-      // Day-of-week header
+      // Day-of-week header with gaps matching grid rows
       Row(
-        children: (showWeekends ? ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] : ['Mon', 'Tue', 'Wed', 'Thu', 'Fri']).map((d) {
-          return SizedBox(
-            width: cellWidth,
-            child: Text(d, textAlign: TextAlign.center,
-              style: theme.textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w600)),
-          );
-        }).toList(),
+        children: _buildMonthHeader(showWeekends, cellWidth, theme),
       ),
       const SizedBox(height: 4),
       // Grid rows
       ..._buildMonthRows(context, cellWidth, logByDate, firstDay, startWeekday, daysInMonth, numDays, showWeekends, onDayTap, onEmptyPastDayTap),
     ],
   );
+}
+
+List<Widget> _buildMonthHeader(bool showWeekends, double cellWidth, ThemeData theme) {
+  final names = showWeekends
+      ? ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+      : ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
+  final children = <Widget>[];
+  for (int i = 0; i < names.length; i++) {
+    if (i > 0) children.add(const SizedBox(width: 4));
+    children.add(SizedBox(
+      width: cellWidth,
+      child: Text(names[i], textAlign: TextAlign.center,
+        style: theme.textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w600)),
+    ));
+  }
+  return children;
 }
 
 List<Widget> _buildMonthRows(BuildContext context, double cellWidth, Map<String, TimeLog> logByDate,
@@ -686,6 +700,8 @@ List<Widget> _buildMonthRows(BuildContext context, double cellWidth, Map<String,
   for (int r = 0; r < numRows; r++) {
     final rowChildren = <Widget>[];
     for (int col = 0; col < numDays; col++) {
+      // Add gap between cells (matching header spacing)
+      if (col > 0) rowChildren.add(const SizedBox(width: 4));
       // Find which day (if any) belongs at this position in the visible grid
       final visibleDayIdx = r * numDays + col;
       // Map visible index back to absolute day number
