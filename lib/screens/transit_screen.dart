@@ -7,8 +7,11 @@ import '../models/departure_info.dart';
 import '../models/transit_config.dart';
 import '../services/transit_service.dart';
 
-/// Transit tab — shows real-time Roslagsbanan departures heading
-/// toward the user's home/destination station.
+/// Transit tab — shows real-time Roslagsbanan departures.
+///
+/// Smart direction:
+///   Morning (before 11:00): departures from HOME → going toward WORK
+///   Afternoon (11:00+):     departures from WORK → going toward HOME
 ///
 /// Only fetches data when [TransitConfig.enabled] is true.
 /// Auto-refreshes every 30 seconds when visible.
@@ -27,6 +30,13 @@ class _TransitScreenState extends State<TransitScreen>
   bool _loading = true;
   Timer? _refreshTimer;
   bool _isVisible = true;
+  bool _isMorning = true;
+
+  /// Determines if current time is before 11:00 (morning commute).
+  static bool _timeIsMorning() {
+    final now = DateTime.now();
+    return now.hour < 11;
+  }
 
   @override
   void initState() {
@@ -56,6 +66,7 @@ class _TransitScreenState extends State<TransitScreen>
     _cfg = _transit.config;
 
     if (_cfg!.enabled) {
+      _isMorning = _timeIsMorning();
       await _refresh();
     }
 
@@ -65,22 +76,36 @@ class _TransitScreenState extends State<TransitScreen>
   Future<void> _refresh() async {
     if (_cfg == null || !_cfg!.enabled) return;
 
-    final departures = await _transit.fetchDepartures(_cfg!.departureSiteId);
+    _isMorning = _timeIsMorning();
+
+    // Determine which station to fetch from and which to filter for
+    // Morning:  home → work  (fetch from home station, filter for work)
+    // Afternoon: work → home (fetch from work station, filter for home)
+    final fetchSiteId = _isMorning
+        ? _cfg!.destinationSiteId
+        : _cfg!.departureSiteId;
+    final filterName = _isMorning
+        ? _cfg!.departureSiteName
+        : _cfg!.destinationSiteName;
+
+    // If no destination configured, fall back to departure station
+    if (!_cfg!.hasDestination) {
+      final departures = await _transit.fetchDepartures(_cfg!.departureSiteId);
+      if (departures == null) return;
+      final railRelevant = _transit.filterRailRelevant(departures);
+      if (mounted) setState(() => _departures = railRelevant);
+      return;
+    }
+
+    final departures = await _transit.fetchDepartures(fetchSiteId);
     if (departures == null) return;
 
     final railRelevant = _transit.filterRailRelevant(departures);
-
-    List<DepartureInfo> filtered;
-
-    if (_cfg!.hasDestination) {
-      filtered = _transit.filterByDestination(
-        railRelevant,
-        _cfg!.destinationSiteId,
-        _cfg!.destinationSiteName,
-      );
-    } else {
-      filtered = railRelevant;
-    }
+    final filtered = _transit.filterByDestination(
+      railRelevant,
+      null, // match by name, not ID
+      filterName,
+    );
 
     if (mounted) setState(() {
       _departures = filtered;
@@ -91,6 +116,7 @@ class _TransitScreenState extends State<TransitScreen>
     _refreshTimer?.cancel();
     _refreshTimer = Timer.periodic(const Duration(seconds: 30), (_) {
       if (_isVisible && _cfg?.enabled == true) {
+        _isMorning = _timeIsMorning();
         _refresh();
       }
     });
@@ -137,19 +163,31 @@ class _TransitScreenState extends State<TransitScreen>
       );
     }
 
+    final directionLabel = _isMorning
+        ? '${_cfg!.destinationSiteName} → ${_cfg!.departureSiteName}'
+        : '${_cfg!.departureSiteName} → ${_cfg!.destinationSiteName}';
+
     return RefreshIndicator(
       onRefresh: _refresh,
       child: ListView(
         padding: const EdgeInsets.all(16),
         children: [
           // -- Header --
-          _HeaderCard(cfg: _cfg!, theme: theme),
+          _HeaderCard(
+            cfg: _cfg!,
+            isMorning: _isMorning,
+            theme: theme,
+          ),
           const SizedBox(height: 16),
 
-          // -- Departures heading to destination --
+          // -- Departures in current direction --
           if (_departures != null && _departures!.isNotEmpty) ...[
-            Text('Traveling ${_cfg!.destinationSiteName}',
-                style: theme.textTheme.titleMedium),
+            Text(
+              _isMorning
+                  ? 'Traveling to ${_cfg!.departureSiteName}'
+                  : 'Traveling to ${_cfg!.destinationSiteName}',
+              style: theme.textTheme.titleMedium,
+            ),
             const SizedBox(height: 8),
             ..._departures!.map((d) => _DepartureCard(
                   departure: d,
@@ -201,12 +239,21 @@ class _TransitScreenState extends State<TransitScreen>
 
 class _HeaderCard extends StatelessWidget {
   final TransitConfig cfg;
+  final bool isMorning;
   final ThemeData theme;
 
-  const _HeaderCard({required this.cfg, required this.theme});
+  const _HeaderCard({
+    required this.cfg,
+    required this.isMorning,
+    required this.theme,
+  });
 
   @override
   Widget build(BuildContext context) {
+    final directionLabel = isMorning
+        ? '${cfg.destinationSiteName} → ${cfg.departureSiteName}'
+        : '${cfg.departureSiteName} → ${cfg.destinationSiteName}';
+
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -224,10 +271,7 @@ class _HeaderCard extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 8),
-            _statRow('From', cfg.departureSiteName),
-            _statRow('To', cfg.hasDestination
-                ? cfg.destinationSiteName
-                : 'All destinations'),
+            _statRow('Direction', directionLabel),
             _statRow('Walk to station', '${cfg.walkMinutesToStation} min'),
             _statRow('Walk from station', '${cfg.walkMinutesFromStation} min'),
           ],

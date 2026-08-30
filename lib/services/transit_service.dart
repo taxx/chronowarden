@@ -258,9 +258,9 @@ class TransitService {
     int? destinationSiteId,
     String destinationName,
   ) {
-    if (destinationSiteId == null || destinationSiteId <= 0) return departures;
+    if (destinationName.trim().isEmpty) return departures;
 
-    final lower = destinationName.toLowerCase();
+    final lower = destinationName.trim().toLowerCase();
     return departures.where((d) {
       // Match by destination name (contains)
       return d.destination.toLowerCase().contains(lower);
