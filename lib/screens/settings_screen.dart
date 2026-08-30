@@ -9,6 +9,10 @@ import '../services/crypto_service.dart';
 import '../services/notification_service.dart';
 import '../services/preferences_service.dart';
 import '../services/user_settings_service.dart';
+import '../services/transit_service.dart';
+import '../models/transit_config.dart';
+import '../models/station_info.dart';
+import '../widgets/station_picker.dart';
 import '../utils/csv_export.dart';
 import 'about_encryption_screen.dart';
 
@@ -63,6 +67,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
           onDelete: (p) => _confirmDeletePreset(context, p),
           onAdd: () => _showAddPresetDialog(context),
         ),
+        const SizedBox(height: 24),
+        _TransitConfigSection(),
         const SizedBox(height: 24),
         _NotificationSettings(),
         const SizedBox(height: 24),
@@ -819,6 +825,177 @@ class _WorkConfigSection extends StatelessWidget {
     final m = abs % 60;
     if (h == 0) return '$m min';
     return '${h}h ${m}m';
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Transit config section
+// ---------------------------------------------------------------------------
+
+class _TransitConfigSection extends StatefulWidget {
+  @override
+  State<_TransitConfigSection> createState() => _TransitConfigSectionState();
+}
+
+class _TransitConfigSectionState extends State<_TransitConfigSection> {
+  final _transit = TransitService();
+  TransitConfig? _cfg;
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    await _transit.loadConfig();
+    if (mounted) setState(() {
+      _cfg = _transit.config;
+      _loading = false;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    if (_loading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    final cfg = _cfg!;
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.train, color: theme.colorScheme.primary),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text('Transit Integration',
+                      style: theme.textTheme.titleLarge),
+                ),
+                Switch(
+                  value: cfg.enabled,
+                  onChanged: (value) => _update(cfg.copyWith(enabled: value)),
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Real-time Roslagsbanan departures from SL.',
+              style: theme.textTheme.bodySmall,
+            ),
+            if (cfg.enabled) ...[
+              const SizedBox(height: 16),
+              _StationField(
+                label: 'Departure station',
+                initialValue: cfg.departureSiteId > 0
+                    ? StationInfo(id: cfg.departureSiteId, name: cfg.departureSiteName)
+                    : null,
+                onSelected: (station) {
+                  if (station != null) {
+                    _update(cfg.copyWith(
+                      departureSiteId: station.id,
+                      departureSiteName: station.name,
+                    ));
+                  }
+                },
+              ),
+              const SizedBox(height: 12),
+              _StationField(
+                label: 'Destination station (home)',
+                initialValue: cfg.destinationSiteId > 0
+                    ? StationInfo(id: cfg.destinationSiteId, name: cfg.destinationSiteName)
+                    : null,
+                onSelected: (station) {
+                  if (station != null) {
+                    _update(cfg.copyWith(
+                      destinationSiteId: station.id,
+                      destinationSiteName: station.name,
+                    ));
+                  }
+                },
+              ),
+              const SizedBox(height: 16),
+              Text('Walk to station', style: theme.textTheme.titleSmall),
+              const SizedBox(height: 4),
+              Row(
+                children: [
+                  Expanded(
+                    child: Slider(
+                      value: cfg.walkMinutesToStation.toDouble(),
+                      min: 1,
+                      max: 30,
+                      divisions: 29,
+                      label: '${cfg.walkMinutesToStation} min',
+                      onChanged: (v) => _update(
+                        cfg.copyWith(walkMinutesToStation: v.round())),
+                    ),
+                  ),
+                  Text('${cfg.walkMinutesToStation} min',
+                      style: theme.textTheme.bodyMedium
+                          ?.copyWith(fontWeight: FontWeight.w600)),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Text('Walk from station', style: theme.textTheme.titleSmall),
+              const SizedBox(height: 4),
+              Row(
+                children: [
+                  Expanded(
+                    child: Slider(
+                      value: cfg.walkMinutesFromStation.toDouble(),
+                      min: 1,
+                      max: 30,
+                      divisions: 29,
+                      label: '${cfg.walkMinutesFromStation} min',
+                      onChanged: (v) => _update(
+                        cfg.copyWith(walkMinutesFromStation: v.round())),
+                    ),
+                  ),
+                  Text('${cfg.walkMinutesFromStation} min',
+                      style: theme.textTheme.bodyMedium
+                          ?.copyWith(fontWeight: FontWeight.w600)),
+                ],
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _update(TransitConfig updated) {
+    setState(() => _cfg = updated);
+    _transit.saveConfig(updated);
+  }
+}
+
+/// A station picker field used inside [_TransitConfigSection].
+class _StationField extends StatelessWidget {
+  final String label;
+  final StationInfo? initialValue;
+  final ValueChanged<StationInfo?> onSelected;
+
+  const _StationField({
+    required this.label,
+    this.initialValue,
+    required this.onSelected,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return StationPicker(
+      label: label,
+      hint: 'Type to search SL stations...',
+      initialValue: initialValue,
+      onSelected: onSelected,
+      onFetchSites: () => TransitService().fetchSites(),
+    );
   }
 }
 

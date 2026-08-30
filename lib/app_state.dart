@@ -10,6 +10,9 @@ import 'services/time_log_service.dart';
 import 'services/travel_preset_service.dart';
 import 'services/work_config_service.dart';
 import 'services/supabase_service.dart';
+import 'services/transit_service.dart';
+import 'models/departure_info.dart';
+import 'models/transit_config.dart';
 import 'utils/csv_import.dart';
 
 /// Central app state — singleton ChangeNotifier holding all data + actions.
@@ -26,6 +29,7 @@ class AppState extends ChangeNotifier {
   TimeLogService get logs => _logs ??= TimeLogService();
   WorkConfigService get config => _config ??= WorkConfigService();
   TravelPresetService get presets => _presets ??= TravelPresetService();
+  TransitService get transit => TransitService();
 
   // -- cached data ---------------------------------------------------
   TimeLog? _todayLog;
@@ -97,6 +101,20 @@ class AppState extends ChangeNotifier {
 
   /// Clear the last error after the UI has consumed it.
   void clearLastError() => _lastError = null;
+
+  /// Transit config (loaded lazily).
+  TransitConfig get transitConfig => transit.config;
+
+  /// Cached upcoming departures.
+  List<DepartureInfo>? get upcomingDepartures => transit.cachedDepartures;
+
+  /// Refresh transit data if enabled.
+  Future<void> refreshTransit() async {
+    final cfg = transit.config;
+    if (!cfg.enabled) return;
+    await transit.fetchDepartures(cfg.departureSiteId);
+    notifyListeners();
+  }
 
   /// Returns the expected work minutes for [date], derived from the
   /// work config (default vs reduced period by ISO week).
@@ -214,6 +232,7 @@ class AppState extends ChangeNotifier {
     _tablesReady = false;
     _lunchStartTime = null;
     _lunchEndTime = null;
+    transit.onLogout();
     notifyListeners();
   }
 

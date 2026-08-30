@@ -10,6 +10,7 @@ import 'my_day_tab.dart';
 import 'overview_tab.dart';
 import 'projection_screen.dart';
 import 'settings_screen.dart';
+import 'transit_screen.dart';
 
 /// Unified shell for all authenticated, approved users.
 /// Single Scaffold, single AppBar, single NavigationBar.
@@ -70,6 +71,10 @@ class _MainShellState extends State<MainShell> {
           const NavigationDestination(
             icon: Icon(Icons.history),
             label: 'History',
+          ),
+          const NavigationDestination(
+            icon: Icon(Icons.train),
+            label: 'Transit',
           ),
           if (isAdmin)
             const NavigationDestination(
@@ -144,6 +149,7 @@ class _MainShellState extends State<MainShell> {
                   const OverviewTab(),
                   const ProjectionScreen(),
                   const HistoryContent(),
+                  const TransitScreen(),
                   if (isAdmin) const AdminScreen(),
                 ],
               );
