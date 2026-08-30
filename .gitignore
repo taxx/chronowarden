@@ -2,6 +2,7 @@
 secrets.json
 .env
 .env.db
+.env.edge
 
 # Flutter build output
 /.dart_tool/

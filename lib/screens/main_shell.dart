@@ -4,6 +4,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 import '../app_state.dart';
 import '../services/auth_service.dart';
 import '../services/theme_service.dart';
+import '../services/transit_service.dart';
 import 'admin_screen.dart';
 import 'history_content.dart';
 import 'my_day_tab.dart';
@@ -55,6 +56,8 @@ class _MainShellState extends State<MainShell> {
       builder: (context, _) {
         final isAdmin = _auth.profile?.isAdmin ?? false;
 
+        final transitEnabled = TransitService().config.enabled;
+
         final destinations = <NavigationDestination>[
           const NavigationDestination(
             icon: Icon(Icons.home),
@@ -72,10 +75,11 @@ class _MainShellState extends State<MainShell> {
             icon: Icon(Icons.history),
             label: 'History',
           ),
-          const NavigationDestination(
-            icon: Icon(Icons.directions_train),
-            label: 'Transit',
-          ),
+          if (transitEnabled)
+            const NavigationDestination(
+              icon: Icon(Icons.directions_train),
+              label: 'Transit',
+            ),
           if (isAdmin)
             const NavigationDestination(
               icon: Icon(Icons.admin_panel_settings),
@@ -142,6 +146,7 @@ class _MainShellState extends State<MainShell> {
           body: ListenableBuilder(
             listenable: _state,
             builder: (context, _) {
+              final showTransit = TransitService().config.enabled;
               return IndexedStack(
                 index: _currentIndex,
                 children: [
@@ -149,7 +154,7 @@ class _MainShellState extends State<MainShell> {
                   const OverviewTab(),
                   const ProjectionScreen(),
                   const HistoryContent(),
-                  const TransitScreen(),
+                  if (showTransit) const TransitScreen(),
                   if (isAdmin) const AdminScreen(),
                 ],
               );

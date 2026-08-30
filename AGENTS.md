@@ -42,6 +42,20 @@ Always use `PGPASSWORD` environment variable rather than inlining the password:
 PGPASSWORD="$DB_PASSWORD" psql --dbname="$DB_CONNECTION_STRING" -c "SELECT ..."
 ```
 
+### Edge Function Access (AI Agent Tooling)
+For Supabase Edge Function deployment, credentials live in `.env.edge`:
+```
+.env.edge          — real credentials (gitignored)
+.env.edge.sample   — template without secrets
+```
+
+The AI agent reads `.env.edge` for `supabase functions deploy` commands.
+Always use `SUPABASE_ACCESS_TOKEN` environment variable rather than
+inlining the token:
+```bash
+SUPABASE_ACCESS_TOKEN="$SUPABASE_ACCESS_TOKEN" supabase functions deploy sl-proxy
+```
+
 ### Docker & Deployment
 The project includes a multi-stage Dockerfile + docker-compose.yaml for containerized deployment:
 - **Stage 1**: Flutter SDK builds the web release with secrets injected via `docker build --build-arg`. A temporary `secrets.json` is generated from the env vars, used for the build, then immediately deleted.
@@ -222,6 +236,96 @@ without requiring page reloads.
 |------|---------|
 | `lib/app_state.dart` | `_subscribeRealtime()`, `_onRealtimeEvent()`, `onSignOut()` |
 | `migration_enable_realtime.sql` | Enable Realtime for time_logs table |
+
+---
+
+## Real-Time Transit Integration (SL Roslagsbanan)
+
+ChronoWarden can show real-time Roslagsbanan departures from SL (Stockholm
+Public Transport), matching the calculated leave time against actual trains.
+
+### Architecture
+```
+Flutter Web
+  └─ supabase.functions.invoke('sl-proxy', { path: '/v1/sites/9600/departures' })
+       └─ Supabase Edge Function (Deno)
+            └─ fetch('https://transport.integration.sl.se/v1/sites/9600/departures')
+                 └─ Response + CORS headers back to Flutter
+```
+
+### Why a proxy?
+SL Transport API doesn't set CORS headers, so Flutter Web can't call it
+directly. The `sl-proxy` Edge Function adds proper CORS headers and
+forwards the response. All requests go through Supabase.
+
+### Smart direction logic
+The Transit tab automatically switches direction based on time of day:
+- **Morning (before 11:00)**: departures from HOME → WORK
+  (fetches from home station, filters for work)
+- **Afternoon (11:00+)**: departures from WORK → HOME
+  (fetches from work station, filters for home)
+
+### Station autocomplete
+Uses SL Site API (`/v1/sites`) to let users search stations by name.
+The full site list is fetched once and cached in memory for 24h.
+Client-side filtering — no network calls per keystroke.
+
+### Transit config storage
+Stored as encrypted JSON inside `user_settings.encrypted_data` under
+key `transit_config`. Zero-knowledge like all encrypted data.
+Fields:
+- `enabled` — toggle to show/hide Transit tab
+- `departure_site_id` / `departure_site_name` — work station
+- `destination_site_id` / `destination_site_name` — home station
+- `walk_minutes_to_station` / `walk_minutes_from_station` — walking buffers
+
+### Transit tab visibility
+The Transit navigation destination only appears in the bottom nav bar
+when `enabled` is true in settings. Disabled users never see it.
+
+### Key files
+| File | Purpose |
+|------|---------|
+| `lib/models/transit_config.dart` | TransitConfig model (encrypted settings) |
+| `lib/models/departure_info.dart` | SL departure API response model |
+| `lib/models/station_info.dart` | SL site API response model |
+| `lib/services/transit_service.dart` | Config CRUD + SL API fetcher + caching |
+| `lib/widgets/station_picker.dart` | Reusable autocomplete widget |
+| `lib/screens/transit_screen.dart` | Transit tab UI with smart direction |
+| `lib/screens/settings_screen.dart` | Transit config card (Work/Home pickers) |
+| `lib/screens/main_shell.dart` | Conditional Transit nav item |
+| `supabase/functions/sl-proxy/index.ts` | Edge Function: CORS proxy for SL API |
+
+### Edge Function credentials (`.env.edge`)
+Credentials for Supabase Edge Function deployment live in `.env.edge`
+(gitignored). Template at `.env.edge.sample`:
+```
+SUPABASE_ACCESS_TOKEN="sbp_..."
+SUPABASE_PROJECT_REF="cnzzzgqgmyhjwpzszucj"
+```
+
+The AI agent reads `.env.edge` for `supabase functions deploy` commands.
+Always use `SUPABASE_ACCESS_TOKEN` environment variable rather than
+inlining the token:
+
+### Deploying the Edge Function
+The Supabase Edge Function `sl-proxy` must be deployed separately from
+the Flutter app. It is NOT included in the Docker build.
+
+**First time setup** (already done):
+```bash
+ssh tobbe@192.168.1.50 "curl -fsSL 'https://github.com/supabase/cli/releases/latest/download/supabase_cli_linux_amd64.tar.gz' -o /tmp/supabase.tar.gz && tar -xzf /tmp/supabase.tar.gz -C /tmp && sudo mv /tmp/supabase /usr/local/bin/supabase && sudo chmod +x /usr/local/bin/supabase && rm -f /tmp/supabase.tar.gz"
+source .env.edge
+SUPABASE_ACCESS_TOKEN="$SUPABASE_ACCESS_TOKEN" supabase link --project-ref "$SUPABASE_PROJECT_REF"
+SUPABASE_ACCESS_TOKEN="$SUPABASE_ACCESS_TOKEN" supabase functions deploy sl-proxy
+```
+
+**Redeploy after changes** (when `supabase/functions/sl-proxy/index.ts` changes):
+```bash
+cd /path/to/chronowarden
+source .env.edge
+ssh tobbe@192.168.1.50 "cd /opt/appdata/chronowarden && SUPABASE_ACCESS_TOKEN='$SUPABASE_ACCESS_TOKEN' supabase functions deploy sl-proxy"
+```
 
 ---
 

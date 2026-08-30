@@ -127,6 +127,50 @@ Backup files are gitignored (`chronowarden_backup_*.tar`).
 
 ---
 
+## Real-Time Transit Integration (SL Roslagsbanan)
+
+ChronoWarden integrates with SL (Stockholm Public Transport) to show
+real-time Roslagsbanan departures. The feature is opt-in via Settings.
+
+### Smart direction
+- **Morning (before 11:00)**: shows departures from HOME → WORK
+- **Afternoon (11:00+)**: shows departures from WORK → HOME
+
+### Station autocomplete
+Users search stations by name. The SL site list is fetched once and
+cached in memory for 24h. No network calls per keystroke.
+
+### CORS proxy
+SL Transport API doesn't set CORS headers. A Supabase Edge Function
+(`sl-proxy`) adds proper CORS headers and forwards responses.
+All requests go through `supabase.functions.invoke()`.
+
+### Transit tab visibility
+The Transit nav item only appears when enabled in Settings.
+Disabled users never see it.
+
+### Edge Function credentials (`.env.edge`)
+Credentials live in `.env.edge` (gitignored). Template at `.env.edge.sample`.
+Contains the Supabase access token and project reference.
+
+### Edge Function deployment
+Located at `supabase/functions/sl-proxy/index.ts`.
+Must be deployed separately — NOT included in Docker build:
+```bash
+cd /path/to/chronowarden
+source .env.edge
+ssh tobbe@192.168.1.50 "cd /opt/appdata/chronowarden && SUPABASE_ACCESS_TOKEN='$SUPABASE_ACCESS_TOKEN' supabase functions deploy sl-proxy"
+```
+
+**First-time CLI install** (already done):
+```bash
+ssh tobbe@192.168.1.50 "curl -fsSL 'https://github.com/supabase/cli/releases/latest/download/supabase_cli_linux_amd64.tar.gz' -o /tmp/supabase.tar.gz && tar -xzf /tmp/supabase.tar.gz -C /tmp && sudo mv /tmp/supabase /usr/local/bin/supabase && sudo chmod +x /usr/local/bin/supabase && rm -f /tmp/supabase.tar.gz"
+source .env.edge
+SUPABASE_ACCESS_TOKEN="$SUPABASE_ACCESS_TOKEN" supabase link --project-ref "$SUPABASE_PROJECT_REF"
+```
+
+---
+
 ## Cross-Device Realtime Sync
 
 ChronoWarden uses Supabase Realtime to sync time log changes across devices
@@ -171,7 +215,9 @@ lib/
 ├── models/                  # Domain models
 │   ├── time_log.dart        # Workday log entry
 │   ├── travel_preset.dart   # Commute scenario preset
-│   ├── work_period_setting.dart  # Seasonal work period
+│   ├── transit_config.dart  # Transit integration preferences
+│   ├── departure_info.dart  # SL departure API response
+│   ├── station_info.dart    # SL site API response
 │   ├── user_profile.dart    # Auth user profile (role, status)
 │   └── invite.dart          # Invite token
 ├── services/                # Business logic & API layer
@@ -179,18 +225,37 @@ lib/
 │   ├── profile_service.dart # Admin user management
 │   ├── time_log_service.dart
 │   ├── travel_preset_service.dart
+│   ├── transit_service.dart # Transit config + SL API fetcher + caching
 │   ├── work_period_service.dart
+│   ├── crypto_service.dart  # Encryption / decryption
+│   ├── notification_service.dart
+│   ├── preferences_service.dart
+│   ├── user_settings_service.dart
 │   └── supabase_service.dart
 ├── screens/                 # UI screens
 │   ├── login_screen.dart
 │   ├── signup_screen.dart
 │   ├── pending_screen.dart
-│   ├── admin_shell.dart
 │   ├── admin_screen.dart
-│   ├── home_screen.dart
-│   ├── history_screen.dart
-│   ├── settings_screen.dart
-│   └── setup_screen.dart
+│   ├── main_shell.dart      # Bottom nav with conditional Transit tab
+│   ├── my_day_tab.dart
+│   ├── overview_tab.dart
+│   ├── history_content.dart
+│   ├── projection_screen.dart
+│   ├── transit_screen.dart  # Real-time departure list with smart direction
+│   ├── settings_screen.dart # Transit config card (Work/Home pickers)
+│   └── about_encryption_screen.dart
+├── widgets/                 # Reusable widgets
+│   └── station_picker.dart  # SL station autocomplete field
+├── utils/                   # Utilities
+│   ├── csv_export.dart
+│   ├── csv_import.dart
+│   ├── overtime_colors.dart
+│   └── paste_button.dart
 ├── app_state.dart           # Central ChangeNotifier
 └── main.dart                # Auth gate & app entry point
+supabase/
+└── functions/
+    └── sl-proxy/
+        └── index.ts         # Edge Function: CORS proxy for SL API
 ```

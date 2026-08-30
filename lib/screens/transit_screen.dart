@@ -27,6 +27,7 @@ class _TransitScreenState extends State<TransitScreen>
   final _transit = TransitService();
   List<DepartureInfo>? _departures;
   TransitConfig? _cfg;
+  DateTime? _lastUpdatedAt;
   bool _loading = true;
   Timer? _refreshTimer;
   bool _isVisible = true;
@@ -93,7 +94,10 @@ class _TransitScreenState extends State<TransitScreen>
       final departures = await _transit.fetchDepartures(_cfg!.departureSiteId);
       if (departures == null) return;
       final railRelevant = _transit.filterRailRelevant(departures);
-      if (mounted) setState(() => _departures = railRelevant);
+      if (mounted) setState(() {
+      _departures = railRelevant;
+      _lastUpdatedAt = DateTime.now();
+    });
       return;
     }
 
@@ -109,6 +113,7 @@ class _TransitScreenState extends State<TransitScreen>
 
     if (mounted) setState(() {
       _departures = filtered;
+      _lastUpdatedAt = DateTime.now();
     });
   }
 
@@ -125,6 +130,12 @@ class _TransitScreenState extends State<TransitScreen>
   void _stopAutoRefresh() {
     _refreshTimer?.cancel();
     _refreshTimer = null;
+  }
+
+  String _fmtTime(DateTime dt) {
+    final h = dt.hour.toString().padLeft(2, '0');
+    final m = dt.minute.toString().padLeft(2, '0');
+    return '$h:$m';
   }
 
   @override
@@ -218,7 +229,7 @@ class _TransitScreenState extends State<TransitScreen>
             ),
           ],
 
-          // -- Refresh button --
+          // -- Refresh button + last updated --
           const SizedBox(height: 16),
           Center(
             child: OutlinedButton.icon(
@@ -227,6 +238,18 @@ class _TransitScreenState extends State<TransitScreen>
               label: const Text('Refresh'),
             ),
           ),
+          if (_lastUpdatedAt != null) ...[
+            const SizedBox(height: 8),
+            Center(
+              child: Text(
+                'Updated ${_fmtTime(_lastUpdatedAt!)}',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                  fontStyle: FontStyle.italic,
+                ),
+              ),
+            ),
+          ],
         ],
       ),
     );
