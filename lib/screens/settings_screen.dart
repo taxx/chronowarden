@@ -892,7 +892,7 @@ class _TransitConfigSectionState extends State<_TransitConfigSection> {
             if (cfg.enabled) ...[
               const SizedBox(height: 16),
               _StationField(
-                label: 'Departure station',
+                label: 'Work (departure station)',
                 initialValue: cfg.departureSiteId > 0
                     ? StationInfo(id: cfg.departureSiteId, name: cfg.departureSiteName)
                     : null,
@@ -907,7 +907,7 @@ class _TransitConfigSectionState extends State<_TransitConfigSection> {
               ),
               const SizedBox(height: 12),
               _StationField(
-                label: 'Destination station (home)',
+                label: 'Home (destination station)',
                 initialValue: cfg.destinationSiteId > 0
                     ? StationInfo(id: cfg.destinationSiteId, name: cfg.destinationSiteName)
                     : null,

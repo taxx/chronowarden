@@ -7,7 +7,8 @@ import '../models/departure_info.dart';
 import '../models/transit_config.dart';
 import '../services/transit_service.dart';
 
-/// Transit tab — shows real-time Roslagsbanan departures.
+/// Transit tab — shows real-time Roslagsbanan departures heading
+/// toward the user's home/destination station.
 ///
 /// Only fetches data when [TransitConfig.enabled] is true.
 /// Auto-refreshes every 30 seconds when visible.
@@ -21,8 +22,7 @@ class TransitScreen extends StatefulWidget {
 class _TransitScreenState extends State<TransitScreen>
     with WidgetsBindingObserver {
   final _transit = TransitService();
-  List<DepartureInfo>? _matched;
-  List<DepartureInfo>? _other;
+  List<DepartureInfo>? _departures;
   TransitConfig? _cfg;
   bool _loading = true;
   Timer? _refreshTimer;
@@ -44,7 +44,6 @@ class _TransitScreenState extends State<TransitScreen>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    // Pause refresh when app is backgrounded
     if (state == AppLifecycleState.resumed) {
       _startAutoRefresh();
     } else {
@@ -71,26 +70,20 @@ class _TransitScreenState extends State<TransitScreen>
 
     final railRelevant = _transit.filterRailRelevant(departures);
 
-    List<DepartureInfo> matched;
-    List<DepartureInfo> other;
+    List<DepartureInfo> filtered;
 
     if (_cfg!.hasDestination) {
-      matched = _transit.filterByDestination(
+      filtered = _transit.filterByDestination(
         railRelevant,
         _cfg!.destinationSiteId,
         _cfg!.destinationSiteName,
       );
-      other = railRelevant
-          .where((d) => !matched.contains(d))
-          .toList();
     } else {
-      matched = railRelevant;
-      other = [];
+      filtered = railRelevant;
     }
 
     if (mounted) setState(() {
-      _matched = matched;
-      _other = other;
+      _departures = filtered;
     });
   }
 
@@ -113,7 +106,6 @@ class _TransitScreenState extends State<TransitScreen>
     return ListenableBuilder(
       listenable: AppState(),
       builder: (context, _) {
-        // Re-read config in case it changed in settings
         _cfg = _transit.config;
         return _buildContent(Theme.of(context));
       },
@@ -130,20 +122,16 @@ class _TransitScreenState extends State<TransitScreen>
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.train, size: 64,
+            Icon(Icons.directions_train, size: 64,
                 color: theme.colorScheme.onSurfaceVariant),
             const SizedBox(height: 16),
-            Text(
-              'Transit integration is disabled.',
-              style: theme.textTheme.titleMedium,
-            ),
+            Text('Transit integration is disabled.',
+                style: theme.textTheme.titleMedium),
             const SizedBox(height: 8),
-            Text(
-              'Enable it in Settings to see real-time departures.',
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
-            ),
+            Text('Enable it in Settings to see real-time departures.',
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                )),
           ],
         ),
       );
@@ -155,40 +143,22 @@ class _TransitScreenState extends State<TransitScreen>
         padding: const EdgeInsets.all(16),
         children: [
           // -- Header --
-          _HeaderCard(
-            cfg: _cfg!,
-            theme: theme,
-          ),
+          _HeaderCard(cfg: _cfg!, theme: theme),
           const SizedBox(height: 16),
 
-          // -- Matched departures (destination filtered) --
-          if (_matched != null && _matched!.isNotEmpty) ...[
-            Text('Departures to ${_cfg!.destinationSiteName}',
+          // -- Departures heading to destination --
+          if (_departures != null && _departures!.isNotEmpty) ...[
+            Text('Traveling ${_cfg!.destinationSiteName}',
                 style: theme.textTheme.titleMedium),
             const SizedBox(height: 8),
-            ..._matched!.map((d) => _DepartureCard(
+            ..._departures!.map((d) => _DepartureCard(
                   departure: d,
-                  isTarget: true,
-                  theme: theme,
-                )),
-            const SizedBox(height: 16),
-          ],
-
-          // -- Other departures --
-          if (_other != null && _other!.isNotEmpty) ...[
-            Text('Other departures',
-                style: theme.textTheme.titleMedium),
-            const SizedBox(height: 8),
-            ..._other!.map((d) => _DepartureCard(
-                  departure: d,
-                  isTarget: false,
                   theme: theme,
                 )),
           ],
 
           // -- Empty state --
-          if ((_matched == null || _matched!.isEmpty) &&
-              (_other == null || _other!.isEmpty)) ...[
+          if (_departures == null || _departures!.isEmpty) ...[
             const SizedBox(height: 32),
             Center(
               child: Column(
@@ -245,7 +215,7 @@ class _HeaderCard extends StatelessWidget {
           children: [
             Row(
               children: [
-                Icon(Icons.train, color: theme.colorScheme.primary),
+                Icon(Icons.directions_train, color: theme.colorScheme.primary),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text('Real-Time Departures',
@@ -290,12 +260,10 @@ class _HeaderCard extends StatelessWidget {
 
 class _DepartureCard extends StatelessWidget {
   final DepartureInfo departure;
-  final bool isTarget;
   final ThemeData theme;
 
   const _DepartureCard({
     required this.departure,
-    required this.isTarget,
     required this.theme,
   });
 
@@ -309,9 +277,6 @@ class _DepartureCard extends StatelessWidget {
 
     return Card(
       margin: const EdgeInsets.symmetric(vertical: 4),
-      color: isTarget
-          ? theme.colorScheme.primaryContainer.withValues(alpha: 0.3)
-          : null,
       child: Padding(
         padding: const EdgeInsets.all(12),
         child: Column(
@@ -319,26 +284,33 @@ class _DepartureCard extends StatelessWidget {
           children: [
             Row(
               children: [
-                if (isTarget)
-                  Padding(
-                    padding: const EdgeInsets.only(right: 8),
-                    child: Icon(Icons.brightness_high_outlined, size: 18,
-                        color: theme.colorScheme.primary),
-                  ),
                 Text(
                   scheduledStr,
-                  style: theme.textTheme.titleMedium?.copyWith(
+                  style: theme.textTheme.titleLarge?.copyWith(
                     fontFamily: 'monospace',
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    '→ ${departure.destination}',
-                    style: theme.textTheme.bodyMedium,
+                if (departure.lineNumber != null) ...<Widget>[
+                  const SizedBox(width: 10),
+                  // Line badge — prominently displayed
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.secondaryContainer,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      departure.lineNumber!,
+                      style: theme.textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: theme.colorScheme.onSecondaryContainer,
+                      ),
+                    ),
                   ),
-                ),
+                ],
+                const SizedBox(width: 8),
                 // Delay badge
                 Container(
                   padding:
@@ -361,6 +333,14 @@ class _DepartureCard extends StatelessWidget {
             const SizedBox(height: 6),
             Row(
               children: [
+                Expanded(
+                  child: Text(
+                    '→ ${departure.destination}',
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ),
                 if (departure.track != null)
                   Text(
                     'Platform ${departure.track}',
@@ -368,17 +348,6 @@ class _DepartureCard extends StatelessWidget {
                       color: theme.colorScheme.onSurfaceVariant,
                     ),
                   ),
-                if (departure.track != null && departure.lineNumber != null)
-                  Text(' · ', style: theme.textTheme.bodySmall),
-                if (departure.lineNumber != null)
-                  Text(
-                    'Line ${departure.lineNumber}',
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                if (departure.track == null && departure.lineNumber == null)
-                  SizedBox(width: 0),
               ],
             ),
           ],
