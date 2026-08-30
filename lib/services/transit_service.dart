@@ -1,7 +1,6 @@
 import 'dart:convert';
 
 import 'package:cryptography/cryptography.dart';
-import 'package:http/http.dart' as http;
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/departure_info.dart';
@@ -25,11 +24,17 @@ class TransitService {
   factory TransitService() => _instance;
 
   // -----------------------------------------------------------------
-  // SL API endpoints
+  // Supabase Edge Function proxy for SL API
   // -----------------------------------------------------------------
 
-  static const _sitesUrl = 'https://transport.api.sl.se/v1/sites';
-  static const _departuresUrl = 'https://transport.api.sl.se/v1/sites';
+  /// Invoke the sl-proxy Edge Function to avoid CORS issues.
+  /// [path] is the SL API path, e.g. "/v1/sites" or "/v1/sites/9600/departures".
+  Future<dynamic> _slProxy(String path) async {
+    final result = await _client.functions.invoke('sl-proxy', body: {
+      'path': path,
+    });
+    return result.data;
+  }
 
   // -----------------------------------------------------------------
   // In-memory cache
@@ -163,11 +168,10 @@ class TransitService {
     }
 
     try {
-      final response = await http.get(Uri.parse(_sitesUrl));
-      if (response.statusCode != 200) return null;
+      final data = await _slProxy('/v1/sites');
+      if (data is! List<dynamic>) return null;
 
-      final json = jsonDecode(response.body) as List<dynamic>;
-      final sites = json
+      final sites = data
           .map((e) => StationInfo.fromJson(e as Map<String, dynamic>))
           .where((s) => s.id > 0)
           .toList();
@@ -217,12 +221,10 @@ class TransitService {
     }
 
     try {
-      final url = '$_departuresUrl/$siteId/departures';
-      final response = await http.get(Uri.parse(url));
-      if (response.statusCode != 200) return null;
+      final data = await _slProxy('/v1/sites/$siteId/departures');
+      if (data is! Map<String, dynamic>) return null;
 
-      final json = jsonDecode(response.body) as Map<String, dynamic>;
-      final departuresRaw = json['departures'] as List<dynamic>?;
+      final departuresRaw = data['departures'] as List<dynamic>?;
       if (departuresRaw == null) return [];
 
       final now = DateTime.now();

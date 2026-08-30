@@ -73,7 +73,7 @@ class _MainShellState extends State<MainShell> {
             label: 'History',
           ),
           const NavigationDestination(
-            icon: Icon(Icons.train),
+            icon: Icon(Icons.directions_train),
             label: 'Transit',
           ),
           if (isAdmin)
