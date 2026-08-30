@@ -52,7 +52,7 @@ class _MainShellState extends State<MainShell> {
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
-      listenable: _auth,
+      listenable: Listenable.merge([_auth, _state]),
       builder: (context, _) {
         final isAdmin = _auth.profile?.isAdmin ?? false;
 

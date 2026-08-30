@@ -138,6 +138,7 @@ class AppState extends ChangeNotifier {
         _loadConfig(),
         _loadPresets(),
         _loadBalance(),
+        _loadTransitConfig(),
       ]);
       _tablesReady = true;
       _lastError = null;
@@ -241,6 +242,7 @@ class AppState extends ChangeNotifier {
   Future<void> _loadConfig() async => _workConfig = await config.get();
   Future<void> _loadPresets() async => _presetsList = await presets.all();
   Future<void> _loadBalance() async => _timeBankMinutes = await logs.totalOvertime();
+  Future<void> _loadTransitConfig() async => await transit.loadConfig();
 
   // -- work-config CRUD ----------------------------------------------
   Future<void> saveWorkConfig(WorkConfig c) async {
