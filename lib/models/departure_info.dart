@@ -39,21 +39,21 @@ class DepartureInfo {
   bool get isCancelled => state == 'CANCELLED';
 
   factory DepartureInfo.fromJson(Map<String, dynamic> json) {
-    final scheduledStr = json['scheduledDateTime'] as String? ??
-        json['scheduledTime'] as String?;
-    final expectedStr = json['expectedDateTime'] as String? ??
-        json['expectedTime'] as String?;
+    final scheduledStr = json['scheduled'] as String?;
+    final expectedStr = json['expected'] as String?;
+
+    // Parse nested line info
+    final line = json['line'] as Map<String, dynamic>?;
+    final stopPoint = json['stop_point'] as Map<String, dynamic>?;
 
     return DepartureInfo(
       destination: json['destination'] as String? ?? 'Unknown',
       scheduledTime: DateTime.parse(scheduledStr ?? ''),
       expectedTime: expectedStr != null ? DateTime.parse(expectedStr) : null,
-      state: json['state'] as String? ?? 'IN_TIME',
-      track: json['track'] as String? ??
-          json['platform'] as String?,
-      transportMode: json['transportMode'] as String? ?? 'TRAM',
-      lineNumber: json['lineNumber'] as String? ??
-          json['line'] as String?,
+      state: json['state'] as String? ?? 'EXPECTED',
+      track: stopPoint?['designation'] as String?,
+      transportMode: line?['transport_mode'] as String? ?? 'TRAM',
+      lineNumber: line?['designation'] as String?,
     );
   }
 
