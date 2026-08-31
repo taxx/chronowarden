@@ -199,21 +199,21 @@ class AppState extends ChangeNotifier {
     _rtChannel!.subscribe();
   }
 
-  /// Handle a Realtime event — re-fetch today's log if the changed row
-  /// matches today's date.
+  /// Handle a Realtime event — re-fetch affected data so all views
+  /// (My Day, Overview, History) update without a page reload.
   void _onRealtimeEvent(PostgresChangePayload payload) {
     final newRecord = payload.newRecord;
     if (newRecord.isEmpty) return;
 
     final newDate = newRecord['date'] as String?;
     final todayStr = _dateStr(DateTime.now());
-    if (newDate == todayStr) {
-      // Today's row changed — re-fetch todayLog
-      _loadToday().then((_) => notifyListeners());
-    }
 
-    // Always re-fetch balance since overtime might have changed
-    _loadBalance().then((_) => notifyListeners());
+    // Always re-fetch the full log list so Overview/History refresh
+    Future.wait([
+      if (newDate == todayStr) _loadToday(),
+      _loadAll(),
+      _loadBalance(),
+    ]).then((_) => notifyListeners());
   }
 
   /// Unsubscribe from Realtime and release the channel.
