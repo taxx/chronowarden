@@ -115,6 +115,12 @@ class TransitService {
     }
   }
 
+  /// Apply [TransitConfig] in memory immediately (no persistence).
+  /// Used when the UI needs the new config value right away.
+  void applyConfig(TransitConfig cfg) {
+    _config = cfg;
+  }
+
   /// Save [TransitConfig] to encrypted [user_settings].
   Future<void> saveConfig(TransitConfig cfg) async {
     final userId = _userId;

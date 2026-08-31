@@ -77,7 +77,11 @@ class _TransitScreenState extends State<TransitScreen>
   Future<void> _refresh() async {
     if (_cfg == null || !_cfg!.enabled) return;
 
-    _isMorning = _timeIsMorning();
+    // If the user has an active day (started but not stopped), they're
+    // at work — always show afternoon direction (work → home).
+    final hasActiveDay = AppState().todayLog?.endTime == null &&
+        AppState().todayLog != null;
+    _isMorning = hasActiveDay ? false : _timeIsMorning();
 
     // Determine which station to fetch from
     // Morning:  home → work  (fetch from home station)

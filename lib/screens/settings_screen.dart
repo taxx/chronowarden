@@ -1003,7 +1003,8 @@ class _TransitConfigSectionState extends State<_TransitConfigSection> {
 
   void _update(TransitConfig updated) {
     setState(() => _cfg = updated);
-    _transit.saveConfig(updated);
+    _transit.applyConfig(updated);         // sync — config available immediately
+    _transit.saveConfig(updated);          // async — persist to Supabase
     AppState().notifyListeners();
   }
 }
