@@ -272,6 +272,17 @@ class TransitService {
     return departures.where((d) => d.isRailRelevant).toList();
   }
 
+  /// Filter departures by direction code.
+  /// - 1: toward Stockholms östra (city direction)
+  /// - 2: toward suburbs (Österskär, Kårsta, etc.)
+  List<DepartureInfo> filterByDirection(
+    List<DepartureInfo> departures,
+    int directionCode,
+  ) {
+    return departures.where((d) =>
+        d.directionCode == directionCode).toList();
+  }
+
   /// Filter departures by line number (e.g., "28", "28S", "27").
   /// Matches if the departure's line designation starts with any of
   /// the given filter values. This works because the API shows the

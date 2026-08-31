@@ -10,6 +10,7 @@ class DepartureInfo {
   final String? track;
   final String transportMode;
   final String? lineNumber;
+  final int? directionCode; // 1=toward city (SÖ), 2=toward suburbs
 
   const DepartureInfo({
     required this.destination,
@@ -19,6 +20,7 @@ class DepartureInfo {
     this.track,
     required this.transportMode,
     this.lineNumber,
+    this.directionCode,
   });
 
   /// Human-readable delay label.
@@ -54,6 +56,7 @@ class DepartureInfo {
       track: stopPoint?['designation'] as String?,
       transportMode: line?['transport_mode'] as String? ?? 'TRAM',
       lineNumber: line?['designation'] as String?,
+      directionCode: json['direction_code'] as int?,
     );
   }
 

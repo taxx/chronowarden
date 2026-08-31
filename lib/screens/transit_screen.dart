@@ -114,6 +114,13 @@ class _TransitScreenState extends State<TransitScreen>
       filtered = railRelevant;
     }
 
+    // Filter by direction:
+    //   Morning (home→work):  direction_code=1 (toward city / Stockholms östra)
+    //   Afternoon (work→home): direction_code=2 (toward suburbs / Österskär)
+    // This removes trains going the wrong way at intermediate stations.
+    final directionCode = _isMorning ? 1 : 2;
+    filtered = _transit.filterByDirection(filtered, directionCode);
+
     if (mounted) setState(() {
       _departures = filtered;
       _lastUpdatedAt = DateTime.now();
