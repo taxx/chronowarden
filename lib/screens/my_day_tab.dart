@@ -147,15 +147,21 @@ class _MyDayTabState extends State<MyDayTab> with SingleTickerProviderStateMixin
         ? _transitCfg!.homeSiteId
         : _transitCfg!.workSiteId;
 
-    // Fetch transit data if cache is stale or missing
+    // Fetch transit data if cache is stale, missing, or for wrong station
     _transitDeps = _transit.cachedDepartures;
     if (_transitDeps == null) {
-      // Trigger an async fetch — data will show on next ticker tick
       _transit.fetchDepartures(fetchSiteId).then((_) {
         if (mounted) setState(() {});
       });
       _transitCardShown = false;
       return const SizedBox.shrink();
+    }
+
+    // Refresh if cache is stale (> 30s) or for a different station
+    if (_transit.shouldRefresh(fetchSiteId)) {
+      _transit.fetchDepartures(fetchSiteId).then((_) {
+        if (mounted) setState(() {});
+      });
     }
 
     // Filter to relevant departures for this direction
@@ -213,6 +219,18 @@ class _MyDayTabState extends State<MyDayTab> with SingleTickerProviderStateMixin
                   walkFromArrival: walkFromArrival,
                   theme: theme,
                 )),
+            const SizedBox(height: 8),
+            Center(
+              child: Text(
+                'Departure data provided by Trafiklab.se (CC-BY 4.0)',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                  fontStyle: FontStyle.italic,
+                  fontSize: 10,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ),
           ],
         ),
       ),

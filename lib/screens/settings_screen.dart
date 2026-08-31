@@ -972,6 +972,18 @@ class _TransitConfigSectionState extends State<_TransitConfigSection> {
                           ?.copyWith(fontWeight: FontWeight.w600)),
                 ],
               ),
+              const SizedBox(height: 16),
+              Center(
+                child: Text(
+                  'Departure data provided by Trafiklab.se (CC-BY 4.0)',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                    fontStyle: FontStyle.italic,
+                    fontSize: 10,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ),
               const SizedBox(height: 8),
               Text('Walk station↔work', style: theme.textTheme.titleSmall),
               const SizedBox(height: 4),

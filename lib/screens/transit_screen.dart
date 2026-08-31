@@ -261,6 +261,19 @@ class _TransitScreenState extends State<TransitScreen>
               label: const Text('Refresh'),
             ),
           ),
+          // -- Attribution --
+          const SizedBox(height: 24),
+          Center(
+            child: Text(
+              'Departure data provided by Trafiklab.se (CC-BY 4.0)',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+                fontStyle: FontStyle.italic,
+                fontSize: 10,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ),
           if (_lastUpdatedAt != null) ...[
             const SizedBox(height: 8),
             Center(

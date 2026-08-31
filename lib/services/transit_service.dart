@@ -48,6 +48,15 @@ class TransitService {
   /// Public read-only access to cached departures.
   List<DepartureInfo>? get cachedDepartures => _cachedDepartures;
 
+  /// Whether the cache needs refreshing (stale > 30s or wrong station).
+  bool shouldRefresh(int siteId) {
+    if (_cachedDepartures == null) return true;
+    if (_lastDepartureSiteId != siteId) return true;
+    if (_departuresFetchedAt == null) return true;
+    return DateTime.now().difference(_departuresFetchedAt!).abs()
+        > _departuresCacheTtl;
+  }
+
   DateTime? _departuresFetchedAt;
   int? _lastDepartureSiteId;
 
