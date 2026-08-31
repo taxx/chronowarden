@@ -223,6 +223,8 @@ class _TransitScreenState extends State<TransitScreen>
             const SizedBox(height: 8),
             ..._departures!.map((d) => _DepartureCard(
                   departure: d,
+                  cfg: _cfg!,
+                  isMorning: _isMorning,
                   theme: theme,
                 )),
           ],
@@ -300,10 +302,14 @@ class _TransitScreenState extends State<TransitScreen>
 
 class _DepartureCard extends StatelessWidget {
   final DepartureInfo departure;
+  final TransitConfig cfg;
+  final bool isMorning;
   final ThemeData theme;
 
   const _DepartureCard({
     required this.departure,
+    required this.cfg,
+    required this.isMorning,
     required this.theme,
   });
 
@@ -388,6 +394,13 @@ class _DepartureCard extends StatelessWidget {
                   ),
               ],
             ),
+            const SizedBox(height: 6),
+            _LeaveTimeInfo(
+              departure: departure,
+              cfg: cfg,
+              isMorning: isMorning,
+              theme: theme,
+            ),
           ],
         ),
       ),
@@ -401,5 +414,57 @@ class _DepartureCard extends StatelessWidget {
     if (diff <= 0) return Colors.green;
     if (diff <= 5) return Colors.orange.shade700;
     return Colors.red;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Leave time info row (used in TransitScreen departure cards)
+// ---------------------------------------------------------------------------
+
+class _LeaveTimeInfo extends StatelessWidget {
+  final DepartureInfo departure;
+  final TransitConfig cfg;
+  final bool isMorning;
+  final ThemeData theme;
+
+  const _LeaveTimeInfo({
+    required this.departure,
+    required this.cfg,
+    required this.isMorning,
+    required this.theme,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final now = DateTime.now();
+    final depTime = departure.scheduledTime;
+    final walkBuffer = isMorning
+        ? cfg.walkHomeMinutes
+        : cfg.walkWorkMinutes;
+    final walkAfter = isMorning
+        ? cfg.walkWorkMinutes
+        : cfg.walkHomeMinutes;
+    final leaveTime = depTime.subtract(Duration(minutes: walkBuffer));
+    final isCatchable = leaveTime.isAfter(now) ||
+        leaveTime.difference(now).inMinutes.abs() <= 1;
+    final waitingMinutes = now.isBefore(leaveTime)
+        ? leaveTime.difference(now).inMinutes
+        : (now.isBefore(depTime) ? depTime.difference(now).inMinutes : 0);
+
+    final leaveStr =
+        '${leaveTime.hour.toString().padLeft(2, '0')}:'
+        '${leaveTime.minute.toString().padLeft(2, '0')}';
+
+    return Text(
+      isCatchable
+          ? 'Leave at $leaveStr · $waitingMinutes min wait'
+          : 'Missed — needed to leave by $leaveStr',
+      style: theme.textTheme.bodySmall?.copyWith(
+        color: isCatchable
+            ? theme.colorScheme.onSurfaceVariant
+            : theme.colorScheme.error,
+        fontStyle: isCatchable ? null : FontStyle.italic,
+      ),
+    );
   }
 }

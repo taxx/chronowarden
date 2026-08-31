@@ -146,15 +146,14 @@ class _MyDayTabState extends State<MyDayTab> with SingleTickerProviderStateMixin
     final fetchSiteId = isMorning
         ? _transitCfg!.homeSiteId
         : _transitCfg!.workSiteId;
-    final destName = isMorning
-        ? _transitCfg!.workSiteName
-        : _transitCfg!.homeSiteName;
 
-    // Try cached departures first, fetch if stale
+    // Fetch transit data if cache is stale or missing
     _transitDeps = _transit.cachedDepartures;
-
-    // We'll show the data even if slightly stale — the ticker refreshes it
-    if (_transitDeps == null || _transitDeps!.isEmpty) {
+    if (_transitDeps == null) {
+      // Trigger an async fetch — data will show on next ticker tick
+      _transit.fetchDepartures(fetchSiteId).then((_) {
+        if (mounted) setState(() {});
+      });
       _transitCardShown = false;
       return const SizedBox.shrink();
     }
