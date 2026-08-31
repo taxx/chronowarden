@@ -900,30 +900,30 @@ class _TransitConfigSectionState extends State<_TransitConfigSection> {
             if (cfg.enabled) ...[
               const SizedBox(height: 16),
               _StationField(
-                label: 'Work (departure station)',
-                initialValue: cfg.departureSiteId > 0
-                    ? StationInfo(id: cfg.departureSiteId, name: cfg.departureSiteName)
+                label: 'Work station',
+                initialValue: cfg.workSiteId > 0
+                    ? StationInfo(id: cfg.workSiteId, name: cfg.workSiteName)
                     : null,
                 onSelected: (station) {
                   if (station != null) {
                     _update(cfg.copyWith(
-                      departureSiteId: station.id,
-                      departureSiteName: station.name,
+                      workSiteId: station.id,
+                      workSiteName: station.name,
                     ));
                   }
                 },
               ),
               const SizedBox(height: 12),
               _StationField(
-                label: 'Home (destination station)',
-                initialValue: cfg.destinationSiteId > 0
-                    ? StationInfo(id: cfg.destinationSiteId, name: cfg.destinationSiteName)
+                label: 'Home station',
+                initialValue: cfg.homeSiteId > 0
+                    ? StationInfo(id: cfg.homeSiteId, name: cfg.homeSiteName)
                     : null,
                 onSelected: (station) {
                   if (station != null) {
                     _update(cfg.copyWith(
-                      destinationSiteId: station.id,
-                      destinationSiteName: station.name,
+                      homeSiteId: station.id,
+                      homeSiteName: station.name,
                     ));
                   }
                 },
@@ -944,7 +944,6 @@ class _TransitConfigSectionState extends State<_TransitConfigSection> {
                   hintText: '28, 28S, 27, 29',
                 ),
                 onChanged: (v) {
-                  // Parse comma-separated values
                   final lines = v.split(',')
                       .map((l) => l.trim())
                       .where((l) => l.isNotEmpty)
@@ -953,43 +952,43 @@ class _TransitConfigSectionState extends State<_TransitConfigSection> {
                 },
               ),
               const SizedBox(height: 16),
-              Text('Walk to station', style: theme.textTheme.titleSmall),
+              Text('Walk home↔station', style: theme.textTheme.titleSmall),
               const SizedBox(height: 4),
               Row(
                 children: [
                   Expanded(
                     child: Slider(
-                      value: cfg.walkMinutesToStation.toDouble(),
+                      value: cfg.walkHomeMinutes.toDouble(),
                       min: 1,
                       max: 30,
                       divisions: 29,
-                      label: '${cfg.walkMinutesToStation} min',
+                      label: '${cfg.walkHomeMinutes} min',
                       onChanged: (v) => _update(
-                        cfg.copyWith(walkMinutesToStation: v.round())),
+                        cfg.copyWith(walkHomeMinutes: v.round())),
                     ),
                   ),
-                  Text('${cfg.walkMinutesToStation} min',
+                  Text('${cfg.walkHomeMinutes} min',
                       style: theme.textTheme.bodyMedium
                           ?.copyWith(fontWeight: FontWeight.w600)),
                 ],
               ),
               const SizedBox(height: 8),
-              Text('Walk from station', style: theme.textTheme.titleSmall),
+              Text('Walk station↔work', style: theme.textTheme.titleSmall),
               const SizedBox(height: 4),
               Row(
                 children: [
                   Expanded(
                     child: Slider(
-                      value: cfg.walkMinutesFromStation.toDouble(),
+                      value: cfg.walkWorkMinutes.toDouble(),
                       min: 1,
                       max: 30,
                       divisions: 29,
-                      label: '${cfg.walkMinutesFromStation} min',
+                      label: '${cfg.walkWorkMinutes} min',
                       onChanged: (v) => _update(
-                        cfg.copyWith(walkMinutesFromStation: v.round())),
+                        cfg.copyWith(walkWorkMinutes: v.round())),
                     ),
                   ),
-                  Text('${cfg.walkMinutesFromStation} min',
+                  Text('${cfg.walkWorkMinutes} min',
                       style: theme.textTheme.bodyMedium
                           ?.copyWith(fontWeight: FontWeight.w600)),
                 ],

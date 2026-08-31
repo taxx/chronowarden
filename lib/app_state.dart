@@ -112,7 +112,7 @@ class AppState extends ChangeNotifier {
   Future<void> refreshTransit() async {
     final cfg = transit.config;
     if (!cfg.enabled) return;
-    await transit.fetchDepartures(cfg.departureSiteId);
+    await transit.fetchDepartures(cfg.workSiteId);
     notifyListeners();
   }
 

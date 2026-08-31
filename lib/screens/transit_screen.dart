@@ -10,8 +10,8 @@ import '../services/transit_service.dart';
 /// Transit tab — shows real-time Roslagsbanan departures.
 ///
 /// Smart direction:
-///   Morning (before 11:00): departures from HOME → going toward WORK
-///   Afternoon (11:00+):     departures from WORK → going toward HOME
+///   No active day + before 11:00: home → work (morning commute)
+///   Active day or 11:00+:         work → home (afternoon commute)
 ///
 /// Only fetches data when [TransitConfig.enabled] is true.
 /// Auto-refreshes every 30 seconds when visible.
@@ -33,7 +33,6 @@ class _TransitScreenState extends State<TransitScreen>
   bool _isVisible = true;
   bool _isMorning = true;
 
-  /// Determines if current time is before 11:00 (morning commute).
   static bool _timeIsMorning() {
     final now = DateTime.now();
     return now.hour < 11;
@@ -77,53 +76,33 @@ class _TransitScreenState extends State<TransitScreen>
   Future<void> _refresh() async {
     if (_cfg == null || !_cfg!.enabled) return;
 
-    // If the user has an active day (started but not stopped), they're
-    // at work — always show afternoon direction (work → home).
+    // Active day → always afternoon (work → home).
+    // Otherwise use time of day.
     final hasActiveDay = AppState().todayLog?.endTime == null &&
         AppState().todayLog != null;
     _isMorning = hasActiveDay ? false : _timeIsMorning();
 
-    // Determine which station to fetch from
-    // Morning:  home → work  (fetch from home station)
-    // Afternoon: work → home (fetch from work station)
-    final fetchSiteId = _isMorning
-        ? _cfg!.destinationSiteId
-        : _cfg!.departureSiteId;
+    // Morning:  fetch from home station → filter for work
+    // Afternoon: fetch from work station → filter for home
+    final fetchSiteId = _isMorning ? _cfg!.homeSiteId : _cfg!.workSiteId;
+    final filterName = _isMorning ? _cfg!.workSiteName : _cfg!.homeSiteName;
 
     final departures = await _transit.fetchDepartures(fetchSiteId);
     if (departures == null) return;
 
     final railRelevant = _transit.filterRailRelevant(departures);
 
-    // Filter by line number (e.g., "28", "28S") if configured
-    // Line-based filtering works because the API shows the end
-    // station as destination, not the intermediate station
     List<DepartureInfo> filtered;
     if (_cfg!.hasLineFilter) {
-      filtered = _transit.filterByLineNumber(
-        railRelevant,
-        _cfg!.lineFilter,
-      );
-    } else if (_cfg!.hasDestination) {
-      // Fall back to destination-name filtering
-      final filterName = _isMorning
-          ? _cfg!.departureSiteName
-          : _cfg!.destinationSiteName;
-      filtered = _transit.filterByDestination(
-        railRelevant,
-        null,
-        filterName,
-      );
+      filtered = _transit.filterByLineNumber(railRelevant, _cfg!.lineFilter);
+    } else if (_cfg!.hasHome) {
+      filtered = _transit.filterByDestination(railRelevant, null, filterName);
     } else {
       filtered = railRelevant;
     }
 
-    // Filter by direction:
-    //   Morning (home→work):  direction_code=1 (toward city / Stockholms östra)
-    //   Afternoon (work→home): direction_code=2 (toward suburbs / Österskär)
-    // This removes trains going the wrong way at intermediate stations.
-    final directionCode = _isMorning ? 1 : 2;
-    filtered = _transit.filterByDirection(filtered, directionCode);
+    // Direction: morning=1 (toward city), afternoon=2 (toward suburbs)
+    filtered = _transit.filterByDirection(filtered, _isMorning ? 1 : 2);
 
     if (mounted) setState(() {
       _departures = filtered;
@@ -189,8 +168,11 @@ class _TransitScreenState extends State<TransitScreen>
     }
 
     final directionLabel = _isMorning
-        ? '${_cfg!.destinationSiteName} → ${_cfg!.departureSiteName}'
-        : '${_cfg!.departureSiteName} → ${_cfg!.destinationSiteName}';
+        ? '${_cfg!.homeSiteName} → ${_cfg!.workSiteName}'
+        : '${_cfg!.workSiteName} → ${_cfg!.homeSiteName}';
+
+    final fromLabel = _isMorning ? _cfg!.homeSiteName : _cfg!.workSiteName;
+    final toLabel = _isMorning ? _cfg!.workSiteName : _cfg!.homeSiteName;
 
     return RefreshIndicator(
       onRefresh: _refresh,
@@ -198,19 +180,44 @@ class _TransitScreenState extends State<TransitScreen>
         padding: const EdgeInsets.all(16),
         children: [
           // -- Header --
-          _HeaderCard(
-            cfg: _cfg!,
-            isMorning: _isMorning,
-            theme: theme,
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(Icons.directions_train,
+                          color: theme.colorScheme.primary),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text('Real-Time Departures',
+                            style: theme.textTheme.titleMedium),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  _statRow(theme, 'Direction', directionLabel),
+                  _statRow(theme, 'Lines', _cfg!.hasLineFilter
+                      ? _cfg!.lineFilter.join(', ')
+                      : 'All'),
+                  _statRow(theme, 'Walk home↔station',
+                      '${_cfg!.walkHomeMinutes} min'),
+                  _statRow(theme, 'Walk station↔work',
+                      '${_cfg!.walkWorkMinutes} min'),
+                ],
+              ),
+            ),
           ),
           const SizedBox(height: 16),
 
-          // -- Departures in current direction --
+          // -- Departures --
           if (_departures != null && _departures!.isNotEmpty) ...[
             Text(
               _isMorning
-                  ? 'Traveling to ${_cfg!.departureSiteName}'
-                  : 'Traveling to ${_cfg!.destinationSiteName}',
+                  ? 'Traveling to ${_cfg!.workSiteName}'
+                  : 'Traveling to ${_cfg!.homeSiteName}',
               style: theme.textTheme.titleMedium,
             ),
             const SizedBox(height: 8),
@@ -243,7 +250,7 @@ class _TransitScreenState extends State<TransitScreen>
             ),
           ],
 
-          // -- Refresh button + last updated --
+          // -- Refresh + timestamp --
           const SizedBox(height: 16),
           Center(
             child: OutlinedButton.icon(
@@ -268,59 +275,8 @@ class _TransitScreenState extends State<TransitScreen>
       ),
     );
   }
-}
 
-// ---------------------------------------------------------------------------
-// Header card
-// ---------------------------------------------------------------------------
-
-class _HeaderCard extends StatelessWidget {
-  final TransitConfig cfg;
-  final bool isMorning;
-  final ThemeData theme;
-
-  const _HeaderCard({
-    required this.cfg,
-    required this.isMorning,
-    required this.theme,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final directionLabel = isMorning
-        ? '${cfg.destinationSiteName} → ${cfg.departureSiteName}'
-        : '${cfg.departureSiteName} → ${cfg.destinationSiteName}';
-
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(Icons.directions_train, color: theme.colorScheme.primary),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text('Real-Time Departures',
-                      style: theme.textTheme.titleMedium),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            _statRow('Direction', directionLabel),
-            _statRow('Lines', cfg.hasLineFilter
-                ? cfg.lineFilter.join(', ')
-                : 'All'),
-            _statRow('Walk to station', '${cfg.walkMinutesToStation} min'),
-            _statRow('Walk from station', '${cfg.walkMinutesFromStation} min'),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _statRow(String label, String value) {
+  Widget _statRow(ThemeData theme, String label, String value) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 2),
       child: Row(
@@ -377,7 +333,6 @@ class _DepartureCard extends StatelessWidget {
                 ),
                 if (departure.lineNumber != null) ...<Widget>[
                   const SizedBox(width: 10),
-                  // Line badge — prominently displayed
                   Container(
                     padding: const EdgeInsets.symmetric(
                         horizontal: 10, vertical: 4),
@@ -395,7 +350,6 @@ class _DepartureCard extends StatelessWidget {
                   ),
                 ],
                 const SizedBox(width: 8),
-                // Delay badge
                 Container(
                   padding:
                       const EdgeInsets.symmetric(horizontal: 8, vertical: 3),

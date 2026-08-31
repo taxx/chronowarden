@@ -4,8 +4,11 @@ import 'package:flutter/material.dart';
 
 import '../app_state.dart';
 import '../models/time_log.dart';
+import '../models/departure_info.dart';
+import '../models/transit_config.dart';
 import '../services/notification_service.dart';
 import '../services/preferences_service.dart';
+import '../services/transit_service.dart';
 import '../services/user_settings_service.dart';
 
 int _sliderDivisions(double min, double max) {
@@ -34,6 +37,10 @@ class _MyDayTabState extends State<MyDayTab> with SingleTickerProviderStateMixin
   late Timer _ticker;
   final _state = AppState();
   final _notifications = NotificationService();
+  final _transit = TransitService();
+  List<DepartureInfo>? _transitDeps;
+  TransitConfig? _transitCfg;
+  bool _transitCardShown = false;
   String? _alertMessage;
 
   @override
@@ -71,6 +78,8 @@ class _MyDayTabState extends State<MyDayTab> with SingleTickerProviderStateMixin
               }),
             _buildBalanceCard(theme),
             const SizedBox(height: 24),
+            _buildTransitCard(theme),
+            if (_transitCardShown) const SizedBox(height: 24),
             _buildTodayCard(theme),
           ],
         ),
@@ -118,6 +127,97 @@ class _MyDayTabState extends State<MyDayTab> with SingleTickerProviderStateMixin
       _alertMessage = msg;
       _notifications.markNotified(dateStr);
     }
+  }
+
+  Widget _buildTransitCard(ThemeData theme) {
+    _transitCfg = _transit.config;
+
+    if (!_transitCfg!.enabled || !_transitCfg!.hasHome) {
+      _transitCardShown = false;
+      return const SizedBox.shrink();
+    }
+
+    // Determine direction: active day → afternoon, otherwise time-based
+    final hasActiveDay = _state.todayLog?.endTime == null &&
+        _state.todayLog != null;
+    final isMorning = hasActiveDay ? false : DateTime.now().hour < 11;
+
+    // Fetch site ID based on direction
+    final fetchSiteId = isMorning
+        ? _transitCfg!.homeSiteId
+        : _transitCfg!.workSiteId;
+    final destName = isMorning
+        ? _transitCfg!.workSiteName
+        : _transitCfg!.homeSiteName;
+
+    // Try cached departures first, fetch if stale
+    _transitDeps = _transit.cachedDepartures;
+
+    // We'll show the data even if slightly stale — the ticker refreshes it
+    if (_transitDeps == null || _transitDeps!.isEmpty) {
+      _transitCardShown = false;
+      return const SizedBox.shrink();
+    }
+
+    // Filter to relevant departures for this direction
+    final now = DateTime.now();
+    final relevant = _transitDeps!
+        .where((d) => d.isRailRelevant)
+        .where((d) => _transitCfg!.hasLineFilter
+            ? _transit.filterByLineNumber([d], _transitCfg!.lineFilter).isNotEmpty
+            : true)
+        .where((d) => d.directionCode == (isMorning ? 1 : 2))
+        .where((d) =>
+            d.scheduledTime.isAfter(now.subtract(const Duration(minutes: 5))))
+        .take(4)
+        .toList();
+
+    if (relevant.isEmpty) {
+      _transitCardShown = false;
+      return const SizedBox.shrink();
+    }
+
+    _transitCardShown = true;
+
+    final walkBuffer = isMorning
+        ? _transitCfg!.walkHomeMinutes
+        : _transitCfg!.walkWorkMinutes;
+    final walkFromArrival = isMorning
+        ? _transitCfg!.walkWorkMinutes
+        : _transitCfg!.walkHomeMinutes;
+    final directionLabel = isMorning
+        ? '${_transitCfg!.homeSiteName} → ${_transitCfg!.workSiteName}'
+        : '${_transitCfg!.workSiteName} → ${_transitCfg!.homeSiteName}';
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.directions_train,
+                    color: theme.colorScheme.primary),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text('Transit — $directionLabel',
+                      style: theme.textTheme.titleSmall),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            ...relevant.map((d) => _TransitDepartureRow(
+                  departure: d,
+                  now: now,
+                  walkBuffer: walkBuffer,
+                  walkFromArrival: walkFromArrival,
+                  theme: theme,
+                )),
+          ],
+        ),
+      ),
+    );
   }
 
   Widget _buildBalanceCard(ThemeData theme) {
@@ -1234,6 +1334,117 @@ class _EditDayDialogState extends State<_EditDayDialog> {
           Text('Morning: $_morningOverhead min walk, $_morningProductive min train work', style: theme.textTheme.bodySmall),
           Text('Evening: $_eveningOverhead min walk, $_eveningProductive min train work', style: theme.textTheme.bodySmall),
           Text('Total: $totalCommute min commute', style: theme.textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w600)),
+        ],
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Transit departure row (used in My Day transit card)
+// ---------------------------------------------------------------------------
+
+class _TransitDepartureRow extends StatelessWidget {
+  final DepartureInfo departure;
+  final DateTime now;
+  final int walkBuffer;
+  final int walkFromArrival;
+  final ThemeData theme;
+
+  const _TransitDepartureRow({
+    required this.departure,
+    required this.now,
+    required this.walkBuffer,
+    required this.walkFromArrival,
+    required this.theme,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final depTime = departure.scheduledTime;
+    final leaveTime = depTime.subtract(Duration(minutes: walkBuffer));
+    final isCatchable = leaveTime.isAfter(now) ||
+        leaveTime.difference(now).inMinutes.abs() <= 1;
+    final waitingMinutes = now.isBefore(leaveTime)
+        ? leaveTime.difference(now).inMinutes
+        : (now.isBefore(depTime) ? depTime.difference(now).inMinutes : 0);
+
+    final depStr =
+        '${depTime.hour.toString().padLeft(2, '0')}:'
+        '${depTime.minute.toString().padLeft(2, '0')}';
+    final leaveStr =
+        '${leaveTime.hour.toString().padLeft(2, '0')}:'
+        '${leaveTime.minute.toString().padLeft(2, '0')}';
+
+    final lineBadge = departure.lineNumber ?? '';
+    final delayColor = departure.isCancelled
+        ? Colors.red
+        : (departure.expectedTime == null
+            ? Colors.green
+            : departure.expectedTime!.difference(departure.scheduledTime).inMinutes > 0
+                ? Colors.orange.shade700
+                : Colors.green);
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                isCatchable ? Icons.check_circle : Icons.cancel,
+                size: 16,
+                color: isCatchable
+                    ? Colors.green
+                    : theme.colorScheme.error,
+              ),
+              const SizedBox(width: 6),
+              Text(
+                depStr,
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontFamily: 'monospace',
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              if (lineBadge.isNotEmpty) ...[
+                const SizedBox(width: 6),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.secondaryContainer,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    lineBadge,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: theme.colorScheme.onSecondaryContainer,
+                      fontSize: 10,
+                    ),
+                  ),
+                ),
+              ],
+              const SizedBox(width: 6),
+              Text(departure.delayLabel,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                color: delayColor,
+                fontSize: 10,
+              )),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text(
+            isCatchable
+                ? 'Leave at $leaveStr · $waitingMinutes min wait'
+                : 'Missed — needed to leave by $leaveStr',
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: isCatchable
+                  ? theme.colorScheme.onSurfaceVariant
+                  : theme.colorScheme.error,
+            ),
+          ),
         ],
       ),
     );
