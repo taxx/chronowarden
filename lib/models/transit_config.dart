@@ -11,6 +11,7 @@ class TransitConfig {
   final String destinationSiteName;
   final int walkMinutesToStation;
   final int walkMinutesFromStation;
+  final List<String> lineFilter;
 
   const TransitConfig({
     this.enabled = false,
@@ -20,11 +21,19 @@ class TransitConfig {
     this.destinationSiteName = '',
     this.walkMinutesToStation = 5,
     this.walkMinutesFromStation = 5,
+    this.lineFilter = const [],
   });
 
   bool get hasDestination => destinationSiteId > 0 && destinationSiteName.isNotEmpty;
 
+  bool get hasLineFilter => lineFilter.isNotEmpty;
+
   factory TransitConfig.fromJson(Map<String, dynamic> json) {
+    final lineFilterRaw = json['line_filter'] as List<dynamic>?;
+    final lineFilter = lineFilterRaw == null
+        ? <String>[]
+        : lineFilterRaw.map((e) => e as String).toList();
+
     return TransitConfig(
       enabled: json['enabled'] as bool? ?? false,
       departureSiteId: json['departure_site_id'] as int? ?? 9600,
@@ -33,6 +42,7 @@ class TransitConfig {
       destinationSiteName: json['destination_site_name'] as String? ?? '',
       walkMinutesToStation: json['walk_minutes_to_station'] as int? ?? 5,
       walkMinutesFromStation: json['walk_minutes_from_station'] as int? ?? 5,
+      lineFilter: lineFilter,
     );
   }
 
@@ -45,6 +55,7 @@ class TransitConfig {
       'destination_site_name': destinationSiteName,
       'walk_minutes_to_station': walkMinutesToStation,
       'walk_minutes_from_station': walkMinutesFromStation,
+      'line_filter': lineFilter,
     };
   }
 
@@ -56,6 +67,7 @@ class TransitConfig {
     String? destinationSiteName,
     int? walkMinutesToStation,
     int? walkMinutesFromStation,
+    List<String>? lineFilter,
   }) {
     return TransitConfig(
       enabled: enabled ?? this.enabled,
@@ -65,6 +77,7 @@ class TransitConfig {
       destinationSiteName: destinationSiteName ?? this.destinationSiteName,
       walkMinutesToStation: walkMinutesToStation ?? this.walkMinutesToStation,
       walkMinutesFromStation: walkMinutesFromStation ?? this.walkMinutesFromStation,
+      lineFilter: lineFilter ?? this.lineFilter,
     );
   }
 

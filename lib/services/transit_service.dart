@@ -272,6 +272,25 @@ class TransitService {
     return departures.where((d) => d.isRailRelevant).toList();
   }
 
+  /// Filter departures by line number (e.g., "28", "28S", "27").
+  /// Matches if the departure's line designation starts with any of
+  /// the given filter values. This works because the API shows the
+  /// end station as destination, so destination-based filtering
+  /// doesn't work for intermediate stations.
+  List<DepartureInfo> filterByLineNumber(
+    List<DepartureInfo> departures,
+    List<String> lines,
+  ) {
+    if (lines.isEmpty) return departures;
+
+    final lowerLines = lines.map((l) => l.trim().toLowerCase()).toList();
+    return departures.where((d) {
+      if (d.lineNumber == null) return false;
+      final line = d.lineNumber!.toLowerCase();
+      return lowerLines.any((filter) => line.startsWith(filter));
+    }).toList();
+  }
+
   // -----------------------------------------------------------------
   // Cleanup
   // -----------------------------------------------------------------

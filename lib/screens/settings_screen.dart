@@ -841,6 +841,7 @@ class _TransitConfigSectionState extends State<_TransitConfigSection> {
   final _transit = TransitService();
   TransitConfig? _cfg;
   bool _loading = true;
+  final _lineFilterCtrl = TextEditingController();
 
   @override
   void initState() {
@@ -848,10 +849,17 @@ class _TransitConfigSectionState extends State<_TransitConfigSection> {
     _load();
   }
 
+  @override
+  void dispose() {
+    _lineFilterCtrl.dispose();
+    super.dispose();
+  }
+
   Future<void> _load() async {
     await _transit.loadConfig();
     if (mounted) setState(() {
       _cfg = _transit.config;
+      _lineFilterCtrl.text = _cfg!.lineFilter.join(', ');
       _loading = false;
     });
   }
@@ -921,6 +929,30 @@ class _TransitConfigSectionState extends State<_TransitConfigSection> {
                 },
               ),
               const SizedBox(height: 16),
+              Text('Line filter', style: theme.textTheme.titleSmall),
+              const SizedBox(height: 4),
+              Text(
+                'Comma-separated line numbers to show (e.g. "28, 28S").\n'
+                'Leave empty to show all Roslagsbanan lines.',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+              TextField(
+                controller: _lineFilterCtrl,
+                decoration: const InputDecoration(
+                  hintText: '28, 28S, 27, 29',
+                ),
+                onChanged: (v) {
+                  // Parse comma-separated values
+                  final lines = v.split(',')
+                      .map((l) => l.trim())
+                      .where((l) => l.isNotEmpty)
+                      .toList();
+                  _update(cfg.copyWith(lineFilter: lines));
+                },
+              ),
+              const SizedBox(height: 16),
               Text('Walk to station', style: theme.textTheme.titleSmall),
               const SizedBox(height: 4),
               Row(
@@ -972,6 +1004,7 @@ class _TransitConfigSectionState extends State<_TransitConfigSection> {
   void _update(TransitConfig updated) {
     setState(() => _cfg = updated);
     _transit.saveConfig(updated);
+    AppState().notifyListeners();
   }
 }
 

@@ -79,37 +79,40 @@ class _TransitScreenState extends State<TransitScreen>
 
     _isMorning = _timeIsMorning();
 
-    // Determine which station to fetch from and which to filter for
-    // Morning:  home → work  (fetch from home station, filter for work)
-    // Afternoon: work → home (fetch from work station, filter for home)
+    // Determine which station to fetch from
+    // Morning:  home → work  (fetch from home station)
+    // Afternoon: work → home (fetch from work station)
     final fetchSiteId = _isMorning
         ? _cfg!.destinationSiteId
         : _cfg!.departureSiteId;
-    final filterName = _isMorning
-        ? _cfg!.departureSiteName
-        : _cfg!.destinationSiteName;
-
-    // If no destination configured, fall back to departure station
-    if (!_cfg!.hasDestination) {
-      final departures = await _transit.fetchDepartures(_cfg!.departureSiteId);
-      if (departures == null) return;
-      final railRelevant = _transit.filterRailRelevant(departures);
-      if (mounted) setState(() {
-      _departures = railRelevant;
-      _lastUpdatedAt = DateTime.now();
-    });
-      return;
-    }
 
     final departures = await _transit.fetchDepartures(fetchSiteId);
     if (departures == null) return;
 
     final railRelevant = _transit.filterRailRelevant(departures);
-    final filtered = _transit.filterByDestination(
-      railRelevant,
-      null, // match by name, not ID
-      filterName,
-    );
+
+    // Filter by line number (e.g., "28", "28S") if configured
+    // Line-based filtering works because the API shows the end
+    // station as destination, not the intermediate station
+    List<DepartureInfo> filtered;
+    if (_cfg!.hasLineFilter) {
+      filtered = _transit.filterByLineNumber(
+        railRelevant,
+        _cfg!.lineFilter,
+      );
+    } else if (_cfg!.hasDestination) {
+      // Fall back to destination-name filtering
+      final filterName = _isMorning
+          ? _cfg!.departureSiteName
+          : _cfg!.destinationSiteName;
+      filtered = _transit.filterByDestination(
+        railRelevant,
+        null,
+        filterName,
+      );
+    } else {
+      filtered = railRelevant;
+    }
 
     if (mounted) setState(() {
       _departures = filtered;
@@ -295,6 +298,9 @@ class _HeaderCard extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             _statRow('Direction', directionLabel),
+            _statRow('Lines', cfg.hasLineFilter
+                ? cfg.lineFilter.join(', ')
+                : 'All'),
             _statRow('Walk to station', '${cfg.walkMinutesToStation} min'),
             _statRow('Walk from station', '${cfg.walkMinutesFromStation} min'),
           ],
