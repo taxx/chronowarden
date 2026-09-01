@@ -1,17 +1,19 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../models/station_info.dart';
 
 /// Autocomplete text field for SL station search.
 ///
-/// Fetches the full site list once via [onFetchSites], then filters
-/// client-side as the user types. No network calls per keystroke.
+/// Uses the journey planner stop-finder API via [onFetchStops].
+/// Fetches results on each query (debounced), no full list caching.
 class StationPicker extends StatefulWidget {
   final String label;
   final String hint;
   final StationInfo? initialValue;
   final ValueChanged<StationInfo?> onSelected;
-  final Future<List<StationInfo>?> Function() onFetchSites;
+  final Future<List<StationInfo>?> Function(String query) onFetchStops;
 
   const StationPicker({
     super.key,
@@ -19,7 +21,7 @@ class StationPicker extends StatefulWidget {
     this.hint = 'Search station...',
     this.initialValue,
     required this.onSelected,
-    required this.onFetchSites,
+    required this.onFetchStops,
   });
 
   @override
@@ -28,11 +30,11 @@ class StationPicker extends StatefulWidget {
 
 class _StationPickerState extends State<StationPicker> {
   final _controller = TextEditingController();
-  List<StationInfo>? _allSites;
-  List<StationInfo> _filtered = [];
+  List<StationInfo> _results = [];
   bool _loading = false;
   StationInfo? _selected;
   bool _showDropdown = false;
+  String _lastQuery = '';
 
   @override
   void initState() {
@@ -49,22 +51,13 @@ class _StationPickerState extends State<StationPicker> {
     super.dispose();
   }
 
-  /// Fetch sites if not already cached.
-  Future<void> _ensureSites() async {
-    if (_allSites != null) return;
-    setState(() => _loading = true);
-    final sites = await widget.onFetchSites();
-    if (!mounted) return;
-    setState(() {
-      _allSites = sites;
-      _loading = false;
-    });
-  }
+  /// Debounce timer for search queries.
+  Timer? _debounce;
 
   void _onSearchChanged(String value) {
     if (value.isEmpty) {
       setState(() {
-        _filtered = [];
+        _results = [];
         _selected = null;
         _showDropdown = false;
       });
@@ -72,13 +65,23 @@ class _StationPickerState extends State<StationPicker> {
       return;
     }
 
-    final sites = _allSites ?? [];
-    final lower = value.toLowerCase();
+    _debounce?.cancel();
+    // Debounce 300ms to avoid excessive API calls
+    _debounce = Timer(const Duration(milliseconds: 300), () {
+      _performSearch(value);
+    });
+  }
+
+  Future<void> _performSearch(String query) async {
+    if (query.trim().isEmpty || query == _lastQuery) return;
+    _lastQuery = query;
+
+    setState(() => _loading = true);
+    final results = await widget.onFetchStops(query);
+    if (!mounted) return;
     setState(() {
-      _filtered = sites
-          .where((s) => s.name.toLowerCase().contains(lower))
-          .take(20)
-          .toList();
+      _results = results ?? [];
+      _loading = false;
       _showDropdown = true;
       _selected = null;
     });
@@ -105,7 +108,7 @@ class _StationPickerState extends State<StationPicker> {
         TextField(
           controller: _controller,
           decoration: InputDecoration(
-            hintText: _loading ? 'Loading stations...' : widget.hint,
+            hintText: widget.hint,
             suffixIcon: _loading
                 ? SizedBox(
                     width: 20,
@@ -117,20 +120,19 @@ class _StationPickerState extends State<StationPicker> {
                   )
                 : IconButton(
                     icon: const Icon(Icons.search, size: 18),
-                    onPressed: _ensureSites,
-                    tooltip: 'Browse stations',
+                    onPressed: () => _performSearch(_controller.text),
+                    tooltip: 'Search stations',
                   ),
           ),
           onChanged: _onSearchChanged,
           onTap: () {
-            if (_allSites == null) _ensureSites();
-            if (_controller.text.isNotEmpty && _filtered.isNotEmpty) {
+            if (_controller.text.isNotEmpty && _results.isNotEmpty) {
               setState(() => _showDropdown = true);
             }
           },
         ),
-        if (_showDropdown && _filtered.isNotEmpty) _buildDropdown(theme),
-        if (_showDropdown && _filtered.isEmpty && _controller.text.isNotEmpty)
+        if (_showDropdown && _results.isNotEmpty) _buildDropdown(theme),
+        if (_showDropdown && _results.isEmpty && _controller.text.isNotEmpty && !_loading)
           Padding(
             padding: const EdgeInsets.only(top: 4),
             child: Text(
@@ -159,7 +161,7 @@ class _StationPickerState extends State<StationPicker> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
-          children: _filtered.map((station) {
+          children: _results.map((station) {
             final isSelected = _selected?.id == station.id;
             return InkWell(
               onTap: () => _selectStation(station),
@@ -187,7 +189,9 @@ class _StationPickerState extends State<StationPicker> {
                       ),
                     ),
                     Text(
-                      '${station.id}',
+                      station.id.length > 12
+                          ? station.id.substring(0, 6)
+                          : station.id,
                       style: theme.textTheme.bodySmall?.copyWith(
                         color: theme.colorScheme.onSurfaceVariant,
                       ),

@@ -841,7 +841,6 @@ class _TransitConfigSectionState extends State<_TransitConfigSection> {
   final _transit = TransitService();
   TransitConfig? _cfg;
   bool _loading = true;
-  final _lineFilterCtrl = TextEditingController();
 
   @override
   void initState() {
@@ -849,17 +848,10 @@ class _TransitConfigSectionState extends State<_TransitConfigSection> {
     _load();
   }
 
-  @override
-  void dispose() {
-    _lineFilterCtrl.dispose();
-    super.dispose();
-  }
-
   Future<void> _load() async {
     await _transit.loadConfig();
     if (mounted) setState(() {
       _cfg = _transit.config;
-      _lineFilterCtrl.text = _cfg!.lineFilter.join(', ');
       _loading = false;
     });
   }
@@ -894,21 +886,21 @@ class _TransitConfigSectionState extends State<_TransitConfigSection> {
             ),
             const SizedBox(height: 4),
             Text(
-              'Real-time Roslagsbanan departures from SL.',
+              'Journey planning between home and work stations.',
               style: theme.textTheme.bodySmall,
             ),
-            if (cfg.enabled) ...[
+            if (cfg.enabled) ...[ 
               const SizedBox(height: 16),
               _StationField(
                 label: 'Work station',
-                initialValue: cfg.workSiteId > 0
-                    ? StationInfo(id: cfg.workSiteId, name: cfg.workSiteName)
+                initialValue: cfg.hasWork
+                    ? StationInfo(id: cfg.workStopId, name: cfg.workStopName)
                     : null,
                 onSelected: (station) {
                   if (station != null) {
                     _update(cfg.copyWith(
-                      workSiteId: station.id,
-                      workSiteName: station.name,
+                      workStopId: station.id,
+                      workStopName: station.name,
                     ));
                   }
                 },
@@ -916,40 +908,92 @@ class _TransitConfigSectionState extends State<_TransitConfigSection> {
               const SizedBox(height: 12),
               _StationField(
                 label: 'Home station',
-                initialValue: cfg.homeSiteId > 0
-                    ? StationInfo(id: cfg.homeSiteId, name: cfg.homeSiteName)
+                initialValue: cfg.hasHome
+                    ? StationInfo(id: cfg.homeStopId, name: cfg.homeStopName)
                     : null,
                 onSelected: (station) {
                   if (station != null) {
                     _update(cfg.copyWith(
-                      homeSiteId: station.id,
-                      homeSiteName: station.name,
+                      homeStopId: station.id,
+                      homeStopName: station.name,
                     ));
                   }
                 },
               ),
               const SizedBox(height: 16),
-              Text('Line filter', style: theme.textTheme.titleSmall),
+              Text('Walk home↔station', style: theme.textTheme.titleSmall),
               const SizedBox(height: 4),
-              Text(
-                'Comma-separated line numbers to show (e.g. "28, 28S").\n'
-                'Leave empty to show all Roslagsbanan lines.',
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
+              Row(
+                children: [
+                  Expanded(
+                    child: Slider(
+                      value: cfg.walkHomeMinutes.toDouble(),
+                      min: 1,
+                      max: 30,
+                      divisions: 29,
+                      label: '${cfg.walkHomeMinutes} min',
+                      onChanged: (v) => _update(
+                        cfg.copyWith(walkHomeMinutes: v.round())),
+                    ),
+                  ),
+                  Text('${cfg.walkHomeMinutes} min',
+                      style: theme.textTheme.bodyMedium
+                          ?.copyWith(fontWeight: FontWeight.w600)),
+                ],
+              ),
+              const SizedBox(height: 16),
+              Center(
+                child: Text(
+                  'Departure data provided by Trafiklab.se (CC-BY 4.0)',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                    fontStyle: FontStyle.italic,
+                    fontSize: 10,
+                  ),
+                  textAlign: TextAlign.center,
                 ),
               ),
-              TextField(
-                controller: _lineFilterCtrl,
-                decoration: const InputDecoration(
-                  hintText: '28, 28S, 27, 29',
-                ),
-                onChanged: (v) {
-                  final lines = v.split(',')
-                      .map((l) => l.trim())
-                      .where((l) => l.isNotEmpty)
-                      .toList();
-                  _update(cfg.copyWith(lineFilter: lines));
-                },
+              const SizedBox(height: 8),
+              Text('Walk station↔work', style: theme.textTheme.titleSmall),
+              const SizedBox(height: 4),
+              Row(
+                children: [
+                  Expanded(
+                    child: Slider(
+                      value: cfg.walkWorkMinutes.toDouble(),
+                      min: 1,
+                      max: 30,
+                      divisions: 29,
+                      label: '${cfg.walkWorkMinutes} min',
+                      onChanged: (v) => _update(
+                        cfg.copyWith(walkWorkMinutes: v.round())),
+                    ),
+                  ),
+                  Text('${cfg.walkWorkMinutes} min',
+                      style: theme.textTheme.bodyMedium
+                          ?.copyWith(fontWeight: FontWeight.w600)),
+                ],
+              ),
+              const SizedBox(height: 16),
+              Text('Wait at station', style: theme.textTheme.titleSmall),
+              const SizedBox(height: 4),
+              Row(
+                children: [
+                  Expanded(
+                    child: Slider(
+                      value: cfg.waitAtStationMinutes.toDouble(),
+                      min: 0,
+                      max: 10,
+                      divisions: 10,
+                      label: '${cfg.waitAtStationMinutes} min',
+                      onChanged: (v) => _update(
+                        cfg.copyWith(waitAtStationMinutes: v.round())),
+                    ),
+                  ),
+                  Text('${cfg.waitAtStationMinutes} min',
+                      style: theme.textTheme.bodyMedium
+                          ?.copyWith(fontWeight: FontWeight.w600)),
+                ],
               ),
               const SizedBox(height: 16),
               Text('Walk home↔station', style: theme.textTheme.titleSmall),
@@ -1060,7 +1104,7 @@ class _StationField extends StatelessWidget {
       hint: 'Type to search SL stations...',
       initialValue: initialValue,
       onSelected: onSelected,
-      onFetchSites: () => TransitService().fetchSites(),
+      onFetchStops: (query) => TransitService().fetchStops(query),
     );
   }
 }

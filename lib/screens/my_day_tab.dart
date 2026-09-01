@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../app_state.dart';
 import '../models/time_log.dart';
-import '../models/departure_info.dart';
+import '../models/journey_info.dart';
 import '../models/transit_config.dart';
 import '../services/notification_service.dart';
 import '../services/preferences_service.dart';
@@ -38,8 +38,9 @@ class _MyDayTabState extends State<MyDayTab> with SingleTickerProviderStateMixin
   final _state = AppState();
   final _notifications = NotificationService();
   final _transit = TransitService();
-  List<DepartureInfo>? _transitDeps;
+  List<JourneyInfo>? _transitJourneys;
   TransitConfig? _transitCfg;
+  // ignore: unused_field
   bool _transitCardShown = false;
   String? _alertMessage;
 
@@ -132,7 +133,7 @@ class _MyDayTabState extends State<MyDayTab> with SingleTickerProviderStateMixin
   Widget _buildTransitCard(ThemeData theme) {
     _transitCfg = _transit.config;
 
-    if (!_transitCfg!.enabled || !_transitCfg!.hasHome) {
+    if (!_transitCfg!.enabled || !_transitCfg!.hasWork || !_transitCfg!.hasHome) {
       _transitCardShown = false;
       return const SizedBox.shrink();
     }
@@ -142,38 +143,44 @@ class _MyDayTabState extends State<MyDayTab> with SingleTickerProviderStateMixin
         _state.todayLog != null;
     final isMorning = hasActiveDay ? false : DateTime.now().hour < 11;
 
-    // Fetch site ID based on direction
-    final fetchSiteId = isMorning
-        ? _transitCfg!.homeSiteId
-        : _transitCfg!.workSiteId;
+    // Get origin/dest IDs based on direction
+    final originId = isMorning
+        ? _transitCfg!.homeStopId
+        : _transitCfg!.workStopId;
+    final destId = isMorning
+        ? _transitCfg!.workStopId
+        : _transitCfg!.homeStopId;
 
-    // Fetch transit data if cache is stale, missing, or for wrong station
-    _transitDeps = _transit.cachedDepartures;
-    if (_transitDeps == null) {
-      _transit.fetchDepartures(fetchSiteId).then((_) {
+    // Fetch journey data if cache is stale, missing, or for wrong route
+    _transitJourneys = _transit.cachedJourneys;
+    if (_transitJourneys == null) {
+      _transit.fetchJourneys(
+        originId: originId,
+        destId: destId,
+        isMorning: isMorning,
+      ).then((_) {
         if (mounted) setState(() {});
       });
       _transitCardShown = false;
       return const SizedBox.shrink();
     }
 
-    // Refresh if cache is stale (> 30s) or for a different station
-    if (_transit.shouldRefresh(fetchSiteId)) {
-      _transit.fetchDepartures(fetchSiteId).then((_) {
+    // Refresh if cache is stale (> 30s) or for a different route
+    if (_transit.shouldRefreshJourneys(originId, destId, isMorning)) {
+      _transit.fetchJourneys(
+        originId: originId,
+        destId: destId,
+        isMorning: isMorning,
+      ).then((_) {
         if (mounted) setState(() {});
       });
     }
 
-    // Filter to relevant departures for this direction
+    // Filter to catchable journeys (departure within reasonable time)
     final now = DateTime.now();
-    final relevant = _transitDeps!
-        .where((d) => d.isRailRelevant)
-        .where((d) => _transitCfg!.hasLineFilter
-            ? _transit.filterByLineNumber([d], _transitCfg!.lineFilter).isNotEmpty
-            : true)
-        .where((d) => d.directionCode == (isMorning ? 1 : 2))
-        .where((d) =>
-            d.scheduledTime.isAfter(now.subtract(const Duration(minutes: 5))))
+    final relevant = (_transitJourneys ?? [])
+        .where((j) =>
+            j.departureTime.isAfter(now.subtract(const Duration(minutes: 5))))
         .take(4)
         .toList();
 
@@ -188,12 +195,9 @@ class _MyDayTabState extends State<MyDayTab> with SingleTickerProviderStateMixin
     final walkBuffer = isMorning
         ? _transitCfg!.walkHomeMinutes
         : _transitCfg!.walkWorkMinutes;
-    final walkFromArrival = isMorning
-        ? _transitCfg!.walkWorkMinutes
-        : _transitCfg!.walkHomeMinutes;
     final directionLabel = isMorning
-        ? '${_transitCfg!.homeSiteName} → ${_transitCfg!.workSiteName}'
-        : '${_transitCfg!.workSiteName} → ${_transitCfg!.homeSiteName}';
+        ? '${_transitCfg!.homeStopName} → ${_transitCfg!.workStopName}'
+        : '${_transitCfg!.workStopName} → ${_transitCfg!.homeStopName}';
 
     return Card(
       child: Padding(
@@ -213,8 +217,8 @@ class _MyDayTabState extends State<MyDayTab> with SingleTickerProviderStateMixin
               ],
             ),
             const SizedBox(height: 8),
-            ...relevant.map((d) => _TransitDepartureRow(
-                  departure: d,
+            ...relevant.map((j) => _TransitJourneyRow(
+                  journey: j,
                   now: now,
                   walkBuffer: walkBuffer,
                   waitStation: waitStation,
@@ -1362,15 +1366,15 @@ class _EditDayDialogState extends State<_EditDayDialog> {
 // Transit departure row (used in My Day transit card)
 // ---------------------------------------------------------------------------
 
-class _TransitDepartureRow extends StatelessWidget {
-  final DepartureInfo departure;
+class _TransitJourneyRow extends StatelessWidget {
+  final JourneyInfo journey;
   final DateTime now;
   final int walkBuffer;
   final int waitStation;
   final ThemeData theme;
 
-  const _TransitDepartureRow({
-    required this.departure,
+  const _TransitJourneyRow({
+    required this.journey,
     required this.now,
     required this.walkBuffer,
     required this.waitStation,
@@ -1379,7 +1383,7 @@ class _TransitDepartureRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final depTime = departure.scheduledTime;
+    final depTime = journey.departureTime;
     final leaveTime = depTime.subtract(
         Duration(minutes: walkBuffer + waitStation));
     final isCatchable = leaveTime.isAfter(now) ||
@@ -1405,14 +1409,11 @@ class _TransitDepartureRow extends StatelessWidget {
         '${leaveTime.hour.toString().padLeft(2, '0')}:'
         '${leaveTime.minute.toString().padLeft(2, '0')}';
 
-    final lineBadge = departure.lineNumber ?? '';
-    final delayColor = departure.isCancelled
-        ? Colors.red
-        : (departure.expectedTime == null
-            ? Colors.green
-            : departure.expectedTime!.difference(departure.scheduledTime).inMinutes > 0
-                ? Colors.orange.shade700
-                : Colors.green);
+    final lineBadge = journey.mainLine ?? '';
+    final dest = journey.mainDestination ?? 'Unknown';
+    // ignore: unused_local_variable
+    final _dest = dest;
+    final delayColor = _delayColor(journey);
 
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6),
@@ -1436,7 +1437,7 @@ class _TransitDepartureRow extends StatelessWidget {
                   fontWeight: FontWeight.bold,
                 ),
               ),
-              if (lineBadge.isNotEmpty) ...[
+              if (lineBadge.isNotEmpty) ...[ 
                 const SizedBox(width: 6),
                 Container(
                   padding: const EdgeInsets.symmetric(
@@ -1456,7 +1457,7 @@ class _TransitDepartureRow extends StatelessWidget {
                 ),
               ],
               const SizedBox(width: 6),
-              Text(departure.delayLabel,
+              Text(journey.delayLabel,
                   style: theme.textTheme.bodySmall?.copyWith(
                 color: delayColor,
                 fontSize: 10,
@@ -1466,7 +1467,7 @@ class _TransitDepartureRow extends StatelessWidget {
           const SizedBox(height: 4),
           Text(
             isCatchable
-                ? 'Leave at $leaveStr · ${waitStation}min wait$untilStr'
+                ? 'Leave at $leaveStr · ${waitStation}min wait · ${journey.durationMinutes}min trip$untilStr'
                 : 'Missed — needed to leave by $leaveStr',
             style: theme.textTheme.bodySmall?.copyWith(
               color: isCatchable
@@ -1477,6 +1478,13 @@ class _TransitDepartureRow extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  Color _delayColor(JourneyInfo j) {
+    final diff = j.departureDelayMinutes;
+    if (diff <= 0) return Colors.green;
+    if (diff <= 5) return Colors.orange.shade700;
+    return Colors.red;
   }
 }
 

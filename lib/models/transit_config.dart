@@ -4,99 +4,102 @@
 /// under the key "transit_config". Zero-knowledge like all other
 /// encrypted data in ChronoWarden.
 ///
-/// Fields are named "work" / "home" rather than "departure" / "destination"
-/// for clarity. The direction depends on time of day (morning vs afternoon).
+/// Uses journey planner global IDs (strings like "9091001001009638")
+/// for stop identification. The [workSiteId] / [homeSiteId] fields
+/// are kept for backward compatibility with the SL Transport API
+/// (departures endpoint) but are optional.
 class TransitConfig {
   final bool enabled;
-  final int workSiteId;
-  final String workSiteName;
-  final int homeSiteId;
-  final String homeSiteName;
-  final int walkHomeMinutes; // walking between home ↔ home station
-  final int walkWorkMinutes; // walking between work station ↔ work
+  final String workStopId;       // Journey planner global ID for work station
+  final String workStopName;
+  final String homeStopId;       // Journey planner global ID for home station
+  final String homeStopName;
+  final int workSiteId;          // SL Transport API site ID (optional, for departures)
+  final int homeSiteId;          // SL Transport API site ID (optional, for departures)
+  final int walkHomeMinutes;     // walking between home ↔ home station
+  final int walkWorkMinutes;     // walking between work station ↔ work
   final int waitAtStationMinutes; // buffer: arrive at platform before departure
-  final List<String> lineFilter;
 
   const TransitConfig({
     this.enabled = false,
-    this.workSiteId = 9600,
-    this.workSiteName = 'Stockholms Östra',
+    this.workStopId = '',
+    this.workStopName = '',
+    this.homeStopId = '',
+    this.homeStopName = '',
+    this.workSiteId = 0,
     this.homeSiteId = 0,
-    this.homeSiteName = '',
     this.walkHomeMinutes = 5,
     this.walkWorkMinutes = 5,
     this.waitAtStationMinutes = 2,
-    this.lineFilter = const [],
   });
 
-  bool get hasHome => homeSiteId > 0 && homeSiteName.isNotEmpty;
-  bool get hasLineFilter => lineFilter.isNotEmpty;
+  bool get hasWork => workStopId.isNotEmpty && workStopName.isNotEmpty;
+  bool get hasHome => homeStopId.isNotEmpty && homeStopName.isNotEmpty;
 
   /// Total walking buffer for a given direction.
   int get totalWalkMinutes => walkHomeMinutes + walkWorkMinutes;
 
   factory TransitConfig.fromJson(Map<String, dynamic> json) {
-    final lineFilterRaw = json['line_filter'] as List<dynamic>?;
-    final lineFilter = lineFilterRaw == null
-        ? <String>[]
-        : lineFilterRaw.map((e) => e as String).toList();
-
     return TransitConfig(
       enabled: json['enabled'] as bool? ?? false,
-      workSiteId: json['work_site_id'] as int? ?? 9600,
-      workSiteName: json['work_site_name'] as String? ?? 'Stockholms Östra',
+      workStopId: json['work_stop_id'] as String? ?? '',
+      workStopName: json['work_stop_name'] as String? ?? '',
+      homeStopId: json['home_stop_id'] as String? ?? '',
+      homeStopName: json['home_stop_name'] as String? ?? '',
+      workSiteId: json['work_site_id'] as int? ?? 0,
       homeSiteId: json['home_site_id'] as int? ?? 0,
-      homeSiteName: json['home_site_name'] as String? ?? '',
       walkHomeMinutes: json['walk_home_minutes'] as int? ?? 5,
       walkWorkMinutes: json['walk_work_minutes'] as int? ?? 5,
       waitAtStationMinutes: json['wait_at_station_minutes'] as int? ?? 2,
-      lineFilter: lineFilter,
     );
   }
 
   Map<String, dynamic> toJson() {
     return {
       'enabled': enabled,
+      'work_stop_id': workStopId,
+      'work_stop_name': workStopName,
+      'home_stop_id': homeStopId,
+      'home_stop_name': homeStopName,
       'work_site_id': workSiteId,
-      'work_site_name': workSiteName,
       'home_site_id': homeSiteId,
-      'home_site_name': homeSiteName,
       'walk_home_minutes': walkHomeMinutes,
       'walk_work_minutes': walkWorkMinutes,
       'wait_at_station_minutes': waitAtStationMinutes,
-      'line_filter': lineFilter,
     };
   }
 
   TransitConfig copyWith({
     bool? enabled,
+    String? workStopId,
+    String? workStopName,
+    String? homeStopId,
+    String? homeStopName,
     int? workSiteId,
-    String? workSiteName,
     int? homeSiteId,
-    String? homeSiteName,
     int? walkHomeMinutes,
     int? walkWorkMinutes,
     int? waitAtStationMinutes,
-    List<String>? lineFilter,
   }) {
     return TransitConfig(
       enabled: enabled ?? this.enabled,
+      workStopId: workStopId ?? this.workStopId,
+      workStopName: workStopName ?? this.workStopName,
+      homeStopId: homeStopId ?? this.homeStopId,
+      homeStopName: homeStopName ?? this.homeStopName,
       workSiteId: workSiteId ?? this.workSiteId,
-      workSiteName: workSiteName ?? this.workSiteName,
       homeSiteId: homeSiteId ?? this.homeSiteId,
-      homeSiteName: homeSiteName ?? this.homeSiteName,
       walkHomeMinutes: walkHomeMinutes ?? this.walkHomeMinutes,
       walkWorkMinutes: walkWorkMinutes ?? this.walkWorkMinutes,
       waitAtStationMinutes: waitAtStationMinutes ?? this.waitAtStationMinutes,
-      lineFilter: lineFilter ?? this.lineFilter,
     );
   }
 
   @override
   String toString() =>
-      'TransitConfig(enabled: $enabled, work: $workSiteName ($workSiteId), '
-      'home: ${hasHome ? "$homeSiteName ($homeSiteId)" : "none"}, '
+      'TransitConfig(enabled: $enabled, '
+      'work: $workStopName ($workStopId), '
+      'home: ${hasHome ? "$homeStopName ($homeStopId)" : "none"}, '
       'walk home: ${walkHomeMinutes}min, walk work: ${walkWorkMinutes}min, '
-      'wait station: ${waitAtStationMinutes}min'
-      '${hasLineFilter ? ", lines: ${lineFilter.join(',')}" : ""})';
+      'wait station: ${waitAtStationMinutes}min)';
 }

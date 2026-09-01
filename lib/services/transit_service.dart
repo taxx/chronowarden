@@ -4,6 +4,7 @@ import 'package:cryptography/cryptography.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/departure_info.dart';
+import '../models/journey_info.dart';
 import '../models/station_info.dart';
 import '../models/transit_config.dart';
 
@@ -15,9 +16,11 @@ import 'supabase_service.dart';
 ///
 /// Responsibilities:
 /// 1. Read/write [TransitConfig] from encrypted [user_settings]
-/// 2. Fetch SL site list from /v1/sites (cached in memory)
-/// 3. Fetch departures from /v1/sites/{siteId}/departures (cached 30s TTL)
-/// 4. Filter departures by destination and transport mode
+/// 2. Fetch SL journey planner stops from /v2/stop-finder (cached in memory)
+/// 3. Fetch journey plans from /v2/trips (cached 30s TTL)
+/// 4. (Legacy) Fetch departures from /v1/sites/{siteId}/departures
+///
+/// All API calls go through the sl-proxy Edge Function to avoid CORS issues.
 class TransitService {
   TransitService._();
   static final TransitService _instance = TransitService._();
@@ -27,8 +30,7 @@ class TransitService {
   // Supabase Edge Function proxy for SL API
   // -----------------------------------------------------------------
 
-  /// Invoke the sl-proxy Edge Function to avoid CORS issues.
-  /// [path] is the SL API path, e.g. "/v1/sites" or "/v1/sites/9600/departures".
+  /// Invoke the sl-proxy Edge Function with a given path.
   Future<dynamic> _slProxy(String path) async {
     final result = await _client.functions.invoke('sl-proxy', body: {
       'path': path,
@@ -40,15 +42,34 @@ class TransitService {
   // In-memory cache
   // -----------------------------------------------------------------
 
-  List<StationInfo>? _cachedSites;
-  DateTime? _sitesFetchedAt;
+  List<StationInfo>? _cachedStops;
+  DateTime? _stopsFetchedAt;
+
+  List<JourneyInfo>? _cachedJourneys;
+  DateTime? _journeysFetchedAt;
+  String? _lastJourneyCacheKey; // "${originId}:${destId}:${morningFlag}"
 
   List<DepartureInfo>? _cachedDepartures;
+  DateTime? _departuresFetchedAt;
+  int? _lastDepartureSiteId;
 
-  /// Public read-only access to cached departures.
+  /// Public read-only access to cached journeys.
+  List<JourneyInfo>? get cachedJourneys => _cachedJourneys;
+
+  /// Public read-only access to cached departures (legacy).
   List<DepartureInfo>? get cachedDepartures => _cachedDepartures;
 
-  /// Whether the cache needs refreshing (stale > 30s or wrong station).
+  /// Whether the journey cache needs refreshing (stale > 30s or wrong route).
+  bool shouldRefreshJourneys(String originId, String destId, bool isMorning) {
+    final key = '$originId:$destId:$isMorning';
+    if (_cachedJourneys == null) return true;
+    if (_lastJourneyCacheKey != key) return true;
+    if (_journeysFetchedAt == null) return true;
+    return DateTime.now().difference(_journeysFetchedAt!).abs()
+        > _journeysCacheTtl;
+  }
+
+  /// Whether the departure cache needs refreshing (stale > 30s or wrong station).
   bool shouldRefresh(int siteId) {
     if (_cachedDepartures == null) return true;
     if (_lastDepartureSiteId != siteId) return true;
@@ -57,11 +78,9 @@ class TransitService {
         > _departuresCacheTtl;
   }
 
-  DateTime? _departuresFetchedAt;
-  int? _lastDepartureSiteId;
-
   // Cache TTL constants
-  static const _sitesCacheTtl = Duration(hours: 24);
+  static const _stopsCacheTtl = Duration(hours: 24);
+  static const _journeysCacheTtl = Duration(seconds: 30);
   static const _departuresCacheTtl = Duration(seconds: 30);
 
   // -----------------------------------------------------------------
@@ -74,7 +93,6 @@ class TransitService {
       _config ?? const TransitConfig(enabled: false);
 
   SupabaseClient get _client => SupabaseService.instance.client;
-
 
   String? get _userId {
     final session = _client.auth.currentSession;
@@ -125,7 +143,6 @@ class TransitService {
   }
 
   /// Apply [TransitConfig] in memory immediately (no persistence).
-  /// Used when the UI needs the new config value right away.
   void applyConfig(TransitConfig cfg) {
     _config = cfg;
   }
@@ -136,7 +153,6 @@ class TransitService {
     final dek = _dek;
     if (userId == null || dek == null) return;
 
-    // Read existing encrypted settings, merge transit_config key
     try {
       final resp = await _client
           .from('user_settings')
@@ -168,65 +184,129 @@ class TransitService {
   }
 
   // -----------------------------------------------------------------
-  // SL Site API — fetch and cache
+  // SL Journey Planner — Stop Finder (search stations)
   // -----------------------------------------------------------------
 
-  /// Fetch all SL sites from the API.
+  /// Fetch all matching stops from the journey planner stop-finder.
   ///
   /// Returns cached list if cache is still fresh (< 24h).
   /// Returns null on network error.
-  Future<List<StationInfo>?> fetchSites() async {
-    // Return cached sites if still fresh
-    if (_cachedSites != null && _sitesFetchedAt != null) {
-      final age = DateTime.now().difference(_sitesFetchedAt!);
-      if (age < _sitesCacheTtl) return _cachedSites;
+  Future<List<StationInfo>?> fetchStops(String query) async {
+    // Return cached stops if still fresh
+    if (_cachedStops != null && _stopsFetchedAt != null) {
+      final age = DateTime.now().difference(_stopsFetchedAt!);
+      if (age < _stopsCacheTtl) return _cachedStops;
     }
 
     try {
-      final data = await _slProxy('/v1/sites');
-      if (data is! List<dynamic>) return null;
+      // Use the journey planner stop-finder API
+      // We search with name_sf and type_sf=any, any_obj_filter_sf=2 (stops)
+      final encodedQuery = Uri.encodeComponent(query);
+      final path = '/v2/stop-finder?name_sf=$encodedQuery&type_sf=any&any_obj_filter_sf=2';
+      final data = await _slProxy(path);
 
-      final sites = data
-          .map((e) => StationInfo.fromJson(e as Map<String, dynamic>))
-          .where((s) => s.id > 0)
+      if (data is! Map<String, dynamic>) return null;
+      final locations = data['locations'] as List<dynamic>?;
+      if (locations == null) return null;
+
+      final stops = locations
+          .map((e) => StationInfo.fromStopFinderJson(e as Map<String, dynamic>))
+          .where((s) => s.id.isNotEmpty)
           .toList();
 
-      // Sort by name for easier autocomplete display
-      sites.sort((a, b) => a.name.compareTo(b.name));
+      stops.sort((a, b) => a.name.compareTo(b.name));
 
-      _cachedSites = sites;
-      _sitesFetchedAt = DateTime.now();
-      return sites;
+      _cachedStops = stops;
+      _stopsFetchedAt = DateTime.now();
+      return stops;
     } catch (_) {
-      // Return stale cache on error if we have one
-      return _cachedSites;
+      return _cachedStops;
     }
   }
 
-  /// Search cached sites by name (client-side filter, no network).
-  List<StationInfo> searchSites(String query) {
-    final sites = _cachedSites;
-    if (sites == null || query.trim().isEmpty) return sites ?? [];
+  /// Search cached stops by name (client-side filter, no network).
+  List<StationInfo> searchStops(String query) {
+    final stops = _cachedStops;
+    if (stops == null || query.trim().isEmpty) return stops ?? [];
 
     final lower = query.trim().toLowerCase();
-    return sites.where((s) =>
+    return stops.where((s) =>
         s.name.toLowerCase().contains(lower)).toList();
   }
 
-  /// Clear site cache (e.g., on logout).
-  void clearSiteCache() {
-    _cachedSites = null;
-    _sitesFetchedAt = null;
+  /// Clear stop cache (e.g., on logout).
+  void clearStopCache() {
+    _cachedStops = null;
+    _stopsFetchedAt = null;
   }
 
   // -----------------------------------------------------------------
-  // SL Departures API — fetch and cache
+  // SL Journey Planner — Trips (journey planning)
   // -----------------------------------------------------------------
 
-  /// Fetch departures for [siteId].
+  /// Fetch journey plans between [originId] and [destId].
   ///
   /// Returns cached list if cache is still fresh (< 30s) and
-  /// the site ID matches.
+  /// the origin/destination/morning flag matches.
+  Future<List<JourneyInfo>?> fetchJourneys({
+    required String originId,
+    required String destId,
+    bool isMorning = true,
+  }) async {
+    final key = '$originId:$destId:$isMorning';
+
+    // Return cached if fresh and same route
+    if (_cachedJourneys != null && _journeysFetchedAt != null &&
+        _lastJourneyCacheKey == key) {
+      final age = DateTime.now().difference(_journeysFetchedAt!);
+      if (age < _journeysCacheTtl) return _cachedJourneys;
+    }
+
+    try {
+      final now = DateTime.now();
+      final time = '${now.hour.toString().padLeft(2, '0')}:'
+          '${now.minute.toString().padLeft(2, '0')}';
+      final date =
+          '${now.year.toString().padLeft(4, '0')}-'
+          '${now.month.toString().padLeft(2, '0')}-'
+          '${now.day.toString().padLeft(2, '0')}';
+
+      // Request 3 journeys
+      final path = '/v2/trips'
+          '?type_origin=any&name_origin=$originId'
+          '&type_destination=any&name_destination=$destId'
+          '&date=$date&time=$time'
+          '&calc_number_of_trips=3';
+
+      final data = await _slProxy(path);
+
+      if (data is! Map<String, dynamic>) return null;
+      final journeysRaw = data['journeys'] as List<dynamic>?;
+      if (journeysRaw == null) return [];
+
+      final journeys = journeysRaw
+          .map((e) => JourneyInfo.fromJson(e as Map<String, dynamic>))
+          .toList();
+
+      // Sort by departure time
+      journeys.sort((a, b) => a.departureTime.compareTo(b.departureTime));
+
+      _cachedJourneys = journeys;
+      _journeysFetchedAt = DateTime.now();
+      _lastJourneyCacheKey = key;
+      return journeys;
+    } catch (_) {
+      // Return stale cache on error if we have one for same route
+      if (_lastJourneyCacheKey == key) return _cachedJourneys;
+      return null;
+    }
+  }
+
+  // -----------------------------------------------------------------
+  // SL Departures API — legacy (fetch and cache)
+  // -----------------------------------------------------------------
+
+  /// Fetch departures for [siteId] (legacy SL Transport API).
   Future<List<DepartureInfo>?> fetchDepartures(int siteId) async {
     // Return cached if fresh and same site
     if (_cachedDepartures != null && _departuresFetchedAt != null &&
@@ -265,19 +345,14 @@ class TransitService {
   }
 
   /// Filter departures to those matching [destinationSiteId].
-  ///
-  /// Uses site ID for exact matching, falls back to name contains
-  /// when no ID is available.
   List<DepartureInfo> filterByDestination(
     List<DepartureInfo> departures,
     int? destinationSiteId,
     String destinationName,
   ) {
     if (destinationName.trim().isEmpty) return departures;
-
     final lower = destinationName.trim().toLowerCase();
     return departures.where((d) {
-      // Match by destination name (contains)
       return d.destination.toLowerCase().contains(lower);
     }).toList();
   }
@@ -288,8 +363,6 @@ class TransitService {
   }
 
   /// Filter departures by direction code.
-  /// - 1: toward Stockholms östra (city direction)
-  /// - 2: toward suburbs (Österskär, Kårsta, etc.)
   List<DepartureInfo> filterByDirection(
     List<DepartureInfo> departures,
     int directionCode,
@@ -298,17 +371,12 @@ class TransitService {
         d.directionCode == directionCode).toList();
   }
 
-  /// Filter departures by line number (e.g., "28", "28S", "27").
-  /// Matches if the departure's line designation starts with any of
-  /// the given filter values. This works because the API shows the
-  /// end station as destination, so destination-based filtering
-  /// doesn't work for intermediate stations.
+  /// Filter departures by line number.
   List<DepartureInfo> filterByLineNumber(
     List<DepartureInfo> departures,
     List<String> lines,
   ) {
     if (lines.isEmpty) return departures;
-
     final lowerLines = lines.map((l) => l.trim().toLowerCase()).toList();
     return departures.where((d) {
       if (d.lineNumber == null) return false;
@@ -323,7 +391,10 @@ class TransitService {
 
   void onLogout() {
     _config = null;
-    clearSiteCache();
+    clearStopCache();
+    _cachedJourneys = null;
+    _journeysFetchedAt = null;
+    _lastJourneyCacheKey = null;
     _cachedDepartures = null;
     _departuresFetchedAt = null;
     _lastDepartureSiteId = null;

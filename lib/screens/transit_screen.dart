@@ -3,17 +3,18 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../app_state.dart';
-import '../models/departure_info.dart';
+import '../models/journey_info.dart';
 import '../models/transit_config.dart';
 import '../services/transit_service.dart';
 
-/// Transit tab — shows real-time Roslagsbanan departures.
+/// Transit tab — shows journey options between home ↔ work stations.
 ///
 /// Smart direction:
 ///   No active day + before 11:00: home → work (morning commute)
 ///   Active day or 11:00+:         work → home (afternoon commute)
 ///
-/// Only fetches data when [TransitConfig.enabled] is true.
+/// Only fetches data when [TransitConfig.enabled] is true and both
+/// home and work stations are configured.
 /// Auto-refreshes every 30 seconds when visible.
 class TransitScreen extends StatefulWidget {
   const TransitScreen({super.key});
@@ -25,12 +26,12 @@ class TransitScreen extends StatefulWidget {
 class _TransitScreenState extends State<TransitScreen>
     with WidgetsBindingObserver {
   final _transit = TransitService();
-  List<DepartureInfo>? _departures;
+  List<JourneyInfo>? _journeys;
   TransitConfig? _cfg;
   DateTime? _lastUpdatedAt;
   bool _loading = true;
   Timer? _refreshTimer;
-  bool _isVisible = true;
+  bool _isVisible = true; // ignore: prefer_final_fields
   bool _isMorning = true;
 
   static bool _timeIsMorning() {
@@ -65,7 +66,7 @@ class _TransitScreenState extends State<TransitScreen>
     await _transit.loadConfig();
     _cfg = _transit.config;
 
-    if (_cfg!.enabled) {
+    if (_cfg!.enabled && _cfg!.hasWork && _cfg!.hasHome) {
       _isMorning = _timeIsMorning();
       await _refresh();
     }
@@ -82,30 +83,18 @@ class _TransitScreenState extends State<TransitScreen>
         AppState().todayLog != null;
     _isMorning = hasActiveDay ? false : _timeIsMorning();
 
-    // Morning:  fetch from home station → filter for work
-    // Afternoon: fetch from work station → filter for home
-    final fetchSiteId = _isMorning ? _cfg!.homeSiteId : _cfg!.workSiteId;
-    final filterName = _isMorning ? _cfg!.workSiteName : _cfg!.homeSiteName;
+    // Morning: home → work. Afternoon: work → home.
+    final originId = _isMorning ? _cfg!.homeStopId : _cfg!.workStopId;
+    final destId = _isMorning ? _cfg!.workStopId : _cfg!.homeStopId;
 
-    final departures = await _transit.fetchDepartures(fetchSiteId);
-    if (departures == null) return;
-
-    final railRelevant = _transit.filterRailRelevant(departures);
-
-    List<DepartureInfo> filtered;
-    if (_cfg!.hasLineFilter) {
-      filtered = _transit.filterByLineNumber(railRelevant, _cfg!.lineFilter);
-    } else if (_cfg!.hasHome) {
-      filtered = _transit.filterByDestination(railRelevant, null, filterName);
-    } else {
-      filtered = railRelevant;
-    }
-
-    // Direction: morning=1 (toward city), afternoon=2 (toward suburbs)
-    filtered = _transit.filterByDirection(filtered, _isMorning ? 1 : 2);
+    final journeys = await _transit.fetchJourneys(
+      originId: originId,
+      destId: destId,
+      isMorning: _isMorning,
+    );
 
     if (mounted) setState(() {
-      _departures = filtered;
+      _journeys = journeys;
       _lastUpdatedAt = DateTime.now();
     });
   }
@@ -158,7 +147,27 @@ class _TransitScreenState extends State<TransitScreen>
             Text('Transit integration is disabled.',
                 style: theme.textTheme.titleMedium),
             const SizedBox(height: 8),
-            Text('Enable it in Settings to see real-time departures.',
+            Text('Enable it in Settings to see journey options.',
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                )),
+          ],
+        ),
+      );
+    }
+
+    if (!_cfg!.hasWork || !_cfg!.hasHome) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.settings, size: 64,
+                color: theme.colorScheme.onSurfaceVariant),
+            const SizedBox(height: 16),
+            Text('Configure your stations in Settings.',
+                style: theme.textTheme.titleMedium),
+            const SizedBox(height: 8),
+            Text('Both work and home stations must be set.',
                 style: theme.textTheme.bodyMedium?.copyWith(
                   color: theme.colorScheme.onSurfaceVariant,
                 )),
@@ -168,11 +177,8 @@ class _TransitScreenState extends State<TransitScreen>
     }
 
     final directionLabel = _isMorning
-        ? '${_cfg!.homeSiteName} → ${_cfg!.workSiteName}'
-        : '${_cfg!.workSiteName} → ${_cfg!.homeSiteName}';
-
-    final fromLabel = _isMorning ? _cfg!.homeSiteName : _cfg!.workSiteName;
-    final toLabel = _isMorning ? _cfg!.workSiteName : _cfg!.homeSiteName;
+        ? '${_cfg!.homeStopName} → ${_cfg!.workStopName}'
+        : '${_cfg!.workStopName} → ${_cfg!.homeStopName}';
 
     return RefreshIndicator(
       onRefresh: _refresh,
@@ -192,37 +198,36 @@ class _TransitScreenState extends State<TransitScreen>
                           color: theme.colorScheme.primary),
                       const SizedBox(width: 12),
                       Expanded(
-                        child: Text('Real-Time Departures',
+                        child: Text('Journey Options',
                             style: theme.textTheme.titleMedium),
                       ),
                     ],
                   ),
                   const SizedBox(height: 8),
                   _statRow(theme, 'Direction', directionLabel),
-                  _statRow(theme, 'Lines', _cfg!.hasLineFilter
-                      ? _cfg!.lineFilter.join(', ')
-                      : 'All'),
                   _statRow(theme, 'Walk home↔station',
                       '${_cfg!.walkHomeMinutes} min'),
                   _statRow(theme, 'Walk station↔work',
                       '${_cfg!.walkWorkMinutes} min'),
+                  _statRow(theme, 'Wait at station',
+                      '${_cfg!.waitAtStationMinutes} min'),
                 ],
               ),
             ),
           ),
           const SizedBox(height: 16),
 
-          // -- Departures --
-          if (_departures != null && _departures!.isNotEmpty) ...[
+          // -- Journey cards --
+          if (_journeys != null && _journeys!.isNotEmpty) ...[
             Text(
               _isMorning
-                  ? 'Traveling to ${_cfg!.workSiteName}'
-                  : 'Traveling to ${_cfg!.homeSiteName}',
+                  ? 'Traveling to ${_cfg!.workStopName}'
+                  : 'Traveling to ${_cfg!.homeStopName}',
               style: theme.textTheme.titleMedium,
             ),
             const SizedBox(height: 8),
-            ..._departures!.map((d) => _DepartureCard(
-                  departure: d,
+            ..._journeys!.map((j) => _JourneyCard(
+                  journey: j,
                   cfg: _cfg!,
                   isMorning: _isMorning,
                   theme: theme,
@@ -230,7 +235,7 @@ class _TransitScreenState extends State<TransitScreen>
           ],
 
           // -- Empty state --
-          if (_departures == null || _departures!.isEmpty) ...[
+          if (_journeys == null || _journeys!.isEmpty) ...[
             const SizedBox(height: 32),
             Center(
               child: Column(
@@ -238,7 +243,7 @@ class _TransitScreenState extends State<TransitScreen>
                   Icon(Icons.search_off, size: 48,
                       color: theme.colorScheme.onSurfaceVariant),
                   const SizedBox(height: 16),
-                  Text('No departures found',
+                  Text('No journeys found',
                       style: theme.textTheme.titleMedium),
                   const SizedBox(height: 8),
                   Text(
@@ -310,17 +315,17 @@ class _TransitScreenState extends State<TransitScreen>
 }
 
 // ---------------------------------------------------------------------------
-// Departure card
+// Journey card
 // ---------------------------------------------------------------------------
 
-class _DepartureCard extends StatelessWidget {
-  final DepartureInfo departure;
+class _JourneyCard extends StatelessWidget {
+  final JourneyInfo journey;
   final TransitConfig cfg;
   final bool isMorning;
   final ThemeData theme;
 
-  const _DepartureCard({
-    required this.departure,
+  const _JourneyCard({
+    required this.journey,
     required this.cfg,
     required this.isMorning,
     required this.theme,
@@ -328,11 +333,28 @@ class _DepartureCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scheduledStr =
-        '${departure.scheduledTime.hour.toString().padLeft(2, '0')}:'
-        '${departure.scheduledTime.minute.toString().padLeft(2, '0')}';
+    final depStr =
+        '${journey.departureTime.hour.toString().padLeft(2, '0')}:'
+        '${journey.departureTime.minute.toString().padLeft(2, '0')}';
 
-    final delayColor = _delayColor(departure);
+    final delayColor = _delayColor(journey);
+
+    // Line badge
+    final line = journey.mainLine;
+    // Destination
+    final dest = journey.mainDestination ?? 'Unknown';
+
+    // Occupancy badge
+    final occ = journey.occupancy;
+
+    // Platform
+    final platform = journey.departurePlatform;
+
+    // Transport mode info is available via legs if needed
+    // Transport mode info is available via legs if needed
+    final mode = journey.transportMode;
+    // ignore: unused_local_variable, no_leading_underscores_for_local_identifiers
+    final mode_ = mode;
 
     return Card(
       margin: const EdgeInsets.symmetric(vertical: 4),
@@ -341,16 +363,17 @@ class _DepartureCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // Top row: departure time + line badge + delay
             Row(
               children: [
                 Text(
-                  scheduledStr,
+                  depStr,
                   style: theme.textTheme.titleLarge?.copyWith(
                     fontFamily: 'monospace',
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-                if (departure.lineNumber != null) ...<Widget>[
+                if (line != null) ...[
                   const SizedBox(width: 10),
                   Container(
                     padding: const EdgeInsets.symmetric(
@@ -360,7 +383,7 @@ class _DepartureCard extends StatelessWidget {
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Text(
-                      departure.lineNumber!,
+                      line,
                       style: theme.textTheme.titleSmall?.copyWith(
                         fontWeight: FontWeight.bold,
                         color: theme.colorScheme.onSecondaryContainer,
@@ -377,7 +400,7 @@ class _DepartureCard extends StatelessWidget {
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Text(
-                    departure.delayLabel,
+                    journey.delayLabel,
                     style: theme.textTheme.bodySmall?.copyWith(
                       fontWeight: FontWeight.w600,
                       color: delayColor,
@@ -388,28 +411,34 @@ class _DepartureCard extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 6),
+            // Destination + duration + platform
             Row(
               children: [
                 Expanded(
                   child: Text(
-                    '→ ${departure.destination}',
+                    '→ $dest · ${journey.durationMinutes} min',
                     style: theme.textTheme.bodyMedium?.copyWith(
                       color: theme.colorScheme.onSurfaceVariant,
                     ),
                   ),
                 ),
-                if (departure.track != null)
+                if (platform != null)
                   Text(
-                    'Platform ${departure.track}',
+                    'Platform $platform',
                     style: theme.textTheme.bodySmall?.copyWith(
                       color: theme.colorScheme.onSurfaceVariant,
                     ),
                   ),
               ],
             ),
+            // Occupancy badge
+            if (occ != null) ...[
+              const SizedBox(height: 4),
+              _OccupancyBadge(occupancy: occ, theme: theme),
+            ],
             const SizedBox(height: 6),
             _LeaveTimeInfo(
-              departure: departure,
+              journey: journey,
               cfg: cfg,
               isMorning: isMorning,
               theme: theme,
@@ -420,10 +449,8 @@ class _DepartureCard extends StatelessWidget {
     );
   }
 
-  Color _delayColor(DepartureInfo d) {
-    if (d.isCancelled) return Colors.red;
-    if (d.expectedTime == null) return Colors.green;
-    final diff = d.expectedTime!.difference(d.scheduledTime).inMinutes;
+  Color _delayColor(JourneyInfo j) {
+    final diff = j.departureDelayMinutes;
     if (diff <= 0) return Colors.green;
     if (diff <= 5) return Colors.orange.shade700;
     return Colors.red;
@@ -431,17 +458,76 @@ class _DepartureCard extends StatelessWidget {
 }
 
 // ---------------------------------------------------------------------------
-// Leave time info row (used in TransitScreen departure cards)
+// Occupancy badge
+// ---------------------------------------------------------------------------
+
+class _OccupancyBadge extends StatelessWidget {
+  final String occupancy;
+  final ThemeData theme;
+
+  const _OccupancyBadge({
+    required this.occupancy,
+    required this.theme,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final (icon, label, color) = switch (occupancy) {
+      'MANY_SEATS' => (
+        Icons.chair,
+        'Many seats available',
+        Colors.green,
+      ),
+      'FEW_SEATS' => (
+        Icons.chair,
+        'Few seats available',
+        Colors.orange.shade700,
+      ),
+      'STANDING_ONLY' => (
+        Icons.directions_bus,
+        'Standing room only',
+        Colors.red,
+      ),
+      _ => (Icons.chair, 'Seats available', Colors.green),
+    };
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: color),
+          const SizedBox(width: 4),
+          Text(
+            label,
+            style: theme.textTheme.bodySmall?.copyWith(
+              fontWeight: FontWeight.w600,
+              color: color,
+              fontSize: 11,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Leave time info row
 // ---------------------------------------------------------------------------
 
 class _LeaveTimeInfo extends StatelessWidget {
-  final DepartureInfo departure;
+  final JourneyInfo journey;
   final TransitConfig cfg;
   final bool isMorning;
   final ThemeData theme;
 
   const _LeaveTimeInfo({
-    required this.departure,
+    required this.journey,
     required this.cfg,
     required this.isMorning,
     required this.theme,
@@ -450,7 +536,7 @@ class _LeaveTimeInfo extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final now = DateTime.now();
-    final depTime = departure.scheduledTime;
+    final depTime = journey.departureTime;
     final walkBuffer = isMorning
         ? cfg.walkHomeMinutes
         : cfg.walkWorkMinutes;
@@ -478,16 +564,26 @@ class _LeaveTimeInfo extends StatelessWidget {
       untilStr = ' · leave in $minutesUntilLeave min';
     }
 
-    return Text(
-      isCatchable
-          ? 'Leave at $leaveStr · ${waitStation}min wait$untilStr'
-          : 'Missed — needed to leave by $leaveStr',
-      style: theme.textTheme.bodySmall?.copyWith(
-        color: isCatchable
-            ? theme.colorScheme.onSurfaceVariant
-            : theme.colorScheme.error,
-        fontStyle: isCatchable ? null : FontStyle.italic,
-      ),
+    // Arrival time
+    final arrStr =
+        '${journey.arrivalTime.hour.toString().padLeft(2, '0')}:'
+        '${journey.arrivalTime.minute.toString().padLeft(2, '0')}';
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          isCatchable
+              ? 'Leave at $leaveStr · ${waitStation}min wait · arrive $arrStr$untilStr'
+              : 'Missed — needed to leave by $leaveStr',
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: isCatchable
+                ? theme.colorScheme.onSurfaceVariant
+                : theme.colorScheme.error,
+            fontStyle: isCatchable ? null : FontStyle.italic,
+          ),
+        ),
+      ],
     );
   }
 }

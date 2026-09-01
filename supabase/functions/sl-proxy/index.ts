@@ -1,18 +1,43 @@
 // Edge Function: sl-proxy
-// Proxies requests to SL Transport API (transport.integration.sl.se)
-// to avoid CORS issues when calling from Flutter Web.
+// Proxies requests to SL APIs to avoid CORS issues from Flutter Web.
+// Also slims down the verbose journey planner response to a minimal model.
+//
+// Supported paths:
+//   /v1/sites                      — SL Transport API: list all sites
+//   /v1/sites/{id}/departures      — SL Transport API: departures from site
+//   /v2/stop-finder?name_sf=...    — SL Journey Planner: search stops
+//   /v2/trips?name_origin=...      — SL Journey Planner: plan trips (slimmed)
 //
 // Usage:
 //   POST /functions/v1/sl-proxy
-//   Body: { "path": "/v1/sites" }
-//   Body: { "path": "/v1/sites/9600/departures" }
+//   Body: { "path": "/v2/trips?name_origin=...&name_destination=..." }
 //
-// The function forwards the request to:
-//   https://transport.integration.sl.se{path}
-// and returns the JSON response with proper CORS headers.
+// The function forwards the request and returns JSON with CORS headers.
+// For /v2/trips, the response is slimmed down to essential fields.
 
 interface Env {
-  // No auth key needed for SL Transport API.
+  // No auth key needed for SL APIs.
+}
+
+interface SlimmedJourney {
+  departure_time: string;        // ISO string
+  departure_estimated: string;   // ISO string or null
+  arrival_time: string;          // ISO string
+  arrival_estimated: string;     // ISO string or null
+  duration_minutes: number;      // planned duration
+  rt_duration_minutes: number;   // realtime duration
+  legs: SlimmedLeg[];
+}
+
+interface SlimmedLeg {
+  type: "transport" | "walk";
+  duration_minutes: number;
+  line?: string;
+  destination?: string;
+  transport_mode?: string;
+  departure_platform?: string;
+  occupancy?: string;
+  delay_minutes?: number;
 }
 
 Deno.serve(async (req: Request) => {
@@ -49,8 +74,12 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    // Construct the downstream URL
-    const baseUrl = 'https://transport.integration.sl.se';
+    // Determine which SL API to call based on path prefix
+    const isJourneyPlanner = path.startsWith('/v2/');
+    const baseUrl = isJourneyPlanner
+      ? 'https://journeyplanner.integration.sl.se'
+      : 'https://transport.integration.sl.se';
+
     const targetUrl = `${baseUrl}${path}`;
 
     // Forward the request to SL API
@@ -62,10 +91,12 @@ Deno.serve(async (req: Request) => {
     });
 
     if (!slResponse.ok) {
+      const slBody = await slResponse.text();
       return new Response(
         JSON.stringify({
           error: `SL API returned ${slResponse.status}`,
           status: slResponse.status,
+          detail: slBody.substring(0, 500),
         }),
         {
           status: slResponse.status,
@@ -75,6 +106,23 @@ Deno.serve(async (req: Request) => {
     }
 
     const slBody = await slResponse.text();
+
+    // For journey planner /v2/trips, slim down the response
+    if (path.startsWith('/v2/trips')) {
+      try {
+        const slimmed = slimTripsResponse(slBody);
+        return new Response(JSON.stringify(slimmed), {
+          status: 200,
+          headers: {
+            ...corsHeaders(),
+            'Content-Type': 'application/json',
+            'Cache-Control': 'no-cache',
+          },
+        });
+      } catch (_) {
+        // If slimming fails, return raw response
+      }
+    }
 
     return new Response(slBody, {
       status: 200,
@@ -102,4 +150,130 @@ function corsHeaders(): Record<string, string> {
       'authorization, x-client-info, apikey, content-type',
     'Access-Control-Allow-Methods': 'POST, OPTIONS',
   };
+}
+
+/// Slim a full /v2/trips response down to essential journey data.
+function slimTripsResponse(rawJson: string): object {
+  const parsed = JSON.parse(rawJson);
+  const journeys = parsed.journeys as any[] | undefined;
+
+  if (!Array.isArray(journeys)) {
+    return { systemMessages: parsed.systemMessages ?? [], journeys: [] };
+  }
+
+  const slimmed: SlimmedJourney[] = journeys.map((j: any) => {
+    const legs = j.legs as any[] | undefined ?? [];
+    const slimLegs: SlimmedLeg[] = legs.map((leg: any) => {
+      const transport = leg.transportation ?? null;
+      const origin = leg.origin ?? {};
+      const destination = leg.destination ?? {};
+
+      // Determine leg type
+      const isTransport = transport !== null;
+      const type = isTransport ? 'transport' : 'walk';
+
+      // Parse times
+      const depPlanned = origin.departureTimePlanned ?? '';
+      const depEstimated = origin.departureTimeEstimated ?? null;
+      const arrPlanned = destination.arrivalTimePlanned ?? '';
+      const arrEstimated = destination.arrivalTimeEstimated ?? null;
+
+      // Calculate delay in minutes
+      let delayMinutes: number | undefined;
+      if (depPlanned && depEstimated && isTransport) {
+        const planned = new Date(depPlanned).getTime();
+        const estimated = new Date(depEstimated).getTime();
+        delayMinutes = Math.round((estimated - planned) / 60000);
+        if (delayMinutes <= 0) delayMinutes = undefined;
+      }
+
+      // Line info from transportation
+      let line: string | undefined;
+      let destinationName: string | undefined;
+      let transportMode: string | undefined;
+      let occupancy: string | undefined;
+      let departurePlatform: string | undefined;
+
+      if (isTransport) {
+        // Parse line number from transportation name
+        const name = transport.name as string ?? '';
+        // Extract line number from e.g. "Spårvagn Roslagsbanan 28" -> "28"
+        const match = name.match(/(\d+[A-Z]?)$/);
+        line = match ? match[1] : (transport.number as string ?? '');
+
+        const prod = transport.product ?? {};
+        const modeClass = prod.class as number ?? 0;
+        // Map product class to transport mode string
+        transportMode = mapProductClass(modeClass);
+
+        const destObj = transport.destination ?? {};
+        destinationName = destObj.name as string ?? '';
+
+        // Occupancy is on origin.properties
+        const originProps = origin.properties ?? {};
+        occupancy = originProps.occupancy as string ?? undefined;
+
+        // Platform from origin
+        const platformName = originProps.platformName as string ?? undefined;
+        departurePlatform = platformName ?? undefined;
+      }
+
+      const durationSec = leg.duration as number ?? 0;
+
+      return {
+        type,
+        duration_minutes: Math.round(durationSec / 60),
+        ...(line ? { line } : {}),
+        ...(destinationName ? { destination: destinationName } : {}),
+        ...(transportMode ? { transport_mode: transportMode } : {}),
+        ...(departurePlatform ? { departure_platform: departurePlatform } : {}),
+        ...(occupancy ? { occupancy } : {}),
+        ...(delayMinutes ? { delay_minutes: delayMinutes } : {}),
+      };
+    });
+
+    // Journey-level times: first leg departure, last leg arrival
+    const firstLeg = legs[0] ?? {};
+    const lastLeg = legs[legs.length - 1] ?? {};
+    const firstOrigin = firstLeg.origin ?? {};
+    const lastDest = lastLeg.destination ?? {};
+
+    const departurePlanned = firstOrigin.departureTimePlanned ?? '';
+    const departureEstimated = firstOrigin.departureTimeEstimated ?? null;
+    const arrivalPlanned = lastDest.arrivalTimePlanned ?? '';
+    const arrivalEstimated = lastDest.arrivalTimeEstimated ?? null;
+
+    const tripDuration = j.tripDuration as number ?? 0;
+    const tripRtDuration = j.tripRtDuration as number ?? 0;
+
+    return {
+      departure_time: departurePlanned,
+      departure_estimated: departureEstimated ?? departurePlanned,
+      arrival_time: arrivalPlanned,
+      arrival_estimated: arrivalEstimated ?? arrivalPlanned,
+      duration_minutes: Math.round(tripDuration / 60),
+      rt_duration_minutes: Math.round(tripRtDuration / 60),
+      legs: slimLegs,
+    };
+  });
+
+  return {
+    systemMessages: parsed.systemMessages ?? [],
+    journeys: slimmed,
+  };
+}
+
+/// Map SL product class to human-readable transport mode.
+function mapProductClass(classId: number): string {
+  // 0 = train (pendeltåg), 2 = metro, 4 = tram/local train, 5 = bus,
+  // 9 = ferry, 10 = on-demand
+  switch (classId) {
+    case 0: return 'TRAIN';
+    case 2: return 'METRO';
+    case 4: return 'TRAM';
+    case 5: return 'BUS';
+    case 9: return 'FERRY';
+    case 10: return 'ON_DEMAND';
+    default: return 'OTHER';
+  }
 }
