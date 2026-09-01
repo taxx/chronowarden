@@ -454,23 +454,33 @@ class _LeaveTimeInfo extends StatelessWidget {
     final walkBuffer = isMorning
         ? cfg.walkHomeMinutes
         : cfg.walkWorkMinutes;
-    final walkAfter = isMorning
-        ? cfg.walkWorkMinutes
-        : cfg.walkHomeMinutes;
-    final leaveTime = depTime.subtract(Duration(minutes: walkBuffer));
+    final waitStation = cfg.waitAtStationMinutes;
+    // Leave time accounts for walking + waiting at platform
+    final leaveTime = depTime.subtract(
+        Duration(minutes: walkBuffer + waitStation));
     final isCatchable = leaveTime.isAfter(now) ||
         leaveTime.difference(now).inMinutes.abs() <= 1;
-    final waitingMinutes = now.isBefore(leaveTime)
-        ? leaveTime.difference(now).inMinutes
-        : (now.isBefore(depTime) ? depTime.difference(now).inMinutes : 0);
 
     final leaveStr =
         '${leaveTime.hour.toString().padLeft(2, '0')}:'
         '${leaveTime.minute.toString().padLeft(2, '0')}';
 
+    // Time until user must leave
+    final minutesUntilLeave = now.isBefore(leaveTime)
+        ? leaveTime.difference(now).inMinutes
+        : 0;
+    String untilStr;
+    if (minutesUntilLeave <= 0) {
+      untilStr = '';
+    } else if (minutesUntilLeave == 1) {
+      untilStr = ' · leave in 1 min';
+    } else {
+      untilStr = ' · leave in $minutesUntilLeave min';
+    }
+
     return Text(
       isCatchable
-          ? 'Leave at $leaveStr · $waitingMinutes min wait'
+          ? 'Leave at $leaveStr · ${waitStation}min wait$untilStr'
           : 'Missed — needed to leave by $leaveStr',
       style: theme.textTheme.bodySmall?.copyWith(
         color: isCatchable

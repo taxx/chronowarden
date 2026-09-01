@@ -14,16 +14,18 @@ class TransitConfig {
   final String homeSiteName;
   final int walkHomeMinutes; // walking between home ↔ home station
   final int walkWorkMinutes; // walking between work station ↔ work
+  final int waitAtStationMinutes; // buffer: arrive at platform before departure
   final List<String> lineFilter;
 
   const TransitConfig({
     this.enabled = false,
-    this.workSiteId = 9600, // Stockholms Östra
+    this.workSiteId = 9600,
     this.workSiteName = 'Stockholms Östra',
     this.homeSiteId = 0,
     this.homeSiteName = '',
     this.walkHomeMinutes = 5,
     this.walkWorkMinutes = 5,
+    this.waitAtStationMinutes = 2,
     this.lineFilter = const [],
   });
 
@@ -31,8 +33,6 @@ class TransitConfig {
   bool get hasLineFilter => lineFilter.isNotEmpty;
 
   /// Total walking buffer for a given direction.
-  /// Morning (home→work): walkHomeMinutes + walkWorkMinutes
-  /// Afternoon (work→home): walkWorkMinutes + walkHomeMinutes
   int get totalWalkMinutes => walkHomeMinutes + walkWorkMinutes;
 
   factory TransitConfig.fromJson(Map<String, dynamic> json) {
@@ -41,21 +41,15 @@ class TransitConfig {
         ? <String>[]
         : lineFilterRaw.map((e) => e as String).toList();
 
-    final workSiteId = json['work_site_id'] as int? ?? 9600;
-    final workSiteName = json['work_site_name'] as String? ?? 'Stockholms Östra';
-    final homeSiteId = json['home_site_id'] as int? ?? 0;
-    final homeSiteName = json['home_site_name'] as String? ?? '';
-    final walkHomeMinutes = json['walk_home_minutes'] as int? ?? 5;
-    final walkWorkMinutes = json['walk_work_minutes'] as int? ?? 5;
-
     return TransitConfig(
       enabled: json['enabled'] as bool? ?? false,
-      workSiteId: workSiteId,
-      workSiteName: workSiteName,
-      homeSiteId: homeSiteId,
-      homeSiteName: homeSiteName,
-      walkHomeMinutes: walkHomeMinutes,
-      walkWorkMinutes: walkWorkMinutes,
+      workSiteId: json['work_site_id'] as int? ?? 9600,
+      workSiteName: json['work_site_name'] as String? ?? 'Stockholms Östra',
+      homeSiteId: json['home_site_id'] as int? ?? 0,
+      homeSiteName: json['home_site_name'] as String? ?? '',
+      walkHomeMinutes: json['walk_home_minutes'] as int? ?? 5,
+      walkWorkMinutes: json['walk_work_minutes'] as int? ?? 5,
+      waitAtStationMinutes: json['wait_at_station_minutes'] as int? ?? 2,
       lineFilter: lineFilter,
     );
   }
@@ -69,6 +63,7 @@ class TransitConfig {
       'home_site_name': homeSiteName,
       'walk_home_minutes': walkHomeMinutes,
       'walk_work_minutes': walkWorkMinutes,
+      'wait_at_station_minutes': waitAtStationMinutes,
       'line_filter': lineFilter,
     };
   }
@@ -81,6 +76,7 @@ class TransitConfig {
     String? homeSiteName,
     int? walkHomeMinutes,
     int? walkWorkMinutes,
+    int? waitAtStationMinutes,
     List<String>? lineFilter,
   }) {
     return TransitConfig(
@@ -91,6 +87,7 @@ class TransitConfig {
       homeSiteName: homeSiteName ?? this.homeSiteName,
       walkHomeMinutes: walkHomeMinutes ?? this.walkHomeMinutes,
       walkWorkMinutes: walkWorkMinutes ?? this.walkWorkMinutes,
+      waitAtStationMinutes: waitAtStationMinutes ?? this.waitAtStationMinutes,
       lineFilter: lineFilter ?? this.lineFilter,
     );
   }
@@ -99,6 +96,7 @@ class TransitConfig {
   String toString() =>
       'TransitConfig(enabled: $enabled, work: $workSiteName ($workSiteId), '
       'home: ${hasHome ? "$homeSiteName ($homeSiteId)" : "none"}, '
-      'walk home: ${walkHomeMinutes}min, walk work: ${walkWorkMinutes}min'
+      'walk home: ${walkHomeMinutes}min, walk work: ${walkWorkMinutes}min, '
+      'wait station: ${waitAtStationMinutes}min'
       '${hasLineFilter ? ", lines: ${lineFilter.join(',')}" : ""})';
 }

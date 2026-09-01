@@ -184,6 +184,7 @@ class _MyDayTabState extends State<MyDayTab> with SingleTickerProviderStateMixin
 
     _transitCardShown = true;
 
+    final waitStation = _transitCfg!.waitAtStationMinutes;
     final walkBuffer = isMorning
         ? _transitCfg!.walkHomeMinutes
         : _transitCfg!.walkWorkMinutes;
@@ -216,7 +217,7 @@ class _MyDayTabState extends State<MyDayTab> with SingleTickerProviderStateMixin
                   departure: d,
                   now: now,
                   walkBuffer: walkBuffer,
-                  walkFromArrival: walkFromArrival,
+                  waitStation: waitStation,
                   theme: theme,
                 )),
             const SizedBox(height: 8),
@@ -1365,26 +1366,37 @@ class _TransitDepartureRow extends StatelessWidget {
   final DepartureInfo departure;
   final DateTime now;
   final int walkBuffer;
-  final int walkFromArrival;
+  final int waitStation;
   final ThemeData theme;
 
   const _TransitDepartureRow({
     required this.departure,
     required this.now,
     required this.walkBuffer,
-    required this.walkFromArrival,
+    required this.waitStation,
     required this.theme,
   });
 
   @override
   Widget build(BuildContext context) {
     final depTime = departure.scheduledTime;
-    final leaveTime = depTime.subtract(Duration(minutes: walkBuffer));
+    final leaveTime = depTime.subtract(
+        Duration(minutes: walkBuffer + waitStation));
     final isCatchable = leaveTime.isAfter(now) ||
         leaveTime.difference(now).inMinutes.abs() <= 1;
-    final waitingMinutes = now.isBefore(leaveTime)
+
+    // Time until user must leave
+    final minutesUntilLeave = now.isBefore(leaveTime)
         ? leaveTime.difference(now).inMinutes
-        : (now.isBefore(depTime) ? depTime.difference(now).inMinutes : 0);
+        : 0;
+    String untilStr;
+    if (minutesUntilLeave <= 0) {
+      untilStr = '';
+    } else if (minutesUntilLeave == 1) {
+      untilStr = ' · leave in 1 min';
+    } else {
+      untilStr = ' · leave in $minutesUntilLeave min';
+    }
 
     final depStr =
         '${depTime.hour.toString().padLeft(2, '0')}:'
@@ -1454,7 +1466,7 @@ class _TransitDepartureRow extends StatelessWidget {
           const SizedBox(height: 4),
           Text(
             isCatchable
-                ? 'Leave at $leaveStr · $waitingMinutes min wait'
+                ? 'Leave at $leaveStr · ${waitStation}min wait$untilStr'
                 : 'Missed — needed to leave by $leaveStr',
             style: theme.textTheme.bodySmall?.copyWith(
               color: isCatchable
