@@ -239,45 +239,51 @@ without requiring page reloads.
 
 ---
 
-## Real-Time Transit Integration (SL Roslagsbanan)
+## Real-Time Transit Integration (SL Journey Planner)
 
-ChronoWarden can show real-time Roslagsbanan departures from SL (Stockholm
-Public Transport), matching the calculated leave time against actual trains.
+ChronoWarden uses SL's Journey Planner API to show journey options between
+the user's home and work stations, accounting for walking time and platform
+wait buffers.
 
 ### Architecture
 ```
 Flutter Web
-  └─ supabase.functions.invoke('sl-proxy', { path: '/v1/sites/9600/departures' })
-       └─ Supabase Edge Function (Deno)
-            └─ fetch('https://transport.integration.sl.se/v1/sites/9600/departures')
-                 └─ Response + CORS headers back to Flutter
+  └─ supabase.functions.invoke('sl-proxy', { path: '/v2/trips?...' })
+       └─ Supabase Edge Function (Deno) — slims response from ~220KB to essentials
+            └─ fetch('https://journeyplanner.integration.sl.se/v2/trips?...')
+                 └─ Slimmed JSON (departure_time, arrival_time, legs with
+                     line, platform, occupancy, delay) back to Flutter
 ```
 
-### Why a proxy?
-SL Transport API doesn't set CORS headers, so Flutter Web can't call it
-directly. The `sl-proxy` Edge Function adds proper CORS headers and
-forwards the response. All requests go through Supabase.
+### Why a proxy + slimming?
+SL Journey Planner API doesn't set CORS headers, so Flutter Web can't call
+it directly. The `sl-proxy` Edge Function adds CORS headers, forwards the
+request, and **slimes** the verbose `/v2/trips` response (~220KB for 3
+journeys) down to essential fields (~2KB).
 
 ### Smart direction logic
 The Transit tab automatically switches direction based on time of day:
-- **Morning (before 11:00)**: departures from HOME → WORK
-  (fetches from home station, filters for work)
-- **Afternoon (11:00+)**: departures from WORK → HOME
-  (fetches from work station, filters for home)
+- **Morning (before 11:00)**: home → work
+- **Afternoon (11:00+)**: work → home
+
+### Walk-offset query time
+When fetching journeys, the query time is offset by the walking time so
+the API returns journeys that depart after the user has walked to the
+station, maximizing useful results from the 3-journey limit.
 
 ### Station autocomplete
-Uses SL Site API (`/v1/sites`) to let users search stations by name.
-The full site list is fetched once and cached in memory for 24h.
-Client-side filtering — no network calls per keystroke.
+Uses SL Journey Planner `/v2/stop-finder` to search stations by name.
+Each query fetches fresh results (no caching) with 300ms debounce.
+Returns journey planner global IDs (strings like "9091001001009638").
 
 ### Transit config storage
 Stored as encrypted JSON inside `user_settings.encrypted_data` under
 key `transit_config`. Zero-knowledge like all encrypted data.
 Fields:
 - `enabled` — toggle to show/hide Transit tab
-- `departure_site_id` / `departure_site_name` — work station
-- `destination_site_id` / `destination_site_name` — home station
-- `walk_minutes_to_station` / `walk_minutes_from_station` — walking buffers
+- `work_stop_id` / `work_stop_name` — journey planner global IDs
+- `home_stop_id` / `home_stop_name` — journey planner global IDs
+- `walk_home_minutes` / `walk_work_minutes` — walking buffers
 
 ### Transit tab visibility
 The Transit navigation destination only appears in the bottom nav bar
@@ -287,14 +293,14 @@ when `enabled` is true in settings. Disabled users never see it.
 | File | Purpose |
 |------|---------|
 | `lib/models/transit_config.dart` | TransitConfig model (encrypted settings) |
-| `lib/models/departure_info.dart` | SL departure API response model |
-| `lib/models/station_info.dart` | SL site API response model |
-| `lib/services/transit_service.dart` | Config CRUD + SL API fetcher + caching |
-| `lib/widgets/station_picker.dart` | Reusable autocomplete widget |
-| `lib/screens/transit_screen.dart` | Transit tab UI with smart direction |
+| `lib/models/journey_info.dart` | Slimmed journey + leg data models |
+| `lib/models/station_info.dart` | Station model (global IDs + site IDs) |
+| `lib/services/transit_service.dart` | Config CRUD + journey planner fetcher + caching |
+| `lib/widgets/station_picker.dart` | Reusable autocomplete with debounce |
+| `lib/screens/transit_screen.dart` | Transit tab UI with journey cards |
 | `lib/screens/settings_screen.dart` | Transit config card (Work/Home pickers) |
 | `lib/screens/main_shell.dart` | Conditional Transit nav item |
-| `supabase/functions/sl-proxy/index.ts` | Edge Function: CORS proxy for SL API |
+| `supabase/functions/sl-proxy/index.ts` | Edge Function: CORS proxy + response slimming |
 
 ### Edge Function credentials (`.env.edge`)
 Credentials for Supabase Edge Function deployment live in `.env.edge`

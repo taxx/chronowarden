@@ -127,23 +127,28 @@ Backup files are gitignored (`chronowarden_backup_*.tar`).
 
 ---
 
-## Real-Time Transit Integration (SL Roslagsbanan)
+## Real-Time Transit Integration (SL Journey Planner)
 
-ChronoWarden integrates with SL (Stockholm Public Transport) to show
-real-time Roslagsbanan departures. The feature is opt-in via Settings.
+ChronoWarden uses SL's Journey Planner API to show journey options
+between home and work stations. The feature is opt-in via Settings.
 
 ### Smart direction
-- **Morning (before 11:00)**: shows departures from HOME → WORK
-- **Afternoon (11:00+)**: shows departures from WORK → HOME
+- **Morning (before 11:00)**: home → work
+- **Afternoon (11:00+)**: work → home
+
+### Walk-offset query time
+When fetching journeys, the query time is offset by walking minutes so
+the API returns journeys that depart after the user has walked to the
+station, maximizing useful results from the 3-journey limit.
 
 ### Station autocomplete
-Users search stations by name. The SL site list is fetched once and
-cached in memory for 24h. No network calls per keystroke.
+Uses SL Journey Planner `/v2/stop-finder` with 300ms debounce.
+Returns journey planner global IDs (strings like "9091001001009638").
 
-### CORS proxy
-SL Transport API doesn't set CORS headers. A Supabase Edge Function
-(`sl-proxy`) adds proper CORS headers and forwards responses.
-All requests go through `supabase.functions.invoke()`.
+### CORS proxy + response slimming
+SL Journey Planner API doesn't set CORS headers. The `sl-proxy` Edge
+Function adds CORS headers and **slimes** the verbose `/v2/trips`
+response (~220KB for 3 journeys) to essential fields (~2KB).
 
 ### Transit tab visibility
 The Transit nav item only appears when enabled in Settings.
@@ -216,8 +221,8 @@ lib/
 │   ├── time_log.dart        # Workday log entry
 │   ├── travel_preset.dart   # Commute scenario preset
 │   ├── transit_config.dart  # Transit integration preferences
-│   ├── departure_info.dart  # SL departure API response
-│   ├── station_info.dart    # SL site API response
+│   ├── journey_info.dart   # Slimmed journey planner response
+│   ├── station_info.dart    # Station model (global IDs + site IDs)
 │   ├── user_profile.dart    # Auth user profile (role, status)
 │   └── invite.dart          # Invite token
 ├── services/                # Business logic & API layer
@@ -225,7 +230,7 @@ lib/
 │   ├── profile_service.dart # Admin user management
 │   ├── time_log_service.dart
 │   ├── travel_preset_service.dart
-│   ├── transit_service.dart # Transit config + SL API fetcher + caching
+│   ├── transit_service.dart # Transit config + journey planner fetcher + caching
 │   ├── work_period_service.dart
 │   ├── crypto_service.dart  # Encryption / decryption
 │   ├── notification_service.dart
@@ -242,11 +247,11 @@ lib/
 │   ├── overview_tab.dart
 │   ├── history_content.dart
 │   ├── projection_screen.dart
-│   ├── transit_screen.dart  # Real-time departure list with smart direction
+│   ├── transit_screen.dart  # Journey options list with smart direction
 │   ├── settings_screen.dart # Transit config card (Work/Home pickers)
 │   └── about_encryption_screen.dart
 ├── widgets/                 # Reusable widgets
-│   └── station_picker.dart  # SL station autocomplete field
+│   └── station_picker.dart  # SL station autocomplete with debounce
 ├── utils/                   # Utilities
 │   ├── csv_export.dart
 │   ├── csv_import.dart
@@ -257,5 +262,5 @@ lib/
 supabase/
 └── functions/
     └── sl-proxy/
-        └── index.ts         # Edge Function: CORS proxy for SL API
+        └── index.ts         # Edge Function: CORS proxy + response slimming
 ```
