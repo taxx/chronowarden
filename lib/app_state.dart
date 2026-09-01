@@ -11,7 +11,7 @@ import 'services/travel_preset_service.dart';
 import 'services/work_config_service.dart';
 import 'services/supabase_service.dart';
 import 'services/transit_service.dart';
-import 'models/departure_info.dart';
+// import 'models/departure_info.dart';  // Legacy — replaced by journey planner
 import 'models/transit_config.dart';
 import 'utils/csv_import.dart';
 
@@ -105,16 +105,8 @@ class AppState extends ChangeNotifier {
   /// Transit config (loaded lazily).
   TransitConfig get transitConfig => transit.config;
 
-  /// Cached upcoming departures.
-  List<DepartureInfo>? get upcomingDepartures => transit.cachedDepartures;
-
-  /// Refresh transit data if enabled.
-  Future<void> refreshTransit() async {
-    final cfg = transit.config;
-    if (!cfg.enabled) return;
-    await transit.fetchDepartures(cfg.workSiteId);
-    notifyListeners();
-  }
+  // Legacy departure methods removed — using journey planner API instead
+  // Cached journey plans accessed via TransitService().cachedJourneys
 
   /// Returns the expected work minutes for [date], derived from the
   /// work config (default vs reduced period by ISO week).

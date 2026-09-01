@@ -151,13 +151,17 @@ class _MyDayTabState extends State<MyDayTab> with SingleTickerProviderStateMixin
         ? _transitCfg!.workStopId
         : _transitCfg!.homeStopId;
 
+    final walkOffset = isMorning
+        ? _transitCfg!.walkHomeMinutes
+        : _transitCfg!.walkWorkMinutes;
+
     // Fetch journey data if cache is stale, missing, or for wrong route
     _transitJourneys = _transit.cachedJourneys;
     if (_transitJourneys == null) {
       _transit.fetchJourneys(
         originId: originId,
         destId: destId,
-        isMorning: isMorning,
+        walkOffsetMinutes: walkOffset,
       ).then((_) {
         if (mounted) setState(() {});
       });
@@ -165,12 +169,12 @@ class _MyDayTabState extends State<MyDayTab> with SingleTickerProviderStateMixin
       return const SizedBox.shrink();
     }
 
-    // Refresh if cache is stale (> 30s) or for a different route
-    if (_transit.shouldRefreshJourneys(originId, destId, isMorning)) {
+    // Refresh if cache is stale (> 60s) or for a different route
+    if (_transit.shouldRefreshJourneys(originId, destId, walkOffset)) {
       _transit.fetchJourneys(
         originId: originId,
         destId: destId,
-        isMorning: isMorning,
+        walkOffsetMinutes: walkOffset,
       ).then((_) {
         if (mounted) setState(() {});
       });

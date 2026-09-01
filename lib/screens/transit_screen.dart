@@ -87,10 +87,14 @@ class _TransitScreenState extends State<TransitScreen>
     final originId = _isMorning ? _cfg!.homeStopId : _cfg!.workStopId;
     final destId = _isMorning ? _cfg!.workStopId : _cfg!.homeStopId;
 
+    final walkOffset = _isMorning
+        ? _cfg!.walkHomeMinutes
+        : _cfg!.walkWorkMinutes;
+
     final journeys = await _transit.fetchJourneys(
       originId: originId,
       destId: destId,
-      isMorning: _isMorning,
+      walkOffsetMinutes: walkOffset,
     );
 
     if (mounted) setState(() {

@@ -942,18 +942,6 @@ class _TransitConfigSectionState extends State<_TransitConfigSection> {
                 ],
               ),
               const SizedBox(height: 16),
-              Center(
-                child: Text(
-                  'Departure data provided by Trafiklab.se (CC-BY 4.0)',
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant,
-                    fontStyle: FontStyle.italic,
-                    fontSize: 10,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-              ),
-              const SizedBox(height: 8),
               Text('Walk station↔work', style: theme.textTheme.titleSmall),
               const SizedBox(height: 4),
               Row(
@@ -975,48 +963,6 @@ class _TransitConfigSectionState extends State<_TransitConfigSection> {
                 ],
               ),
               const SizedBox(height: 16),
-              Text('Wait at station', style: theme.textTheme.titleSmall),
-              const SizedBox(height: 4),
-              Row(
-                children: [
-                  Expanded(
-                    child: Slider(
-                      value: cfg.waitAtStationMinutes.toDouble(),
-                      min: 0,
-                      max: 10,
-                      divisions: 10,
-                      label: '${cfg.waitAtStationMinutes} min',
-                      onChanged: (v) => _update(
-                        cfg.copyWith(waitAtStationMinutes: v.round())),
-                    ),
-                  ),
-                  Text('${cfg.waitAtStationMinutes} min',
-                      style: theme.textTheme.bodyMedium
-                          ?.copyWith(fontWeight: FontWeight.w600)),
-                ],
-              ),
-              const SizedBox(height: 16),
-              Text('Walk home↔station', style: theme.textTheme.titleSmall),
-              const SizedBox(height: 4),
-              Row(
-                children: [
-                  Expanded(
-                    child: Slider(
-                      value: cfg.walkHomeMinutes.toDouble(),
-                      min: 1,
-                      max: 30,
-                      divisions: 29,
-                      label: '${cfg.walkHomeMinutes} min',
-                      onChanged: (v) => _update(
-                        cfg.copyWith(walkHomeMinutes: v.round())),
-                    ),
-                  ),
-                  Text('${cfg.walkHomeMinutes} min',
-                      style: theme.textTheme.bodyMedium
-                          ?.copyWith(fontWeight: FontWeight.w600)),
-                ],
-              ),
-              const SizedBox(height: 16),
               Center(
                 child: Text(
                   'Departure data provided by Trafiklab.se (CC-BY 4.0)',
@@ -1027,27 +973,6 @@ class _TransitConfigSectionState extends State<_TransitConfigSection> {
                   ),
                   textAlign: TextAlign.center,
                 ),
-              ),
-              const SizedBox(height: 8),
-              Text('Walk station↔work', style: theme.textTheme.titleSmall),
-              const SizedBox(height: 4),
-              Row(
-                children: [
-                  Expanded(
-                    child: Slider(
-                      value: cfg.walkWorkMinutes.toDouble(),
-                      min: 1,
-                      max: 30,
-                      divisions: 29,
-                      label: '${cfg.walkWorkMinutes} min',
-                      onChanged: (v) => _update(
-                        cfg.copyWith(walkWorkMinutes: v.round())),
-                    ),
-                  ),
-                  Text('${cfg.walkWorkMinutes} min',
-                      style: theme.textTheme.bodyMedium
-                          ?.copyWith(fontWeight: FontWeight.w600)),
-                ],
               ),
               const SizedBox(height: 16),
               Text('Wait at station', style: theme.textTheme.titleSmall),

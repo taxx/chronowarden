@@ -1,10 +1,8 @@
 // Edge Function: sl-proxy
-// Proxies requests to SL APIs to avoid CORS issues from Flutter Web.
-// Also slims down the verbose journey planner response to a minimal model.
+// Proxies requests to SL Journey Planner API to avoid CORS issues from Flutter Web.
+// Also slims down the verbose /v2/trips response to a minimal model.
 //
 // Supported paths:
-//   /v1/sites                      — SL Transport API: list all sites
-//   /v1/sites/{id}/departures      — SL Transport API: departures from site
 //   /v2/stop-finder?name_sf=...    — SL Journey Planner: search stops
 //   /v2/trips?name_origin=...      — SL Journey Planner: plan trips (slimmed)
 //
@@ -15,17 +13,13 @@
 // The function forwards the request and returns JSON with CORS headers.
 // For /v2/trips, the response is slimmed down to essential fields.
 
-interface Env {
-  // No auth key needed for SL APIs.
-}
-
 interface SlimmedJourney {
-  departure_time: string;        // ISO string
-  departure_estimated: string;   // ISO string or null
-  arrival_time: string;          // ISO string
-  arrival_estimated: string;     // ISO string or null
-  duration_minutes: number;      // planned duration
-  rt_duration_minutes: number;   // realtime duration
+  departure_time: string;
+  departure_estimated: string;
+  arrival_time: string;
+  arrival_estimated: string;
+  duration_minutes: number;
+  rt_duration_minutes: number;
   legs: SlimmedLeg[];
 }
 
@@ -74,12 +68,8 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    // Determine which SL API to call based on path prefix
-    const isJourneyPlanner = path.startsWith('/v2/');
-    const baseUrl = isJourneyPlanner
-      ? 'https://journeyplanner.integration.sl.se'
-      : 'https://transport.integration.sl.se';
-
+    // All paths go to the SL Journey Planner API
+    const baseUrl = 'https://journeyplanner.integration.sl.se';
     const targetUrl = `${baseUrl}${path}`;
 
     // Forward the request to SL API
@@ -107,7 +97,7 @@ Deno.serve(async (req: Request) => {
 
     const slBody = await slResponse.text();
 
-    // For journey planner /v2/trips, slim down the response
+    // For /v2/trips, slim down the response
     if (path.startsWith('/v2/trips')) {
       try {
         const slimmed = slimTripsResponse(slBody);
@@ -124,6 +114,7 @@ Deno.serve(async (req: Request) => {
       }
     }
 
+    // For stop-finder and other endpoints, return as-is
     return new Response(slBody, {
       status: 200,
       headers: {
@@ -172,17 +163,11 @@ function slimTripsResponse(rawJson: string): object {
       const isTransport = transport !== null;
       const type = isTransport ? 'transport' : 'walk';
 
-      // Parse times
-      const depPlanned = origin.departureTimePlanned ?? '';
-      const depEstimated = origin.departureTimeEstimated ?? null;
-      const arrPlanned = destination.arrivalTimePlanned ?? '';
-      const arrEstimated = destination.arrivalTimeEstimated ?? null;
-
       // Calculate delay in minutes
       let delayMinutes: number | undefined;
-      if (depPlanned && depEstimated && isTransport) {
-        const planned = new Date(depPlanned).getTime();
-        const estimated = new Date(depEstimated).getTime();
+      if (isTransport && origin.departureTimePlanned && origin.departureTimeEstimated) {
+        const planned = new Date(origin.departureTimePlanned).getTime();
+        const estimated = new Date(origin.departureTimeEstimated).getTime();
         delayMinutes = Math.round((estimated - planned) / 60000);
         if (delayMinutes <= 0) delayMinutes = undefined;
       }
@@ -195,15 +180,13 @@ function slimTripsResponse(rawJson: string): object {
       let departurePlatform: string | undefined;
 
       if (isTransport) {
-        // Parse line number from transportation name
-        const name = transport.name as string ?? '';
         // Extract line number from e.g. "Spårvagn Roslagsbanan 28" -> "28"
+        const name = transport.name as string ?? '';
         const match = name.match(/(\d+[A-Z]?)$/);
         line = match ? match[1] : (transport.number as string ?? '');
 
         const prod = transport.product ?? {};
         const modeClass = prod.class as number ?? 0;
-        // Map product class to transport mode string
         transportMode = mapProductClass(modeClass);
 
         const destObj = transport.destination ?? {};
@@ -239,18 +222,18 @@ function slimTripsResponse(rawJson: string): object {
     const lastDest = lastLeg.destination ?? {};
 
     const departurePlanned = firstOrigin.departureTimePlanned ?? '';
-    const departureEstimated = firstOrigin.departureTimeEstimated ?? null;
+    const departureEstimated = firstOrigin.departureTimeEstimated ?? departurePlanned;
     const arrivalPlanned = lastDest.arrivalTimePlanned ?? '';
-    const arrivalEstimated = lastDest.arrivalTimeEstimated ?? null;
+    const arrivalEstimated = lastDest.arrivalTimeEstimated ?? arrivalPlanned;
 
     const tripDuration = j.tripDuration as number ?? 0;
     const tripRtDuration = j.tripRtDuration as number ?? 0;
 
     return {
       departure_time: departurePlanned,
-      departure_estimated: departureEstimated ?? departurePlanned,
+      departure_estimated: departureEstimated,
       arrival_time: arrivalPlanned,
-      arrival_estimated: arrivalEstimated ?? arrivalPlanned,
+      arrival_estimated: arrivalEstimated,
       duration_minutes: Math.round(tripDuration / 60),
       rt_duration_minutes: Math.round(tripRtDuration / 60),
       legs: slimLegs,
