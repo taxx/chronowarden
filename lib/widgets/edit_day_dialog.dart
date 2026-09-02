@@ -96,9 +96,8 @@ class _EditDayDialogState extends State<EditDayDialog> {
   /// Net work minutes = elapsed - lunch.
   int get _netWorkMinutes => _actualMinutes - _lunch;
 
-  /// Over/under: actual net work minus expected (including overhead).
-  int get _overUnderMinutes =>
-      _netWorkMinutes - (_expected + _morningOverhead + _eveningOverhead);
+  /// Over/under: actual net work minus base expected (no overhead).
+  int get _overUnderMinutes => _netWorkMinutes - _expected;
 
   @override
   void initState() {
@@ -220,11 +219,7 @@ class _EditDayDialogState extends State<EditDayDialog> {
             Text('Time breakdown', style: theme.textTheme.titleSmall),
             const SizedBox(height: 4),
             _statRow(theme, 'Actual work', _fmtMins(_netWorkMinutes)),
-            _statRow(
-              theme,
-              'Expected work',
-              _fmtMins(_expected + _morningOverhead + _eveningOverhead),
-            ),
+            _statRow(theme, 'Expected work', _fmtMins(_expected)),
             _statRow(
               theme,
               'Over/under',
@@ -232,7 +227,7 @@ class _EditDayDialogState extends State<EditDayDialog> {
                   ? '+${_fmtMins(_overUnderMinutes)}'
                   : _fmtMins(_overUnderMinutes),
               valueColor: _overUnderMinutes >= 0
-                  ? null
+                  ? Colors.green
                   : Colors.orange,
             ),
             if (_endTime != null && _actualMinutes > 0)
