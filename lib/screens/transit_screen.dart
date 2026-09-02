@@ -539,7 +539,7 @@ class _LeaveTimeInfo extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final now = DateTime.now();
-    final depTime = journey.departureTime;
+    final depTime = journey.departureTime.toLocal();
     final walkBuffer = isMorning
         ? cfg.walkHomeMinutes
         : cfg.walkWorkMinutes;
