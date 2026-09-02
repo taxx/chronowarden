@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../app_state.dart';
 import '../models/time_log.dart';
 import '../models/journey_info.dart';
+import '../models/travel_preset.dart';
 import '../models/transit_config.dart';
 import '../services/notification_service.dart';
 import '../services/preferences_service.dart';
@@ -42,6 +43,7 @@ class _MyDayTabState extends State<MyDayTab> with SingleTickerProviderStateMixin
   TransitConfig? _transitCfg;
   // ignore: unused_field
   bool _transitCardShown = false;
+  String? _lastPresetId;
   String? _alertMessage;
 
   @override
@@ -53,6 +55,10 @@ class _MyDayTabState extends State<MyDayTab> with SingleTickerProviderStateMixin
         _checkNotification();
         setState(() {});
       }
+    });
+    // Load last travel preset ID for transit visibility check
+    PreferencesService().getLastTravelPresetId().then((id) {
+      if (mounted) setState(() => _lastPresetId = id);
     });
   }
 
@@ -138,9 +144,39 @@ class _MyDayTabState extends State<MyDayTab> with SingleTickerProviderStateMixin
       return const SizedBox.shrink();
     }
 
-    // Determine direction: active day → afternoon, otherwise time-based
-    final hasActiveDay = _state.todayLog?.endTime == null &&
-        _state.todayLog != null;
+    // Determine direction and visibility based on day state.
+    // - Day ended (endTime != null): hide transit, no longer relevant
+    // - Day active (endTime == null): show afternoon commute IF preset uses transit
+    // - No day active: show morning commute planning
+    final todayLog = _state.todayLog;
+    final dayEnded = todayLog?.endTime != null;
+    final hasActiveDay = todayLog != null && todayLog.endTime == null;
+
+    if (dayEnded) {
+      _transitCardShown = false;
+      return const SizedBox.shrink();
+    }
+
+    // If day is active, check if the selected travel preset uses transit
+    if (hasActiveDay) {
+      TravelPreset? selectedPreset;
+      if (_lastPresetId != null) {
+        for (final p in _state.travelPresets) {
+          if (p.id == _lastPresetId) {
+            selectedPreset = p;
+            break;
+          }
+        }
+      }
+      // If no matching preset or it doesn't use transit, hide transit card
+      if (selectedPreset == null || !selectedPreset.usesTransit) {
+        _transitCardShown = false;
+        return const SizedBox.shrink();
+      }
+    }
+
+    // Direction: active day → always afternoon (commute home)
+    // No active day → morning (commute to work)
     final isMorning = hasActiveDay ? false : DateTime.now().hour < 11;
 
     // Get origin/dest IDs based on direction
@@ -552,6 +588,7 @@ class _MyDayTabState extends State<MyDayTab> with SingleTickerProviderStateMixin
       );
       // Save last-used selections
       await prefs.setLastTravelPresetId(result.presetId);
+      _lastPresetId = result.presetId;
     }
   }
 

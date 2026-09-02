@@ -231,39 +231,62 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final eveningOverheadCtrl = TextEditingController(text: existing?.eveningOverheadMinutes.toString() ?? '0');
     final eveningProductiveCtrl = TextEditingController(text: existing?.eveningProductiveCommuteMinutes.toString() ?? '0');
 
+    CommuteMode _commuteMode = existing?.commuteMode ?? CommuteMode.none;
+
     final result = await showDialog<bool>(
       context: ctx,
-      builder: (_) => AlertDialog(
-        title: Text(existing == null ? 'Add Travel Preset' : 'Edit Travel Preset'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(controller: nameCtrl, decoration: const InputDecoration(labelText: 'Name')),
-            const SizedBox(height: 8),
-            TextField(controller: morningOverheadCtrl, decoration: const InputDecoration(labelText: 'Morning overhead (walking to office)'), keyboardType: const TextInputType.numberWithOptions(),),
-            const SizedBox(height: 8),
-            TextField(controller: morningProductiveCtrl, decoration: const InputDecoration(labelText: 'Morning productive commute (train work)'), keyboardType: const TextInputType.numberWithOptions(),),
-            const SizedBox(height: 8),
-            TextField(controller: eveningOverheadCtrl, decoration: const InputDecoration(labelText: 'Evening overhead (walking from office)'), keyboardType: const TextInputType.numberWithOptions(),),
-            const SizedBox(height: 8),
-            TextField(controller: eveningProductiveCtrl, decoration: const InputDecoration(labelText: 'Evening productive commute (train work)'), keyboardType: const TextInputType.numberWithOptions(),),
+      builder: (_) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: Text(existing == null ? 'Add Travel Preset' : 'Edit Travel Preset'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(controller: nameCtrl, decoration: const InputDecoration(labelText: 'Name')),
+              const SizedBox(height: 8),
+              TextField(controller: morningOverheadCtrl, decoration: const InputDecoration(labelText: 'Morning overhead (walking to office)'), keyboardType: const TextInputType.numberWithOptions(),),
+              const SizedBox(height: 8),
+              TextField(controller: morningProductiveCtrl, decoration: const InputDecoration(labelText: 'Morning productive commute (train work)'), keyboardType: const TextInputType.numberWithOptions(),),
+              const SizedBox(height: 8),
+              TextField(controller: eveningOverheadCtrl, decoration: const InputDecoration(labelText: 'Evening overhead (walking from office)'), keyboardType: const TextInputType.numberWithOptions(),),
+              const SizedBox(height: 8),
+              TextField(controller: eveningProductiveCtrl, decoration: const InputDecoration(labelText: 'Evening productive commute (train work)'), keyboardType: const TextInputType.numberWithOptions(),),
+              const SizedBox(height: 12),
+              DropdownButton<CommuteMode>(
+                value: _commuteMode,
+                isExpanded: true,
+                items: CommuteMode.values.map((mode) {
+                  final label = switch (mode) {
+                    CommuteMode.none => 'No commute (work from home)' as String,
+                    CommuteMode.transit => 'Public transit (train/bus)' as String,
+                    CommuteMode.car => 'Car (coming soon)' as String,
+                  };
+                  return DropdownMenuItem(
+                    value: mode,
+                    child: Text(label, style: Theme.of(context).textTheme.bodyMedium),
+                  );
+                }).toList(),
+                onChanged: (v) {
+                  if (v != null) setDialogState(() => _commuteMode = v);
+                },
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+            FilledButton(
+              onPressed: () {
+                if (nameCtrl.text.isNotEmpty &&
+                    int.tryParse(morningOverheadCtrl.text) != null &&
+                    int.tryParse(morningProductiveCtrl.text) != null &&
+                    int.tryParse(eveningOverheadCtrl.text) != null &&
+                    int.tryParse(eveningProductiveCtrl.text) != null) {
+                  Navigator.pop(ctx, true);
+                }
+              },
+              child: Text(existing == null ? 'Add' : 'Save'),
+            ),
           ],
         ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
-          FilledButton(
-            onPressed: () {
-              if (nameCtrl.text.isNotEmpty &&
-                  int.tryParse(morningOverheadCtrl.text) != null &&
-                  int.tryParse(morningProductiveCtrl.text) != null &&
-                  int.tryParse(eveningOverheadCtrl.text) != null &&
-                  int.tryParse(eveningProductiveCtrl.text) != null) {
-                Navigator.pop(ctx, true);
-              }
-            },
-            child: Text(existing == null ? 'Add' : 'Save'),
-          ),
-        ],
       ),
     );
 
@@ -275,6 +298,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         morningProductiveCommuteMinutes: int.parse(morningProductiveCtrl.text),
         eveningOverheadMinutes: int.parse(eveningOverheadCtrl.text),
         eveningProductiveCommuteMinutes: int.parse(eveningProductiveCtrl.text),
+        commuteMode: _commuteMode,
       );
     }
     return null;
