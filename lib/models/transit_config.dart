@@ -5,20 +5,17 @@
 /// encrypted data in ChronoWarden.
 ///
 /// Uses journey planner global IDs (strings like "9091001001009638")
-/// for stop identification. The [workSiteId] / [homeSiteId] fields
-/// are kept for backward compatibility with the SL Transport API
-/// (departures endpoint) but are optional.
+/// for stop identification.
 class TransitConfig {
   final bool enabled;
   final String workStopId;       // Journey planner global ID for work station
   final String workStopName;
   final String homeStopId;       // Journey planner global ID for home station
   final String homeStopName;
-  final int workSiteId;          // SL Transport API site ID (optional, for departures)
-  final int homeSiteId;          // SL Transport API site ID (optional, for departures)
+  final int workSiteId;          // SL Transport API site ID (legacy, optional)
+  final int homeSiteId;          // SL Transport API site ID (legacy, optional)
   final int walkHomeMinutes;     // walking between home ↔ home station
   final int walkWorkMinutes;     // walking between work station ↔ work
-  final int waitAtStationMinutes; // buffer: arrive at platform before departure
 
   const TransitConfig({
     this.enabled = false,
@@ -30,7 +27,6 @@ class TransitConfig {
     this.homeSiteId = 0,
     this.walkHomeMinutes = 5,
     this.walkWorkMinutes = 5,
-    this.waitAtStationMinutes = 2,
   });
 
   bool get hasWork => workStopId.isNotEmpty && workStopName.isNotEmpty;
@@ -50,7 +46,6 @@ class TransitConfig {
       homeSiteId: json['home_site_id'] as int? ?? 0,
       walkHomeMinutes: json['walk_home_minutes'] as int? ?? 5,
       walkWorkMinutes: json['walk_work_minutes'] as int? ?? 5,
-      waitAtStationMinutes: json['wait_at_station_minutes'] as int? ?? 2,
     );
   }
 
@@ -65,7 +60,6 @@ class TransitConfig {
       'home_site_id': homeSiteId,
       'walk_home_minutes': walkHomeMinutes,
       'walk_work_minutes': walkWorkMinutes,
-      'wait_at_station_minutes': waitAtStationMinutes,
     };
   }
 
@@ -79,7 +73,6 @@ class TransitConfig {
     int? homeSiteId,
     int? walkHomeMinutes,
     int? walkWorkMinutes,
-    int? waitAtStationMinutes,
   }) {
     return TransitConfig(
       enabled: enabled ?? this.enabled,
@@ -91,7 +84,6 @@ class TransitConfig {
       homeSiteId: homeSiteId ?? this.homeSiteId,
       walkHomeMinutes: walkHomeMinutes ?? this.walkHomeMinutes,
       walkWorkMinutes: walkWorkMinutes ?? this.walkWorkMinutes,
-      waitAtStationMinutes: waitAtStationMinutes ?? this.waitAtStationMinutes,
     );
   }
 
@@ -100,6 +92,5 @@ class TransitConfig {
       'TransitConfig(enabled: $enabled, '
       'work: $workStopName ($workStopId), '
       'home: ${hasHome ? "$homeStopName ($homeStopId)" : "none"}, '
-      'walk home: ${walkHomeMinutes}min, walk work: ${walkWorkMinutes}min, '
-      'wait station: ${waitAtStationMinutes}min)';
+      'walk home: ${walkHomeMinutes}min, walk work: ${walkWorkMinutes}min)';
 }

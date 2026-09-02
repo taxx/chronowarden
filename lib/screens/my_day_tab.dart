@@ -195,7 +195,6 @@ class _MyDayTabState extends State<MyDayTab> with SingleTickerProviderStateMixin
 
     _transitCardShown = true;
 
-    final waitStation = _transitCfg!.waitAtStationMinutes;
     final walkBuffer = isMorning
         ? _transitCfg!.walkHomeMinutes
         : _transitCfg!.walkWorkMinutes;
@@ -225,7 +224,6 @@ class _MyDayTabState extends State<MyDayTab> with SingleTickerProviderStateMixin
                   journey: j,
                   now: now,
                   walkBuffer: walkBuffer,
-                  waitStation: waitStation,
                   theme: theme,
                 )),
             const SizedBox(height: 8),
@@ -1374,22 +1372,20 @@ class _TransitJourneyRow extends StatelessWidget {
   final JourneyInfo journey;
   final DateTime now;
   final int walkBuffer;
-  final int waitStation;
   final ThemeData theme;
 
   const _TransitJourneyRow({
     required this.journey,
     required this.now,
     required this.walkBuffer,
-    required this.waitStation,
     required this.theme,
   });
 
   @override
   Widget build(BuildContext context) {
-    final depTime = journey.departureTime;
-    final leaveTime = depTime.subtract(
-        Duration(minutes: walkBuffer + waitStation));
+    final depLocal = journey.departureTime.toLocal();
+    final leaveTime = depLocal.subtract(
+        Duration(minutes: walkBuffer));
     final isCatchable = leaveTime.isAfter(now) ||
         leaveTime.difference(now).inMinutes.abs() <= 1;
 
@@ -1407,16 +1403,14 @@ class _TransitJourneyRow extends StatelessWidget {
     }
 
     final depStr =
-        '${depTime.hour.toString().padLeft(2, '0')}:'
-        '${depTime.minute.toString().padLeft(2, '0')}';
+        '${depLocal.hour.toString().padLeft(2, '0')}:'
+        '${depLocal.minute.toString().padLeft(2, '0')}';
     final leaveStr =
         '${leaveTime.hour.toString().padLeft(2, '0')}:'
         '${leaveTime.minute.toString().padLeft(2, '0')}';
 
     final lineBadge = journey.mainLine ?? '';
     final dest = journey.mainDestination ?? 'Unknown';
-    // ignore: unused_local_variable
-    final _dest = dest;
     final delayColor = _delayColor(journey);
 
     return Padding(
@@ -1471,7 +1465,7 @@ class _TransitJourneyRow extends StatelessWidget {
           const SizedBox(height: 4),
           Text(
             isCatchable
-                ? 'Leave at $leaveStr · ${waitStation}min wait · ${journey.durationMinutes}min trip$untilStr'
+                ? 'Leave at $leaveStr · ${journey.durationMinutes}min trip$untilStr'
                 : 'Missed — needed to leave by $leaveStr',
             style: theme.textTheme.bodySmall?.copyWith(
               color: isCatchable

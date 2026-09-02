@@ -213,8 +213,6 @@ class _TransitScreenState extends State<TransitScreen>
                       '${_cfg!.walkHomeMinutes} min'),
                   _statRow(theme, 'Walk station↔work',
                       '${_cfg!.walkWorkMinutes} min'),
-                  _statRow(theme, 'Wait at station',
-                      '${_cfg!.waitAtStationMinutes} min'),
                 ],
               ),
             ),
@@ -544,10 +542,9 @@ class _LeaveTimeInfo extends StatelessWidget {
     final walkBuffer = isMorning
         ? cfg.walkHomeMinutes
         : cfg.walkWorkMinutes;
-    final waitStation = cfg.waitAtStationMinutes;
-    // Leave time accounts for walking + waiting at platform
+    // Leave time accounts for walking to station
     final leaveTime = depTime.subtract(
-        Duration(minutes: walkBuffer + waitStation));
+        Duration(minutes: walkBuffer));
     final isCatchable = leaveTime.isAfter(now) ||
         leaveTime.difference(now).inMinutes.abs() <= 1;
 
@@ -568,17 +565,18 @@ class _LeaveTimeInfo extends StatelessWidget {
       untilStr = ' · leave in $minutesUntilLeave min';
     }
 
-    // Arrival time
+    // Arrival time (local)
+    final arrLocal = journey.arrivalTime.toLocal();
     final arrStr =
-        '${journey.arrivalTime.hour.toString().padLeft(2, '0')}:'
-        '${journey.arrivalTime.minute.toString().padLeft(2, '0')}';
+        '${arrLocal.hour.toString().padLeft(2, '0')}:'
+        '${arrLocal.minute.toString().padLeft(2, '0')}';
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
           isCatchable
-              ? 'Leave at $leaveStr · ${waitStation}min wait · arrive $arrStr$untilStr'
+              ? 'Leave at $leaveStr · arrive $arrStr$untilStr'
               : 'Missed — needed to leave by $leaveStr',
           style: theme.textTheme.bodySmall?.copyWith(
             color: isCatchable

@@ -974,29 +974,8 @@ class _TransitConfigSectionState extends State<_TransitConfigSection> {
                   textAlign: TextAlign.center,
                 ),
               ),
-              const SizedBox(height: 16),
-              Text('Wait at station', style: theme.textTheme.titleSmall),
-              const SizedBox(height: 4),
-              Row(
-                children: [
-                  Expanded(
-                    child: Slider(
-                      value: cfg.waitAtStationMinutes.toDouble(),
-                      min: 0,
-                      max: 10,
-                      divisions: 10,
-                      label: '${cfg.waitAtStationMinutes} min',
-                      onChanged: (v) => _update(
-                        cfg.copyWith(waitAtStationMinutes: v.round())),
-                    ),
-                  ),
-                  Text('${cfg.waitAtStationMinutes} min',
-                      style: theme.textTheme.bodyMedium
-                          ?.copyWith(fontWeight: FontWeight.w600)),
-                ],
-              ),
             ],
-          ],
+          ]
         ),
       ),
     );

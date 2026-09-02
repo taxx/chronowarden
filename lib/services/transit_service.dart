@@ -16,7 +16,8 @@ import 'supabase_service.dart';
 /// Responsibilities:
 /// 1. Read/write [TransitConfig] from encrypted [user_settings]
 /// 2. Fetch SL journey planner stops from /v2/stop-finder (per-query, no cache)
-/// 3. Fetch journey plans from /v2/trips (cached 60s per route)
+/// 3. Fetch journey plans from /v2/trips (cached 60s per route, coalesces
+///    concurrent requests for the same route)
 ///
 /// All API calls go through the sl-proxy Edge Function to avoid CORS issues.
 class TransitService {
@@ -44,6 +45,9 @@ class TransitService {
   DateTime? _journeysFetchedAt;
   String? _lastJourneyCacheKey; // "${originId}:${destId}:${walkOffset}"
 
+  /// Tracks in-flight fetch to coalesce concurrent requests for the same key.
+  Future<List<JourneyInfo>?>? _pendingJourneyFetch;
+
   /// Public read-only access to cached journeys.
   List<JourneyInfo>? get cachedJourneys => _cachedJourneys;
 
@@ -55,6 +59,14 @@ class TransitService {
     if (_journeysFetchedAt == null) return true;
     return DateTime.now().difference(_journeysFetchedAt!).abs()
         > _journeysCacheTtl;
+  }
+
+  /// Clear journey cache so next fetch is forced (e.g., after settings change).
+  void clearJourneyCache() {
+    _cachedJourneys = null;
+    _journeysFetchedAt = null;
+    _lastJourneyCacheKey = null;
+    _pendingJourneyFetch = null;
   }
 
   // Cache TTL constants
@@ -120,8 +132,10 @@ class TransitService {
   }
 
   /// Apply [TransitConfig] in memory immediately (no persistence).
+  /// Clears journey cache so UI refreshes with new station settings.
   void applyConfig(TransitConfig cfg) {
     _config = cfg;
+    clearJourneyCache();
   }
 
   /// Save [TransitConfig] to encrypted [user_settings].
@@ -149,6 +163,7 @@ class TransitService {
 
       existing['transit_config'] = cfg.toJson();
       _config = cfg;
+      clearJourneyCache();
 
       final plaintext = jsonEncode(existing);
       final ciphertext = await CryptoService.encrypt(plaintext, dek);
@@ -203,6 +218,9 @@ class TransitService {
   /// journeys that depart after the user has walked to the station,
   /// maximizing useful results from the 3-journey limit.
   ///
+  /// Coalesces concurrent requests: if a fetch for the same key is already
+  /// in-flight, returns that pending future instead of starting a new one.
+  ///
   /// Returns cached list if cache is still fresh (< 60s) and
   /// the origin/destination/walk offset matches.
   Future<List<JourneyInfo>?> fetchJourneys({
@@ -218,6 +236,11 @@ class TransitService {
         _lastJourneyCacheKey == key) {
       final age = DateTime.now().difference(_journeysFetchedAt!);
       if (age < _journeysCacheTtl) return _cachedJourneys;
+    }
+
+    // Coalesce: if a fetch for this key is already in-flight, reuse it
+    if (_pendingJourneyFetch != null && _lastJourneyCacheKey == key) {
+      return _pendingJourneyFetch;
     }
 
     try {
@@ -240,28 +263,40 @@ class TransitService {
           '&date=$date&time=$time'
           '&calc_number_of_trips=3';
 
-      final data = await _slProxy(path);
-
-      if (data is! Map<String, dynamic>) return null;
-      final journeysRaw = data['journeys'] as List<dynamic>?;
-      if (journeysRaw == null) return [];
-
-      final journeys = journeysRaw
-          .map((e) => JourneyInfo.fromJson(e as Map<String, dynamic>))
-          .toList();
-
-      // Sort by departure time
-      journeys.sort((a, b) => a.departureTime.compareTo(b.departureTime));
-
-      _cachedJourneys = journeys;
-      _journeysFetchedAt = DateTime.now();
+      // Store the pending fetch to coalesce concurrent calls
+      final pending = _performFetch(path);
+      _pendingJourneyFetch = pending;
       _lastJourneyCacheKey = key;
+
+      final journeys = await pending;
+      _pendingJourneyFetch = null;
       return journeys;
     } catch (_) {
+      _pendingJourneyFetch = null;
       // Return stale cache on error if we have one for same route
       if (_lastJourneyCacheKey == key) return _cachedJourneys;
       return null;
     }
+  }
+
+  /// Internal: perform the actual API fetch and parse the response.
+  Future<List<JourneyInfo>?> _performFetch(String path) async {
+    final data = await _slProxy(path);
+
+    if (data is! Map<String, dynamic>) return null;
+    final journeysRaw = data['journeys'] as List<dynamic>?;
+    if (journeysRaw == null) return [];
+
+    final journeys = journeysRaw
+        .map((e) => JourneyInfo.fromJson(e as Map<String, dynamic>))
+        .toList();
+
+    // Sort by departure time
+    journeys.sort((a, b) => a.departureTime.compareTo(b.departureTime));
+
+    _cachedJourneys = journeys;
+    _journeysFetchedAt = DateTime.now();
+    return journeys;
   }
 
   // -----------------------------------------------------------------
@@ -270,8 +305,6 @@ class TransitService {
 
   void onLogout() {
     _config = null;
-    _cachedJourneys = null;
-    _journeysFetchedAt = null;
-    _lastJourneyCacheKey = null;
+    clearJourneyCache();
   }
 }
