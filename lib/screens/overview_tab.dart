@@ -307,8 +307,8 @@ class _PeriodTabState extends State<_PeriodTab> {
             valueMinutes: totalOvertime,
           ),
           const SizedBox(height: 16),
-          // Time bank chart — running overtime balance
-          _TimeBankChart(logs: filtered, period: widget.period, refDate: refDate, showWeekends: _prefs.showWeekends.value),
+          // Time bank chart — deviation-from-baseline bar chart
+          _TimeBankChart(logs: filtered, allLogs: _state.allLogs, period: widget.period, refDate: refDate, showWeekends: _prefs.showWeekends.value),
           const SizedBox(height: 16),
           // Calendar view depending on period
           _buildCalendar(theme, logByDate),
@@ -1165,17 +1165,19 @@ class _AddDayDialogState extends State<_AddDayDialog> {
 }
 
 // ---------------------------------------------------------------------------
-// Time Bank Chart — running overtime balance across a period
+// Time Bank Chart — deviation-from-baseline bar chart with cumulative overlay
 // ---------------------------------------------------------------------------
 
 class _TimeBankChart extends StatelessWidget {
-  final List<TimeLog> logs;
+  final List<TimeLog> logs;       // filtered logs for this period
+  final List<TimeLog> allLogs;    // all logs (unfiltered) for baseline calc
   final Period period;
   final DateTime refDate;
   final bool showWeekends;
 
   const _TimeBankChart({
     required this.logs,
+    required this.allLogs,
     required this.period,
     required this.refDate,
     this.showWeekends = false,
@@ -1184,8 +1186,9 @@ class _TimeBankChart extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
     final data = _buildData();
-    if (data.balances.isEmpty) return const SizedBox.shrink();
+    if (data.deltas.isEmpty) return const SizedBox.shrink();
 
     return Card(
       margin: const EdgeInsets.symmetric(vertical: 4),
@@ -1203,20 +1206,25 @@ class _TimeBankChart extends StatelessWidget {
             ),
             const SizedBox(height: 2),
             Text(
-              'Running overtime balance — positive means you\'ve earned time back.',
+              'Daily overtime relative to your time bank — green bars mean you earned time back.',
               style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
             ),
             const SizedBox(height: 8),
             SizedBox(
               height: 260,
               width: double.infinity,
-              child: CustomPaint(painter: _ChartPainter(
-                balances: data.balances,
+              child: CustomPaint(painter: _BarChartPainter(
+                deltas: data.deltas,
+                cumulative: data.cumulative,
                 labels: data.labels,
-                greenColor: Colors.green.shade700,
-                redColor: Colors.red.shade700,
+                baseline: data.baseline,
+                positiveBarColor: Colors.red.shade700,
+                negativeBarColor: Colors.green.shade700,
+                lineColor: data.netChange >= 0 ? Colors.red.shade700 : Colors.green.shade700,
+                baselineColor: theme.colorScheme.onSurfaceVariant,
                 gridColor: theme.dividerColor,
-                zeroLineColor: theme.colorScheme.onSurfaceVariant,
+                labelColor: theme.dividerColor,
+                isDark: isDark,
               )),
             ),
             const SizedBox(height: 8),
@@ -1228,48 +1236,63 @@ class _TimeBankChart extends StatelessWidget {
   }
 
   Widget _balanceLabel(ThemeData theme, _ChartData data) {
-    final balance = data.balances.last;
-    if (data.balances.isEmpty) return const SizedBox.shrink();
-    final first = data.balances.first;
-    final change = balance - first;
-    final sign = balance >= 0 ? '+' : '';
-    final h = balance.abs() ~/ 60;
-    final m = balance.abs() % 60;
-    final timeStr = h > 0 ? '${h}h ${m}m' : '$m min';
-    final color = balance >= 0 ? theme.colorScheme.primary : theme.colorScheme.error;
-    final changeSign = change >= 0 ? '+' : '';
-    final changeH = change.abs() ~/ 60;
-    final changeM = change.abs() % 60;
+    if (data.deltas.isEmpty) return const SizedBox.shrink();
+
+    final baseline = data.baseline;
+    final endBalance = data.cumulative.last;
+    final netChange = endBalance - baseline;
+
+    final baselineStr = _fmtMins(baseline);
+    final endStr = _fmtMins(endBalance);
+    final changeSign = netChange >= 0 ? '+' : '';
+    final changeH = netChange.abs() ~/ 60;
+    final changeM = netChange.abs() % 60;
     final changeStr = changeH > 0 ? '${changeH}h ${changeM}m' : '$changeM min';
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
           children: [
-            Text('Balance: ', style: theme.textTheme.bodyMedium),
+            Text('Started with ', style: theme.textTheme.bodyMedium),
             Text(
-              '$sign$timeStr',
+              baselineStr,
               style: theme.textTheme.titleMedium?.copyWith(
                 fontWeight: FontWeight.bold,
-                color: color,
+                color: theme.colorScheme.primary,
               ),
             ),
+            Text(' in the bank', style: theme.textTheme.bodyMedium),
           ],
         ),
+        const SizedBox(height: 4),
         Row(
           children: [
-            Text('Change: ', style: theme.textTheme.bodySmall),
+            Text('Period total: ', style: theme.textTheme.bodySmall),
             Text(
               '$changeSign$changeStr',
               style: theme.textTheme.bodySmall?.copyWith(
                 fontWeight: FontWeight.w600,
-                color: change >= 0 ? Colors.red.shade700 : Colors.green.shade700,
+                color: netChange >= 0 ? Colors.red.shade700 : Colors.green.shade700,
               ),
             ),
             Icon(
-              change >= 0 ? Icons.trending_up : Icons.trending_down,
+              netChange >= 0 ? Icons.trending_up : Icons.trending_down,
               size: 16,
-              color: change >= 0 ? Colors.red.shade700 : Colors.green.shade700,
+              color: netChange >= 0 ? Colors.red.shade700 : Colors.green.shade700,
+            ),
+          ],
+        ),
+        const SizedBox(height: 4),
+        Row(
+          children: [
+            Text('Ends with ', style: theme.textTheme.bodySmall),
+            Text(
+              endStr,
+              style: theme.textTheme.bodySmall?.copyWith(
+                fontWeight: FontWeight.w600,
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
             ),
           ],
         ),
@@ -1293,45 +1316,59 @@ class _TimeBankChart extends StatelessWidget {
     }
   }
 
+  /// Compute the time bank balance at the start of [periodStart].
+  int _baselineBefore(DateTime periodStart) {
+    int sum = 0;
+    for (final l in allLogs) {
+      final date = DateTime.tryParse(l.date);
+      if (date != null && date.isBefore(periodStart)) {
+        sum += l.overtimeMinutes;
+      }
+    }
+    return sum;
+  }
+
   _ChartData _buildWeekData(Map<String, TimeLog> logByDate) {
     final weekStart = refDate.subtract(Duration(days: refDate.weekday - 1));
     const dayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-    final balances = <int>[];
+    final deltas = <int>[];
     final labels = <String>[];
-    var cum = 0;
+
+    final baseline = _baselineBefore(weekStart);
 
     for (int i = 0; i < 7; i++) {
       final day = weekStart.add(Duration(days: i));
-      // Skip weekends when toggle is off
       if (!showWeekends && day.weekday > 5) continue;
       final dateStr = _dateStr(day);
       final log = logByDate[dateStr];
-      // Only plot days that actually have a completed log
       if (log == null || log.endTime == null) continue;
-      cum += log.overtimeMinutes;
-      balances.add(cum);
+      deltas.add(log.overtimeMinutes);
       labels.add(dayNames[i]);
     }
 
-    return _ChartData(balances: balances, labels: labels);
+    return _ChartData(
+      deltas: deltas,
+      cumulative: _buildCumulative(baseline, deltas),
+      labels: labels,
+      baseline: baseline,
+    );
   }
 
   _ChartData _buildMonthData(Map<String, TimeLog> logByDate) {
+    final ref = DateTime(refDate.year, refDate.month, 1);
     final daysInMonth = DateTime(refDate.year, refDate.month + 1, 0).day;
-    final balances = <int>[];
+    final deltas = <int>[];
     final labels = <String>[];
-    var cum = 0;
+
+    final baseline = _baselineBefore(ref);
 
     for (int day = 1; day <= daysInMonth; day++) {
       final date = DateTime(refDate.year, refDate.month, day);
-      // Skip weekends when toggle is off
       if (!showWeekends && date.weekday > 5) continue;
       final dateStr = _dateStr(date);
       final log = logByDate[dateStr];
-      // Only plot days that actually have a completed log
       if (log == null || log.endTime == null) continue;
-      cum += log.overtimeMinutes;
-      balances.add(cum);
+      deltas.add(log.overtimeMinutes);
       // Label every 5th day or first/last
       if (day == 1 || day == daysInMonth || day % 5 == 0) {
         labels.add('$day');
@@ -1340,15 +1377,21 @@ class _TimeBankChart extends StatelessWidget {
       }
     }
 
-    return _ChartData(balances: balances, labels: labels);
+    return _ChartData(
+      deltas: deltas,
+      cumulative: _buildCumulative(baseline, deltas),
+      labels: labels,
+      baseline: baseline,
+    );
   }
 
   _ChartData _buildYearData(Map<String, TimeLog> logByDate) {
     const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
                     'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    final balances = <int>[];
+    final deltas = <int>[];
     final labels = <String>[];
-    var cum = 0;
+
+    final baseline = _baselineBefore(DateTime(refDate.year, 1, 1));
 
     for (int i = 0; i < 12; i++) {
       final monthStr = '${refDate.year}-${(i+1).toString().padLeft(2, '0')}';
@@ -1357,83 +1400,119 @@ class _TimeBankChart extends StatelessWidget {
           .map((e) => e.value)
           .toList();
       final monthOt = logsThisMonth.fold<int>(0, (s, l) => s + l.overtimeMinutes);
-      cum += monthOt;
-      balances.add(cum);
+      deltas.add(monthOt);
       labels.add(months[i]);
     }
 
-    return _ChartData(balances: balances, labels: labels);
+    return _ChartData(
+      deltas: deltas,
+      cumulative: _buildCumulative(baseline, deltas),
+      labels: labels,
+      baseline: baseline,
+    );
+  }
+
+  /// Build cumulative running total starting from [baseline].
+  List<int> _buildCumulative(int baseline, List<int> deltas) {
+    final cum = <int>[];
+    var running = baseline;
+    for (final d in deltas) {
+      running += d;
+      cum.add(running);
+    }
+    return cum;
   }
 }
 
 class _ChartData {
-  final List<int> balances;
-  final List<String> labels;
-  const _ChartData({required this.balances, required this.labels});
+  final List<int> deltas;          // per-period overtime (bar heights)
+  final List<int> cumulative;      // running total for overlay line
+  final List<String> labels;       // X-axis labels
+  final int baseline;              // time bank at start of period
+
+  int get netChange => cumulative.last - baseline;
+
+  const _ChartData({
+    required this.deltas,
+    required this.cumulative,
+    required this.labels,
+    required this.baseline,
+  });
 }
 
 // ---------------------------------------------------------------------------
-// CustomPainter for the time bank line chart
+// CustomPainter for the bar chart + cumulative line overlay
 // ---------------------------------------------------------------------------
 
-class _ChartPainter extends CustomPainter {
-  final List<int> balances;
+class _BarChartPainter extends CustomPainter {
+  final List<int> deltas;
+  final List<int> cumulative;
   final List<String> labels;
-  final Color greenColor;
-  final Color redColor;
+  final int baseline;
+  final Color positiveBarColor;
+  final Color negativeBarColor;
+  final Color lineColor;
+  final Color baselineColor;
   final Color gridColor;
-  final Color zeroLineColor;
+  final Color labelColor;
+  final bool isDark;
 
-  _ChartPainter({
-    required this.balances,
+  _BarChartPainter({
+    required this.deltas,
+    required this.cumulative,
     required this.labels,
-    required this.greenColor,
-    required this.redColor,
+    required this.baseline,
+    required this.positiveBarColor,
+    required this.negativeBarColor,
+    required this.lineColor,
+    required this.baselineColor,
     required this.gridColor,
-    required this.zeroLineColor,
+    required this.labelColor,
+    this.isDark = false,
   });
 
   @override
   void paint(Canvas canvas, Size size) {
-    if (balances.isEmpty) return;
+    if (deltas.isEmpty) return;
 
-    final linePaint = Paint()..strokeWidth = 2.5;
-    final fillPaint = Paint();
-    final dotPaint = Paint()..style = PaintingStyle.fill;
-
-    final max = balances.reduce((a, b) => a > b ? a : b).toDouble();
-    final min = balances.reduce((a, b) => a < b ? a : b).toDouble();
-    final range = (max - min).clamp(1.0, double.infinity);
-
-    // Layout: left margin for Y-axis labels, right+bottom for X-axis labels
     const leftPad = 44.0;
     const bottomPad = 18.0;
     const topPad = 8.0;
     const rightPad = 12.0;
+    final barWidth = (size.width - leftPad - rightPad) / deltas.length * 0.6;
 
     final graphWidth = size.width - leftPad - rightPad;
     final graphHeight = size.height - topPad - bottomPad;
-    final stepX = graphWidth / (balances.length - 1).clamp(1, double.infinity);
+    final stepX = graphWidth / deltas.length;
 
-    double yOf(double v) => topPad + graphHeight - ((v - min) / range) * graphHeight;
+    // ---- Determine Y range centered on baseline ----
+    final absMax = deltas.fold<double>(0, (s, d) => s > d.abs() ? s : d.abs().toDouble());
+    final paddedRange = absMax.clamp(1.0, double.infinity) * 1.3;
 
-    // ---- Y-axis labels (4 evenly spaced values + zero) ----
+    /// Maps a deviation value (relative to baseline) to pixel Y.
+    /// deviation=0 → center of graph.
+    double yOf(double deviation) {
+      return topPad + graphHeight / 2 - (deviation / paddedRange) * graphHeight / 2;
+    }
+
+    final baselineY = yOf(0);
+
+    // ---- Y-axis deviation labels ----
     void drawYLabel(String text, double y) {
       final tp = TextPainter(
-        text: TextSpan(text: text, style: TextStyle(fontSize: 10, color: gridColor)),
+        text: TextSpan(text: text, style: TextStyle(fontSize: 10, color: labelColor)),
         textDirection: TextDirection.ltr,
       )..layout();
       tp.paint(canvas, Offset(leftPad - tp.width - 4, y - tp.height / 2));
     }
 
-    final mid = (min + max) / 2;
-    drawYLabel(_minLabel(max, min, max), topPad);
-    drawYLabel(_minLabel(max, min, mid), topPad + graphHeight / 2);
-    drawYLabel(_minLabel(max, min, min), topPad + graphHeight);
-
-    // ---- Zero label ----
-    final zeroY = yOf(0).clamp(topPad, size.height - bottomPad);
-    drawYLabel('0', zeroY);
+    final halfRange = (paddedRange / 2).round();
+    final fullRange = paddedRange.round();
+    drawYLabel('+${_fmtShort(fullRange)}', topPad);
+    drawYLabel('+${_fmtShort(halfRange)}', topPad + graphHeight / 4);
+    drawYLabel('0', baselineY);
+    drawYLabel('-${_fmtShort(halfRange)}', topPad + graphHeight * 0.75);
+    drawYLabel('-${_fmtShort(fullRange)}', topPad + graphHeight);
 
     // ---- Grid lines ----
     final gridPaint = Paint()
@@ -1444,55 +1523,108 @@ class _ChartPainter extends CustomPainter {
       canvas.drawLine(Offset(leftPad, y), Offset(size.width - rightPad, y), gridPaint);
     }
 
-    // ---- Data path + fill ----
+    // ---- Baseline reference line (dashed) ----
+    final dashPaint = Paint()
+      ..color = baselineColor
+      ..strokeWidth = 1.5;
+    const dashWidth = 6.0;
+    const gapWidth = 4.0;
+    double x0 = leftPad;
+    while (x0 < size.width - rightPad) {
+      final x1 = (x0 + dashWidth).clamp(leftPad, size.width - rightPad);
+      canvas.drawLine(Offset(x0, baselineY), Offset(x1, baselineY), dashPaint);
+      x0 = x1 + gapWidth;
+    }
+
+    // ---- Baseline value label (top-left of dashed line) ----
+    final baselineLabel = TextPainter(
+      text: TextSpan(
+        text: 'bank: ${_fmtShort(baseline)}',
+        style: TextStyle(fontSize: 9, color: baselineColor),
+      ),
+      textDirection: TextDirection.ltr,
+    )..layout();
+    baselineLabel.paint(
+      canvas,
+      Offset(leftPad + 2, baselineY - baselineLabel.height - 2),
+    );
+
+    // ---- Bars ----
+    for (int i = 0; i < deltas.length; i++) {
+      final delta = deltas[i];
+      final x = leftPad + i * stepX + (stepX - barWidth) / 2;
+      final barHeight = (delta.abs().toDouble() / paddedRange) * graphHeight / 2;
+      final yTop = delta >= 0
+          ? baselineY - barHeight
+          : baselineY;
+      final yBottom = delta >= 0
+          ? baselineY
+          : baselineY + barHeight;
+
+      final isPositive = delta > 0;
+      final barColor = isPositive ? positiveBarColor : negativeBarColor;
+
+      // Bar fill
+      final barPaint = Paint()
+        ..color = barColor.withValues(alpha: isDark ? 0.5 : 0.6)
+        ..style = PaintingStyle.fill;
+      canvas.drawRect(Rect.fromLTRB(x, yTop, x + barWidth, yBottom), barPaint);
+
+      // Bar outline + top edge accent
+      final outlinePaint = Paint()
+        ..color = barColor
+        ..strokeWidth = 1.5
+        ..style = PaintingStyle.stroke;
+      canvas.drawRect(Rect.fromLTRB(x, yTop, x + barWidth, yBottom), outlinePaint);
+
+      // Deviation label above/below bar
+      final devLabel = TextPainter(
+        text: TextSpan(
+          text: delta >= 0 ? '+${_fmtShort(delta)}' : '-${_fmtShort(delta.abs())}',
+          style: TextStyle(fontSize: 9, color: barColor, fontWeight: FontWeight.bold),
+        ),
+        textDirection: TextDirection.ltr,
+      )..layout();
+      final devY = delta >= 0
+          ? yTop - devLabel.height - 2
+          : yBottom + 2;
+      final devX = x + (barWidth - devLabel.width) / 2;
+      if (devY >= topPad && devY <= size.height - bottomPad) {
+        devLabel.paint(canvas, Offset(
+          devX.clamp(leftPad, size.width - rightPad - devLabel.width),
+          devY,
+        ));
+      }
+    }
+
+    // ---- Cumulative line overlay ----
+    final linePaint = Paint()
+      ..strokeWidth = 2.5
+      ..strokeCap = StrokeCap.round;
+    final dotPaint = Paint()..style = PaintingStyle.fill;
     final path = Path();
-    final fillPath = Path();
     final points = <Offset>[];
 
-    for (int i = 0; i < balances.length; i++) {
-      final x = leftPad + i * stepX;
-      final y = yOf(balances[i].toDouble());
+    for (int i = 0; i < cumulative.length; i++) {
+      final x = leftPad + i * stepX + stepX / 2;
+      final devFromBaseline = (cumulative[i] - baseline).toDouble();
+      final y = yOf(devFromBaseline);
       points.add(Offset(x, y));
       if (i == 0) {
         path.moveTo(x, y);
-        fillPath.moveTo(x, topPad + graphHeight);
-        fillPath.lineTo(x, y);
       } else {
         path.lineTo(x, y);
-        fillPath.lineTo(x, y);
       }
     }
-    fillPath.lineTo(points.last.dx, topPad + graphHeight);
-    fillPath.close();
 
-    // ---- Fill below line ----
-    final startBalance = balances.first;
-    final endBalance = balances.last;
-    final isImproving = endBalance <= startBalance;
-    final lineColor = isImproving ? greenColor : redColor;
-    fillPaint.color = lineColor.withValues(alpha: 0.15);
-    canvas.drawPath(fillPath, fillPaint);
-
-    // ---- Line ----
     linePaint.color = lineColor;
     linePaint.strokeCap = StrokeCap.round;
     canvas.drawPath(path, linePaint);
 
-    // ---- Data points ----
+    // ---- Data points on cumulative line ----
     dotPaint.color = lineColor;
     for (final pt in points) {
       canvas.drawCircle(pt, 3, dotPaint);
-    }
-
-    // ---- Zero reference line (dashed, on top of data) ----
-    final dashPaint = Paint()..color = zeroLineColor..strokeWidth = 2.5;
-    final dashWidth = 6.0;
-    final gapWidth = 4.0;
-    double x0 = leftPad;
-    while (x0 < size.width - rightPad) {
-      final x1 = (x0 + dashWidth).clamp(leftPad, size.width - rightPad);
-      canvas.drawLine(Offset(x0, zeroY), Offset(x1, zeroY), dashPaint);
-      x0 = x1 + gapWidth;
     }
 
     // ---- X-axis labels ----
@@ -1500,26 +1632,25 @@ class _ChartPainter extends CustomPainter {
       final label = labels[i];
       if (label.isEmpty) continue;
       final tp = TextPainter(
-        text: TextSpan(text: label, style: TextStyle(fontSize: 10, color: gridColor)),
+        text: TextSpan(text: label, style: TextStyle(fontSize: 10, color: labelColor)),
         textDirection: TextDirection.ltr,
       )..layout();
-      final x = (leftPad + i * stepX - tp.width / 2).clamp(leftPad, size.width - rightPad - tp.width);
+      final x = (leftPad + i * stepX + stepX / 2 - tp.width / 2)
+          .clamp(leftPad, size.width - rightPad - tp.width);
       tp.paint(canvas, Offset(x, size.height - bottomPad + 4));
     }
   }
 
-  /// Format a value as hours/minutes for Y-axis labels.
-  String _minLabel(double max, double min, double v) {
-    final mins = v.round();
-    final sign = mins >= 0 ? '+' : '';
+  /// Format a deviation value as "Xh Ym" or "X min" (no sign — caller adds +/-).
+  String _fmtShort(int mins) {
     final abs = mins.abs();
     final h = abs ~/ 60;
     final m = abs % 60;
-    if (h == 0) return '$sign$m min';
-    if (m == 0) return '$sign${h}h';
-    return '$sign${h}h ${m}m';
+    if (h == 0) return '$m min';
+    if (m == 0) return '${h}h';
+    return '${h}h ${m}m';
   }
 
   @override
-  bool shouldRepaint(covariant _ChartPainter oldDelegate) => true;
+  bool shouldRepaint(covariant _BarChartPainter oldDelegate) => true;
 }
