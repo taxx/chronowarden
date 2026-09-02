@@ -1,6 +1,6 @@
 import 'dart:async';
 
-import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'models/time_log.dart';
@@ -41,9 +41,10 @@ class AppState extends ChangeNotifier {
   bool _tablesReady = false;
   String? _lastError;  // last user-facing error message
 
-  // -- lunch timer state (in-memory only, not persisted) ------------
+  // -- lunch timer state (persisted via encrypted_data for cross-device sync)
   DateTime? _lunchStartTime;
   DateTime? _lunchEndTime;
+  bool _observerAdded = false;
 
   DateTime? get lunchStartTime => _lunchStartTime;
   DateTime? get lunchEndTime => _lunchEndTime;
@@ -51,10 +52,11 @@ class AppState extends ChangeNotifier {
   /// True when lunch timer is running (started but not stopped).
   bool get lunchActive => _lunchStartTime != null && _lunchEndTime == null;
 
-  /// Record the moment lunch started. Clears any previous stop time.
+  /// Record the moment lunch started and persist to DB for cross-device sync.
   void startLunch() {
     _lunchStartTime = DateTime.now();
     _lunchEndTime = null;
+    _persistLunchStarted();
     notifyListeners();
   }
 
@@ -76,7 +78,10 @@ class AppState extends ChangeNotifier {
         _lunchEndTime!.difference(_lunchStartTime!).inMinutes;
     final lunchMinutes = overrideMinutes ?? calculatedMinutes;
 
-    await logs.update(log.id!, {'lunch_minutes': lunchMinutes});
+    await logs.update(log.id!, {
+      'lunch_minutes': lunchMinutes,
+      'lunch_started_at': null,  // clear cross-device lunch state
+    });
     await _loadToday();
 
     _lunchStartTime = null;
@@ -85,7 +90,13 @@ class AppState extends ChangeNotifier {
   }
 
   /// Reset lunch timer without saving (e.g., user cancelled).
+  /// Also clears the persisted lunch_started_at so other devices don't
+  /// see a stale active lunch.
   void resetLunchTimer() {
+    final log = _todayLog;
+    if (log?.id != null) {
+      logs.update(log!.id!, {'lunch_started_at': null});
+    }
     _lunchStartTime = null;
     _lunchEndTime = null;
     notifyListeners();
@@ -137,6 +148,12 @@ class AppState extends ChangeNotifier {
 
       // Subscribe to realtime changes for the current user's time logs
       _subscribeRealtime();
+
+      // Register app lifecycle observer (only once)
+      if (!_observerAdded) {
+        _LifecycleObserver._register(this);
+        _observerAdded = true;
+      }
     } catch (e) {
       final msg = e.toString().toLowerCase();
       if (msg.contains('could not find the table') || msg.contains('relation')) {
@@ -205,7 +222,11 @@ class AppState extends ChangeNotifier {
       if (newDate == todayStr) _loadToday(),
       _loadAll(),
       _loadBalance(),
-    ]).then((_) => notifyListeners());
+    ]).then((_) {
+      // Restore lunch timer state from the decrypted todayLog
+      _restoreLunchFromLog();
+      notifyListeners();
+    });
   }
 
   /// Unsubscribe from Realtime and release the channel.
@@ -217,6 +238,10 @@ class AppState extends ChangeNotifier {
   /// Called when the user signs out — clean up the Realtime subscription.
   void onSignOut() {
     _unsubscribeRealtime();
+    if (_observerAdded) {
+      _LifecycleObserver._unregister();
+      _observerAdded = false;
+    }
     _todayLog = null;
     _allLogs = [];
     _workConfig = null;
@@ -229,12 +254,38 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> _loadToday() async => _todayLog = await logs.today();
+  Future<void> _loadToday() async {
+    _todayLog = await logs.today();
+    _restoreLunchFromLog();
+  }
   Future<void> _loadAll() async => _allLogs = await logs.all();
   Future<void> _loadConfig() async => _workConfig = await config.get();
   Future<void> _loadPresets() async => _presetsList = await presets.all();
   Future<void> _loadBalance() async => _timeBankMinutes = await logs.totalOvertime();
   Future<void> _loadTransitConfig() async => await transit.loadConfig();
+
+  /// Persist lunch_started_at to encrypted_data so other devices
+  /// see the active lunch state via Realtime.
+  void _persistLunchStarted() {
+    final log = _todayLog;
+    final id = log?.id;
+    if (id == null) return;
+    final iso = _lunchStartTime!.toUtc().toIso8601String();
+    logs.update(id, {'lunch_started_at': iso});
+  }
+
+  /// Restore in-memory lunch timer state from the decrypted [_todayLog].
+  /// Called after loading today's log or receiving a Realtime update.
+  void _restoreLunchFromLog() {
+    final log = _todayLog;
+    if (log?.lunchStartedAt == null || log!.lunchStartedAt!.isEmpty) {
+      _lunchStartTime = null;
+      _lunchEndTime = null;
+    } else {
+      _lunchStartTime = DateTime.parse(log.lunchStartedAt!).toLocal();
+      _lunchEndTime = null;
+    }
+  }
 
   // -- work-config CRUD ----------------------------------------------
   Future<void> saveWorkConfig(WorkConfig c) async {
@@ -446,5 +497,34 @@ class AppState extends ChangeNotifier {
 
   String _dateStr(DateTime dt) {
     return '${dt.year}-${dt.month.toString().padLeft(2, '0')}-${dt.day.toString().padLeft(2, '0')}';
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Lightweight app lifecycle observer — refreshes AppState when the app comes
+// to the foreground so My Day, Overview, etc. don't show stale data.
+// ---------------------------------------------------------------------------
+
+class _LifecycleObserver with WidgetsBindingObserver {
+  static final _LifecycleObserver _instance = _LifecycleObserver._();
+  _LifecycleObserver._();
+
+  static void _register(AppState state) {
+    WidgetsBinding.instance.addObserver(_instance);
+    _instance._state = state;
+  }
+
+  static void _unregister() {
+    WidgetsBinding.instance.removeObserver(_instance);
+    _instance._state = null;
+  }
+
+  AppState? _state;
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _state?.refresh();
+    }
   }
 }

@@ -19,6 +19,7 @@ class TimeLog {
   final int overtimeMinutes;
   final String? note;
   final String? createdAt;
+  final String? lunchStartedAt;  // ISO timestamp, null when lunch is not active
 
   const TimeLog({
     this.id,
@@ -36,6 +37,7 @@ class TimeLog {
     required this.overtimeMinutes,
     this.note,
     this.createdAt,
+    this.lunchStartedAt,
   });
 
   /// Total overhead across both directions (computed).
@@ -75,6 +77,7 @@ class TimeLog {
         overtimeMinutes: json['overtime_minutes'] as int,
         note: json['note'] as String?,
         createdAt: json['created_at'] as String?,
+        lunchStartedAt: json['lunch_started_at'] as String?,
       );
     }
 
@@ -97,6 +100,7 @@ class TimeLog {
       overtimeMinutes: json['overtime_minutes'] as int,
       note: json['note'] as String?,
       createdAt: json['created_at'] as String?,
+      lunchStartedAt: json['lunch_started_at'] as String?,
     );
   }
 
@@ -121,6 +125,7 @@ class TimeLog {
       'overtime_minutes': overtimeMinutes,
       'note': note,
       'created_at': createdAt,
+      'lunch_started_at': lunchStartedAt,
     };
   }
 
@@ -255,6 +260,7 @@ class TimeLog {
     int? productiveCommuteMinutes, // convenience: sets evening only
     String? note,
     String? createdAt,
+    String? lunchStartedAt,
   }) {
     return TimeLog(
       id: id ?? this.id,
@@ -278,6 +284,7 @@ class TimeLog {
       overtimeMinutes: overtimeMinutes ?? this.overtimeMinutes,
       note: note ?? this.note,
       createdAt: createdAt ?? this.createdAt,
+      lunchStartedAt: lunchStartedAt ?? this.lunchStartedAt,
     );
   }
 
