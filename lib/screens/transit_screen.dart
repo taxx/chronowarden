@@ -335,9 +335,10 @@ class _JourneyCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final depLocal = journey.departureTime.toLocal();
     final depStr =
-        '${journey.departureTime.hour.toString().padLeft(2, '0')}:'
-        '${journey.departureTime.minute.toString().padLeft(2, '0')}';
+        '${depLocal.hour.toString().padLeft(2, '0')}:'
+        '${depLocal.minute.toString().padLeft(2, '0')}';
 
     final delayColor = _delayColor(journey);
 

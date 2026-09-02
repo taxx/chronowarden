@@ -181,10 +181,12 @@ class _MyDayTabState extends State<MyDayTab> with SingleTickerProviderStateMixin
     }
 
     // Filter to catchable journeys (departure within reasonable time)
+    // Compare local times since journey times are UTC
     final now = DateTime.now();
     final relevant = (_transitJourneys ?? [])
         .where((j) =>
-            j.departureTime.isAfter(now.subtract(const Duration(minutes: 5))))
+            j.departureTime.toLocal().isAfter(
+                now.subtract(const Duration(minutes: 5))))
         .take(4)
         .toList();
 
