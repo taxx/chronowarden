@@ -385,6 +385,13 @@ class _MyDayTabState extends State<MyDayTab> with SingleTickerProviderStateMixin
                 fontFamily: 'monospace',
               ),
             ),
+            const SizedBox(height: 4),
+            Text(
+              'Started at ${log.startTime.substring(0, 5)}',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
             const SizedBox(height: 24),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -1241,6 +1248,19 @@ class _EditDayDialogState extends State<_EditDayDialog> {
   int get _eveningOverhead => _selectedPreset.eveningOverheadMinutes;
   int get _eveningProductive => _selectedPreset.eveningProductiveCommuteMinutes;
 
+  /// Minutes between start and end (total elapsed), 0 if end not set.
+  int get _actualMinutes {
+    if (_endTime == null) return 0;
+    final start = _startTime.hour * 60 + _startTime.minute;
+    final end = _endTime!.hour * 60 + _endTime!.minute;
+    // Handle crossing midnight
+    if (end < start) return (end + 24 * 60) - start;
+    return end - start;
+  }
+
+  /// Net work minutes = elapsed - lunch.
+  int get _actualWorkMinutes => _actualMinutes - _lunch;
+
   @override
   void initState() {
     super.initState();
@@ -1345,6 +1365,27 @@ class _EditDayDialogState extends State<_EditDayDialog> {
                 Text('$_lunch min', style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600)),
               ],
             ),
+            const SizedBox(height: 16),
+            // Actual work time (recalculated live)
+            Text('Actual work time', style: theme.textTheme.titleSmall),
+            const SizedBox(height: 4),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: theme.colorScheme.tertiaryContainer.withValues(alpha: 0.3),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text(
+                _fmtMins(_actualWorkMinutes),
+                style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+              ),
+            ),
+            const SizedBox(height: 8),
+            if (_endTime != null && _actualMinutes > 0)
+              Text(
+                '${_actualMinutes} min total · ${_lunch} min lunch · ${_actualWorkMinutes} min net',
+                style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+              ),
             const SizedBox(height: 8),
             Text('Note', style: theme.textTheme.titleSmall),
             const SizedBox(height: 4),
