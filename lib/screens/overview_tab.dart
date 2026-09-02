@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:flutter/material.dart';
 
 import '../app_state.dart';
@@ -1168,7 +1170,7 @@ class _AddDayDialogState extends State<_AddDayDialog> {
 // Time Bank Chart — deviation-from-baseline bar chart with cumulative overlay
 // ---------------------------------------------------------------------------
 
-class _TimeBankChart extends StatelessWidget {
+class _TimeBankChart extends StatefulWidget {
   final List<TimeLog> logs;       // filtered logs for this period
   final List<TimeLog> allLogs;    // all logs (unfiltered) for baseline calc
   final Period period;
@@ -1182,6 +1184,25 @@ class _TimeBankChart extends StatelessWidget {
     required this.refDate,
     this.showWeekends = false,
   });
+
+  @override
+  State<_TimeBankChart> createState() => _TimeBankChartState();
+}
+
+class _TimeBankChartState extends State<_TimeBankChart> {
+  final _prefs = PreferencesService();
+  late bool _showTrend;
+
+  @override
+  void initState() {
+    super.initState();
+    _showTrend = _prefs.showTrend.value;
+  }
+
+  void _toggleTrend(bool v) {
+    setState(() => _showTrend = v);
+    _prefs.setShowTrend(v);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -1202,6 +1223,14 @@ class _TimeBankChart extends StatelessWidget {
                 Icon(Icons.trending_up, size: 20, color: theme.colorScheme.primary),
                 const SizedBox(width: 8),
                 Text('Time Bank', style: theme.textTheme.titleMedium),
+                const Spacer(),
+                Text('Trend', style: theme.textTheme.labelSmall?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+                const SizedBox(width: 4),
+                Switch(
+                  value: _showTrend,
+                  onChanged: _toggleTrend,
+                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
               ],
             ),
             const SizedBox(height: 2),
@@ -1225,6 +1254,7 @@ class _TimeBankChart extends StatelessWidget {
                 gridColor: theme.dividerColor,
                 labelColor: theme.dividerColor,
                 isDark: isDark,
+                showTrend: _showTrend,
               )),
             ),
             const SizedBox(height: 8),
@@ -1302,11 +1332,11 @@ class _TimeBankChart extends StatelessWidget {
 
   _ChartData _buildData() {
     final logByDate = <String, TimeLog>{};
-    for (final l in logs) {
+    for (final l in widget.logs) {
       logByDate[l.date] = l;
     }
 
-    switch (period) {
+    switch (widget.period) {
       case Period.week:
         return _buildWeekData(logByDate);
       case Period.month:
@@ -1319,7 +1349,7 @@ class _TimeBankChart extends StatelessWidget {
   /// Compute the time bank balance at the start of [periodStart].
   int _baselineBefore(DateTime periodStart) {
     int sum = 0;
-    for (final l in allLogs) {
+    for (final l in widget.allLogs) {
       final date = DateTime.tryParse(l.date);
       if (date != null && date.isBefore(periodStart)) {
         sum += l.overtimeMinutes;
@@ -1329,7 +1359,7 @@ class _TimeBankChart extends StatelessWidget {
   }
 
   _ChartData _buildWeekData(Map<String, TimeLog> logByDate) {
-    final weekStart = refDate.subtract(Duration(days: refDate.weekday - 1));
+    final weekStart = widget.refDate.subtract(Duration(days: widget.refDate.weekday - 1));
     const dayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
     final deltas = <int>[];
     final labels = <String>[];
@@ -1338,7 +1368,7 @@ class _TimeBankChart extends StatelessWidget {
 
     for (int i = 0; i < 7; i++) {
       final day = weekStart.add(Duration(days: i));
-      if (!showWeekends && day.weekday > 5) continue;
+      if (!widget.showWeekends && day.weekday > 5) continue;
       final dateStr = _dateStr(day);
       final log = logByDate[dateStr];
       if (log == null || log.endTime == null) continue;
@@ -1355,16 +1385,16 @@ class _TimeBankChart extends StatelessWidget {
   }
 
   _ChartData _buildMonthData(Map<String, TimeLog> logByDate) {
-    final ref = DateTime(refDate.year, refDate.month, 1);
-    final daysInMonth = DateTime(refDate.year, refDate.month + 1, 0).day;
+    final ref = DateTime(widget.refDate.year, widget.refDate.month, 1);
+    final daysInMonth = DateTime(widget.refDate.year, widget.refDate.month + 1, 0).day;
     final deltas = <int>[];
     final labels = <String>[];
 
     final baseline = _baselineBefore(ref);
 
     for (int day = 1; day <= daysInMonth; day++) {
-      final date = DateTime(refDate.year, refDate.month, day);
-      if (!showWeekends && date.weekday > 5) continue;
+      final date = DateTime(widget.refDate.year, widget.refDate.month, day);
+      if (!widget.showWeekends && date.weekday > 5) continue;
       final dateStr = _dateStr(date);
       final log = logByDate[dateStr];
       if (log == null || log.endTime == null) continue;
@@ -1391,10 +1421,10 @@ class _TimeBankChart extends StatelessWidget {
     final deltas = <int>[];
     final labels = <String>[];
 
-    final baseline = _baselineBefore(DateTime(refDate.year, 1, 1));
+    final baseline = _baselineBefore(DateTime(widget.refDate.year, 1, 1));
 
     for (int i = 0; i < 12; i++) {
-      final monthStr = '${refDate.year}-${(i+1).toString().padLeft(2, '0')}';
+      final monthStr = '${widget.refDate.year}-${(i+1).toString().padLeft(2, '0')}';
       final logsThisMonth = logByDate.entries
           .where((e) => e.key.startsWith(monthStr))
           .map((e) => e.value)
@@ -1441,7 +1471,7 @@ class _ChartData {
 }
 
 // ---------------------------------------------------------------------------
-// CustomPainter for the bar chart + cumulative line overlay
+// CustomPainter for the bar chart + cumulative trend line (optional dashed)
 // ---------------------------------------------------------------------------
 
 class _BarChartPainter extends CustomPainter {
@@ -1456,6 +1486,7 @@ class _BarChartPainter extends CustomPainter {
   final Color gridColor;
   final Color labelColor;
   final bool isDark;
+  final bool showTrend;
 
   _BarChartPainter({
     required this.deltas,
@@ -1469,6 +1500,7 @@ class _BarChartPainter extends CustomPainter {
     required this.gridColor,
     required this.labelColor,
     this.isDark = false,
+    this.showTrend = false,
   });
 
   @override
@@ -1486,8 +1518,19 @@ class _BarChartPainter extends CustomPainter {
     final stepX = graphWidth / deltas.length;
 
     // ---- Determine Y range centered on baseline ----
-    final absMax = deltas.fold<double>(0, (s, d) => s > d.abs() ? s : d.abs().toDouble());
-    final paddedRange = absMax.clamp(1.0, double.infinity) * 1.3;
+    final maxBarDev = deltas.fold<double>(0, (s, d) => s > d.abs() ? s : d.abs().toDouble());
+    double yRange;
+    if (showTrend && cumulative.isNotEmpty) {
+      // When trend is shown, scale to accommodate both bars and cumulative line
+      final maxCumDev = cumulative.fold<double>(0, (s, v) {
+        final dev = (v - baseline).abs().toDouble();
+        return s > dev ? s : dev;
+      });
+      yRange = (maxBarDev > maxCumDev ? maxBarDev : maxCumDev).clamp(1.0, double.infinity) * 1.3;
+    } else {
+      yRange = maxBarDev.clamp(1.0, double.infinity) * 1.3;
+    }
+    final paddedRange = yRange;
 
     /// Maps a deviation value (relative to baseline) to pixel Y.
     /// deviation=0 → center of graph.
@@ -1597,34 +1640,53 @@ class _BarChartPainter extends CustomPainter {
       }
     }
 
-    // ---- Cumulative line overlay ----
-    final linePaint = Paint()
-      ..strokeWidth = 2.5
-      ..strokeCap = StrokeCap.round;
-    final dotPaint = Paint()..style = PaintingStyle.fill;
-    final path = Path();
-    final points = <Offset>[];
+    // ---- Cumulative trend line (dashed, no fill, only when showTrend is on) ----
+    if (showTrend && cumulative.length > 1) {
+      final trendPaint = Paint()
+        ..color = lineColor.withValues(alpha: isDark ? 0.6 : 0.7)
+        ..strokeWidth = 1.8
+        ..strokeCap = StrokeCap.round;
 
-    for (int i = 0; i < cumulative.length; i++) {
-      final x = leftPad + i * stepX + stepX / 2;
-      final devFromBaseline = (cumulative[i] - baseline).toDouble();
-      final y = yOf(devFromBaseline);
-      points.add(Offset(x, y));
-      if (i == 0) {
-        path.moveTo(x, y);
-      } else {
-        path.lineTo(x, y);
+      // Draw dashed line connecting cumulative points
+      const dashLen = 8.0;
+      const gapLen = 5.0;
+
+      for (int i = 0; i < cumulative.length; i++) {
+        if (i == 0) continue;
+        final x1 = leftPad + (i - 1) * stepX + stepX / 2;
+        final y1 = yOf((cumulative[i - 1] - baseline).toDouble());
+        final x2 = leftPad + i * stepX + stepX / 2;
+        final y2 = yOf((cumulative[i] - baseline).toDouble());
+
+        // Dash the segment between (x1,y1) and (x2,y2)
+        final dx = x2 - x1;
+        final dy = y2 - y1;
+        final length = sqrt(dx * dx + dy * dy);
+        final steps = (length / (dashLen + gapLen)).ceil().clamp(1, 100);
+
+        for (int s = 0; s < steps; s++) {
+          final t = s / steps;
+          final tNext = (s + 0.5) / steps;
+          final sx1 = x1 + dx * t;
+          final sy1 = y1 + dy * t;
+          final sx2 = x1 + dx * tNext;
+          final sy2 = y1 + dy * tNext;
+          if (s % 2 == 0) {
+            canvas.drawLine(Offset(sx1, sy1), Offset(sx2, sy2), trendPaint);
+          }
+        }
       }
-    }
 
-    linePaint.color = lineColor;
-    linePaint.strokeCap = StrokeCap.round;
-    canvas.drawPath(path, linePaint);
-
-    // ---- Data points on cumulative line ----
-    dotPaint.color = lineColor;
-    for (final pt in points) {
-      canvas.drawCircle(pt, 3, dotPaint);
+      // Small translucent dots at each cumulative point
+      final dotPaint = Paint()
+        ..color = lineColor.withValues(alpha: isDark ? 0.5 : 0.4)
+        ..style = PaintingStyle.fill;
+      for (int i = 0; i < cumulative.length; i++) {
+        final x = leftPad + i * stepX + stepX / 2;
+        final devFromBaseline = (cumulative[i] - baseline).toDouble();
+        final y = yOf(devFromBaseline);
+        canvas.drawCircle(Offset(x, y), 2.5, dotPaint);
+      }
     }
 
     // ---- X-axis labels ----
