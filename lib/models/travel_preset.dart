@@ -8,6 +8,9 @@ enum CommuteMode {
 
   /// Uses a personal vehicle — reserved for future car integration.
   car,
+
+  /// Vespa scooter — coming soon!
+  vespa,
 }
 
 /// A named commute / work-scenario preset. Maps to [travel_presets].
@@ -148,6 +151,8 @@ class TravelPreset {
         return CommuteMode.transit;
       case 'car':
         return CommuteMode.car;
+      case 'vespa':
+        return CommuteMode.vespa;
       default:
         return CommuteMode.none;
     }

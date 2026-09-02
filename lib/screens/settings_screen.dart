@@ -259,6 +259,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     CommuteMode.none => 'No commute (work from home)' as String,
                     CommuteMode.transit => 'Public transit (train/bus)' as String,
                     CommuteMode.car => 'Car (coming soon)' as String,
+                    CommuteMode.vespa => '🛵 Vespa (coming soon)' as String,
                   };
                   return DropdownMenuItem(
                     value: mode,
