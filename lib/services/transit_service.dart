@@ -261,7 +261,8 @@ class TransitService {
           '?type_origin=any&name_origin=$originId'
           '&type_destination=any&name_destination=$destId'
           '&date=$date&time=$time'
-          '&calc_number_of_trips=3';
+          '&calc_number_of_trips=3'
+          '&calc_one_direction=true';
 
       // Store the pending fetch to coalesce concurrent calls
       final pending = _performFetch(path);
