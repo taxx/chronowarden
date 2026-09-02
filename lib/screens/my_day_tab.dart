@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../app_state.dart';
-import '../models/time_log.dart';
 import '../models/journey_info.dart';
 import '../models/travel_preset.dart';
 import '../models/transit_config.dart';
@@ -11,6 +10,7 @@ import '../services/notification_service.dart';
 import '../services/preferences_service.dart';
 import '../services/transit_service.dart';
 import '../services/user_settings_service.dart';
+import '../widgets/edit_day_dialog.dart';
 
 int _sliderDivisions(double min, double max) {
   final interval = PreferencesService().sliderInterval.value;
@@ -734,9 +734,9 @@ class _MyDayTabState extends State<MyDayTab> with SingleTickerProviderStateMixin
 
     final expected = state.expectedMinutesForDate(DateTime.parse(log.date));
 
-    final result = await showDialog<_EditDayResult>(
+    final result = await showDialog<EditDayResult>(
       context: ctx,
-      builder: (_) => _EditDayDialog(
+      builder: (_) => EditDayDialog(
         log: log,
         expectedMinutes: expected,
         travelPresets: state.travelPresets,
@@ -1187,262 +1187,7 @@ class _StopDayDialogState extends State<_StopDayDialog> {
   }
 }
 
-// ---------------------------------------------------------------------------
-// Edit day result
-// ---------------------------------------------------------------------------
 
-class _EditDayResult {
-  final TimeOfDay startTime;
-  final TimeOfDay? endTime;
-  final int expectedMinutes;
-  final int lunchMinutes;
-  final int morningOverheadMinutes;
-  final int morningProductiveCommuteMinutes;
-  final int eveningOverheadMinutes;
-  final int eveningProductiveCommuteMinutes;
-  final String? note;
-  final String? presetId;
-  _EditDayResult({
-    required this.startTime,
-    required this.endTime,
-    required this.expectedMinutes,
-    required this.lunchMinutes,
-    required this.morningOverheadMinutes,
-    required this.morningProductiveCommuteMinutes,
-    required this.eveningOverheadMinutes,
-    required this.eveningProductiveCommuteMinutes,
-    this.note,
-    this.presetId,
-  });
-}
-
-// ---------------------------------------------------------------------------
-// Edit day dialog
-// ---------------------------------------------------------------------------
-
-class _EditDayDialog extends StatefulWidget {
-  final dynamic log;
-  final int expectedMinutes;
-  final List<dynamic> travelPresets;
-
-  const _EditDayDialog({
-    required this.log,
-    required this.expectedMinutes,
-    required this.travelPresets,
-  });
-
-  @override
-  State<_EditDayDialog> createState() => _EditDayDialogState();
-}
-
-class _EditDayDialogState extends State<_EditDayDialog> {
-  late TimeOfDay _startTime;
-  TimeOfDay? _endTime;
-  late dynamic _selectedPreset;
-  late int _lunch;
-  late String _note;
-
-  int get _expected => widget.expectedMinutes;
-  int get _morningOverhead => _selectedPreset.morningOverheadMinutes;
-  int get _morningProductive => _selectedPreset.morningProductiveCommuteMinutes;
-  int get _eveningOverhead => _selectedPreset.eveningOverheadMinutes;
-  int get _eveningProductive => _selectedPreset.eveningProductiveCommuteMinutes;
-
-  /// Minutes between start and end (total elapsed), 0 if end not set.
-  int get _actualMinutes {
-    if (_endTime == null) return 0;
-    final start = _startTime.hour * 60 + _startTime.minute;
-    final end = _endTime!.hour * 60 + _endTime!.minute;
-    // Handle crossing midnight
-    if (end < start) return (end + 24 * 60) - start;
-    return end - start;
-  }
-
-  /// Net work minutes = elapsed - lunch.
-  int get _actualWorkMinutes => _actualMinutes - _lunch;
-
-  @override
-  void initState() {
-    super.initState();
-    _startTime = _timeOfDayFromStr(widget.log.startTime);
-    _endTime = widget.log.endTime != null ? _timeOfDayFromStr(widget.log.endTime!) : null;
-    _selectedPreset = _matchPreset(widget.travelPresets, widget.log);
-    _lunch = widget.log.lunchMinutes ?? 0;
-    _note = widget.log.note ?? '';
-  }
-
-  static dynamic _matchPreset(List<dynamic> presets, TimeLog log) {
-    for (final p in presets) {
-      if (p.morningOverheadMinutes == log.morningOverheadMinutes &&
-          p.morningProductiveCommuteMinutes == log.morningProductiveCommuteMinutes &&
-          p.eveningOverheadMinutes == log.eveningOverheadMinutes &&
-          p.eveningProductiveCommuteMinutes == log.eveningProductiveCommuteMinutes) {
-        return p;
-      }
-    }
-    return presets.first;
-  }
-
-  TimeOfDay _timeOfDayFromStr(String timeStr) {
-    final parts = timeStr.split(':');
-    return TimeOfDay(hour: int.parse(parts[0]), minute: int.parse(parts[1]));
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return AlertDialog(
-      title: const Text('Edit Day'),
-      content: SingleChildScrollView(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Start time', style: theme.textTheme.titleSmall),
-            const SizedBox(height: 4),
-            FilledButton.icon(
-              onPressed: () async {
-                final picked = await showTimePicker(context: context, initialTime: _startTime);
-                if (picked != null) setState(() => _startTime = picked);
-              },
-              icon: const Icon(Icons.access_time),
-              label: Text('${_startTime.hour.toString().padLeft(2, '0')}:${_startTime.minute.toString().padLeft(2, '0')}'),
-            ),
-            const SizedBox(height: 16),
-            Text('End time', style: theme.textTheme.titleSmall),
-            const SizedBox(height: 4),
-            FilledButton.icon(
-              onPressed: () async {
-                final picked = await showTimePicker(context: context, initialTime: _endTime ?? TimeOfDay.now());
-                if (picked != null) setState(() => _endTime = picked);
-              },
-              icon: const Icon(Icons.access_time),
-              label: Text(_endTime != null
-                  ? '${_endTime!.hour.toString().padLeft(2, '0')}:${_endTime!.minute.toString().padLeft(2, '0')}'
-                  : '— not set —'),
-            ),
-            const SizedBox(height: 16),
-            Text('Expected work', style: theme.textTheme.titleSmall),
-            const SizedBox(height: 4),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              decoration: BoxDecoration(
-                color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Text(
-                '${_fmtMins(widget.expectedMinutes)} per day',
-                style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
-              ),
-            ),
-            const SizedBox(height: 16),
-            Text('Travel preset', style: theme.textTheme.titleSmall),
-            const SizedBox(height: 4),
-            DropdownButtonFormField(
-              initialValue: _selectedPreset,
-              items: widget.travelPresets.map<DropdownMenuItem>((p) {
-                return DropdownMenuItem(value: p, child: Text('${p.name}'));
-              }).toList(),
-              onChanged: (v) { if (v != null) setState(() => _selectedPreset = v); },
-            ),
-            const SizedBox(height: 8),
-            _commuteSummary(theme),
-            const SizedBox(height: 16),
-            Text('Lunch break', style: theme.textTheme.titleSmall),
-            const SizedBox(height: 4),
-            Row(
-              children: [
-                Expanded(
-                  child: Slider(
-                    value: _lunch.toDouble(),
-                    min: 0,
-                    max: 240,
-                    divisions: _sliderDivisions(0, 240),
-                    label: '$_lunch min',
-                    onChanged: (v) => setState(() => _lunch = v.round()),
-                  ),
-                ),
-                Text('$_lunch min', style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600)),
-              ],
-            ),
-            const SizedBox(height: 16),
-            // Actual work time (recalculated live)
-            Text('Actual work time', style: theme.textTheme.titleSmall),
-            const SizedBox(height: 4),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              decoration: BoxDecoration(
-                color: theme.colorScheme.tertiaryContainer.withValues(alpha: 0.3),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Text(
-                _fmtMins(_actualWorkMinutes),
-                style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
-              ),
-            ),
-            const SizedBox(height: 8),
-            if (_endTime != null && _actualMinutes > 0)
-              Text(
-                '${_actualMinutes} min total · ${_lunch} min lunch · ${_actualWorkMinutes} min net',
-                style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
-              ),
-            const SizedBox(height: 8),
-            Text('Note', style: theme.textTheme.titleSmall),
-            const SizedBox(height: 4),
-            TextField(
-              controller: TextEditingController(text: _note),
-              maxLines: 2,
-              decoration: const InputDecoration(hintText: 'Optional note...'),
-              onChanged: (v) => _note = v,
-            ),
-          ],
-        ),
-      ),
-      actions: [
-        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
-        FilledButton(
-          onPressed: () => Navigator.pop(context, _EditDayResult(
-            startTime: _startTime,
-            endTime: _endTime,
-            expectedMinutes: _expected,
-            lunchMinutes: _lunch,
-            morningOverheadMinutes: _morningOverhead,
-            morningProductiveCommuteMinutes: _morningProductive,
-            eveningOverheadMinutes: _eveningOverhead,
-            eveningProductiveCommuteMinutes: _eveningProductive,
-            note: _note.isEmpty ? null : _note,
-            presetId: _selectedPreset?.id,
-          )),
-          child: const Text('Save'),
-        ),
-      ],
-    );
-  }
-
-  Widget _commuteSummary(ThemeData theme) {
-    final morningTotal = _morningOverhead + _morningProductive;
-    final eveningTotal = _eveningOverhead + _eveningProductive;
-    final totalCommute = morningTotal + eveningTotal;
-    if (totalCommute == 0) return const SizedBox.shrink();
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.4),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text('Commute breakdown', style: theme.textTheme.labelSmall?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
-          const SizedBox(height: 4),
-          Text('Morning: $_morningOverhead min walk, $_morningProductive min train work', style: theme.textTheme.bodySmall),
-          Text('Evening: $_eveningOverhead min walk, $_eveningProductive min train work', style: theme.textTheme.bodySmall),
-          Text('Total: $totalCommute min commute', style: theme.textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w600)),
-        ],
-      ),
-    );
-  }
-}
 
 // ---------------------------------------------------------------------------
 // Transit departure row (used in My Day transit card)
