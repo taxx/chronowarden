@@ -249,18 +249,18 @@ class TransitService {
       // Offset the query time by walk minutes so the API gives us
       // journeys we can actually catch
       final queryTime = now.add(Duration(minutes: walkOffsetMinutes));
-      final time = '${queryTime.hour.toString().padLeft(2, '0')}:'
+      final itdTime = '${queryTime.hour.toString().padLeft(2, '0')}'
           '${queryTime.minute.toString().padLeft(2, '0')}';
-      final date =
-          '${now.year.toString().padLeft(4, '0')}-'
-          '${now.month.toString().padLeft(2, '0')}-'
+      final itdDate =
+          '${now.year.toString().padLeft(4, '0')}'
+          '${now.month.toString().padLeft(2, '0')}'
           '${now.day.toString().padLeft(2, '0')}';
 
       // Request 3 journeys
       final path = '/v2/trips'
           '?type_origin=any&name_origin=$originId'
           '&type_destination=any&name_destination=$destId'
-          '&date=$date&time=$time'
+          '&itd_date=$itdDate&itd_time=$itdTime'
           '&calc_number_of_trips=3'
           '&calc_one_direction=true';
 
