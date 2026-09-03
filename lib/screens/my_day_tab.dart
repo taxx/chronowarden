@@ -705,10 +705,9 @@ class _MyDayTabState extends State<MyDayTab> with SingleTickerProviderStateMixin
           actions: [
             TextButton(
               onPressed: () {
-                _state.resetLunchTimer();
                 Navigator.pop(ctx);
               },
-              child: const Text('Discard'),
+              child: const Text('Cancel'),
             ),
             FilledButton(
               onPressed: () {
