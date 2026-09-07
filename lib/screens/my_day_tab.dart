@@ -488,7 +488,7 @@ class _MyDayTabState extends State<MyDayTab> with SingleTickerProviderStateMixin
             _statRow(theme, 'Ended', log.endTime ?? '—'),
             _statRow(
               theme,
-              'Overtime',
+              log.overtimeMinutes < 0 ? 'Undertime' : 'Overtime',
               _formatBankMinutes(log.overtimeMinutes),
             ),
             if (log.lunchMinutes != null && log.lunchMinutes > 0)
@@ -588,6 +588,7 @@ class _MyDayTabState extends State<MyDayTab> with SingleTickerProviderStateMixin
         startTime: startStr,
         expectedMinutes: result.expectedMinutes,
         lunchMinutes: result.lunchMinutes,
+        flexMinutes: result.flexMinutes,
         morningOverheadMinutes: result.morningOverheadMinutes,
         morningProductiveCommuteMinutes: result.morningProductiveCommuteMinutes,
         eveningOverheadMinutes: result.eveningOverheadMinutes,

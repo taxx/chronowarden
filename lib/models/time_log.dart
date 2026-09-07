@@ -219,6 +219,9 @@ class TimeLog {
   ///
   /// Positive = overtime worked, negative = left early (time bank credit).
   /// Returns `0` if [endTime] has not yet been set.
+  ///
+  /// Note: [flexMinutes] is intentionally excluded — flex is a planning
+  /// offset that affects projected leave time but not final overtime.
   int calculateOvertimeMinutes() {
     if (endTime == null) return 0;
 
@@ -227,7 +230,7 @@ class TimeLog {
     final actualMinutes = end.difference(start).inMinutes;
     final totalExpected = expectedMinutes + overheadMinutes;
 
-    return actualMinutes - lunchMinutes - flexMinutes - totalExpected;
+    return actualMinutes - lunchMinutes - totalExpected;
   }
 
   /// Total minutes the user is expected to spend (work + total overhead).

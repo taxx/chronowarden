@@ -57,7 +57,7 @@ Color overtimeIcon(int minutes, ThemeData theme) {
 /// Formats minutes to a compact string like "+1h 30min" or "-45min".
 String formatOvertime(int minutes) {
   if (minutes == 0) return '✓';
-  final sign = minutes > 0 ? '+' : '';
+  final sign = minutes > 0 ? '+' : '-';
   final abs = minutes.abs();
   final h = abs ~/ 60;
   final m = abs % 60;
@@ -67,7 +67,7 @@ String formatOvertime(int minutes) {
 
 /// Formats minutes to a readable balance string like "+1h 30m" or "-45m".
 String formatBalance(int minutes) {
-  final sign = minutes >= 0 ? '+' : '';
+  final sign = minutes >= 0 ? '+' : '-';
   final abs = minutes.abs();
   final h = abs ~/ 60;
   final m = abs % 60;
