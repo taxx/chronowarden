@@ -9,6 +9,7 @@ import '../models/transit_config.dart';
 
 import 'auth_service.dart';
 import 'crypto_service.dart';
+import 'pinned_journey_store.dart';
 import 'supabase_service.dart';
 
 /// Manages transit integration with SL (Stockholm Public Transport).
@@ -133,7 +134,13 @@ class TransitService {
 
   /// Apply [TransitConfig] in memory immediately (no persistence).
   /// Clears journey cache so UI refreshes with new station settings.
+  /// Drops any pinned journey if the stations (route) changed.
   void applyConfig(TransitConfig cfg) {
+    if (_config != null &&
+        (_config!.workStopId != cfg.workStopId ||
+            _config!.homeStopId != cfg.homeStopId)) {
+      PinnedJourneyStore().clearForRouteChange();
+    }
     _config = cfg;
     clearJourneyCache();
   }

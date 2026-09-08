@@ -9,6 +9,7 @@ import 'screens/pending_screen.dart';
 import 'screens/setup_screen.dart';
 import 'screens/signup_screen.dart';
 import 'services/auth_service.dart';
+import 'services/pinned_journey_store.dart';
 import 'services/theme_service.dart';
 import 'app_state.dart';
 
@@ -25,6 +26,7 @@ void main() async {
 
   await ThemeService().init();
   await AuthService().init();
+  await PinnedJourneyStore().init();
 
   // Pre-load app data so the first frame never shows setup screen
   final auth = AuthService();

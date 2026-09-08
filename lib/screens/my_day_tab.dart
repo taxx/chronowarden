@@ -7,6 +7,7 @@ import '../models/journey_info.dart';
 import '../models/travel_preset.dart';
 import '../models/transit_config.dart';
 import '../services/notification_service.dart';
+import '../services/pinned_journey_store.dart';
 import '../services/preferences_service.dart';
 import '../services/transit_service.dart';
 import '../services/user_settings_service.dart';
@@ -219,6 +220,9 @@ class _MyDayTabState extends State<MyDayTab> with SingleTickerProviderStateMixin
     // Filter to catchable journeys (departure within reasonable time)
     // Compare local times since journey times are UTC
     final now = DateTime.now();
+    final pinStore = PinnedJourneyStore();
+    final pinned = pinStore.effectivePinnedJourney(
+        _transitJourneys ?? [], originId, destId, isMorning);
     final relevant = (_transitJourneys ?? [])
         .where((j) =>
             j.departureTime.toLocal().isAfter(
@@ -226,7 +230,8 @@ class _MyDayTabState extends State<MyDayTab> with SingleTickerProviderStateMixin
         .take(4)
         .toList();
 
-    if (relevant.isEmpty) {
+    // Show the card if there is a pinned journey OR any catchable journeys.
+    if (relevant.isEmpty && pinned == null) {
       _transitCardShown = false;
       return const SizedBox.shrink();
     }
@@ -239,6 +244,10 @@ class _MyDayTabState extends State<MyDayTab> with SingleTickerProviderStateMixin
     final directionLabel = isMorning
         ? '${_transitCfg!.homeStopName} → ${_transitCfg!.workStopName}'
         : '${_transitCfg!.workStopName} → ${_transitCfg!.homeStopName}';
+
+    final others = relevant
+        .where((j) => !pinStore.isPinnedJourney(j, originId, destId, isMorning))
+        .toList();
 
     return Card(
       child: Padding(
@@ -258,11 +267,22 @@ class _MyDayTabState extends State<MyDayTab> with SingleTickerProviderStateMixin
               ],
             ),
             const SizedBox(height: 8),
-            ...relevant.map((j) => _TransitJourneyRow(
+            if (pinned != null)
+              _TransitJourneyRow(
+                journey: pinned,
+                now: now,
+                walkBuffer: walkBuffer,
+                theme: theme,
+                isPinned: true,
+                onTogglePin: () => pinStore.unpin(),
+              ),
+            ...others.map((j) => _TransitJourneyRow(
                   journey: j,
                   now: now,
                   walkBuffer: walkBuffer,
                   theme: theme,
+                  isPinned: false,
+                  onTogglePin: () => pinStore.pin(j, _transitCfg!, isMorning),
                 )),
             const SizedBox(height: 8),
             Center(
@@ -1198,12 +1218,16 @@ class _TransitJourneyRow extends StatelessWidget {
   final DateTime now;
   final int walkBuffer;
   final ThemeData theme;
+  final bool isPinned;
+  final VoidCallback? onTogglePin;
 
   const _TransitJourneyRow({
     required this.journey,
     required this.now,
     required this.walkBuffer,
     required this.theme,
+    this.isPinned = false,
+    this.onTogglePin,
   });
 
   @override
@@ -1238,8 +1262,19 @@ class _TransitJourneyRow extends StatelessWidget {
     final dest = journey.mainDestination ?? 'Unknown';
     final delayColor = _delayColor(journey);
 
-    return Padding(
+    final pinnedColor = isPinned
+        ? theme.colorScheme.tertiary
+        : theme.colorScheme.surfaceContainerHighest;
+
+    return Container(
       padding: const EdgeInsets.symmetric(vertical: 6),
+      decoration: isPinned
+          ? BoxDecoration(
+              color: pinnedColor.withValues(alpha: 0.25),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: theme.colorScheme.tertiary, width: 1),
+            )
+          : null,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -1285,6 +1320,8 @@ class _TransitJourneyRow extends StatelessWidget {
                 color: delayColor,
                 fontSize: 10,
               )),
+              const Spacer(),
+              _pinControl(),
             ],
           ),
           const SizedBox(height: 4),
@@ -1299,6 +1336,44 @@ class _TransitJourneyRow extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  /// Compact pin/commit control shown on every journey row.
+  Widget _pinControl() {
+    final label = isPinned ? 'Locked' : 'Pin';
+    final icon = isPinned ? Icons.lock : Icons.push_pin_outlined;
+    final color = isPinned
+        ? theme.colorScheme.tertiary
+        : theme.colorScheme.primary;
+    return Tooltip(
+      message: isPinned ? 'Unpin this journey' : 'Commit to this journey',
+      child: InkWell(
+        onTap: onTogglePin,
+        borderRadius: BorderRadius.circular(8),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.15),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, size: 11, color: color),
+              const SizedBox(width: 3),
+              Text(
+                label,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  fontWeight: FontWeight.w600,
+                  color: color,
+                  fontSize: 10,
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

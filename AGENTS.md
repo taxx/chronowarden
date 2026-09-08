@@ -302,6 +302,27 @@ when `enabled` is true in settings. Disabled users never see it.
 | `lib/screens/main_shell.dart` | Conditional Transit nav item |
 | `supabase/functions/sl-proxy/index.ts` | Edge Function: CORS proxy + response slimming |
 
+### Pinned (committed) journey
+
+The SL API returns at most 3 trips per request, and the walk-offset query time
+slides that window forward. A train the user commits to can therefore get
+pushed out of the visible list. The pinned-journey feature lets the user lock
+a trip so it stays visible even when the API no longer returns it.
+
+- **Matching:** by scheduled (planned) departure time-of-day + line + route, so
+delays don't make the pin slide between trains.
+- **Storage:** `localStorage` (per-device, ephemeral, not encrypted).
+- **Auto-expire:** when the departure time has passed (or the day ends,
+whichever comes first); unpinning reverts to the normal rolling window.
+- **Behavior:** the pinned card renders at top with a Locked badge; if it is
+still in the returned list it uses live data, otherwise a synthetic card is
+built from the stored pin. Cleared when stations (route) change.
+
+| File | Purpose |
+|------|---------|
+| `lib/models/pinned_journey.dart` | PinnedJourney model + matching/expiry/synthetic journey |
+| `lib/services/pinned_journey_store.dart` | localStorage-backed pin store (ChangeNotifier) |
+
 ### Edge Function credentials (`.env.edge`)
 Credentials for Supabase Edge Function deployment live in `.env.edge`
 (gitignored). Template at `.env.edge.sample`:

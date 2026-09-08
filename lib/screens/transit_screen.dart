@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../app_state.dart';
 import '../models/journey_info.dart';
 import '../models/transit_config.dart';
+import '../services/pinned_journey_store.dart';
 import '../services/transit_service.dart';
 
 /// Transit tab — shows journey options between home ↔ work stations.
@@ -127,7 +128,7 @@ class _TransitScreenState extends State<TransitScreen>
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
-      listenable: AppState(),
+      listenable: Listenable.merge([AppState(), PinnedJourneyStore()]),
       builder: (context, _) {
         _cfg = _transit.config;
         return _buildContent(Theme.of(context));
@@ -184,6 +185,15 @@ class _TransitScreenState extends State<TransitScreen>
         ? '${_cfg!.homeStopName} → ${_cfg!.workStopName}'
         : '${_cfg!.workStopName} → ${_cfg!.homeStopName}';
 
+    final originId = _isMorning ? _cfg!.homeStopId : _cfg!.workStopId;
+    final destId = _isMorning ? _cfg!.workStopId : _cfg!.homeStopId;
+    final pinStore = PinnedJourneyStore();
+    final pinned = pinStore.effectivePinnedJourney(
+        _journeys ?? [], originId, destId, _isMorning);
+    final others = (_journeys ?? [])
+        .where((j) => !pinStore.isPinnedJourney(j, originId, destId, _isMorning))
+        .toList();
+
     return RefreshIndicator(
       onRefresh: _refresh,
       child: ListView(
@@ -220,7 +230,7 @@ class _TransitScreenState extends State<TransitScreen>
           const SizedBox(height: 16),
 
           // -- Journey cards --
-          if (_journeys != null && _journeys!.isNotEmpty) ...[
+          if (pinned != null || others.isNotEmpty) ...[ 
             Text(
               _isMorning
                   ? 'Traveling to ${_cfg!.workStopName}'
@@ -228,16 +238,27 @@ class _TransitScreenState extends State<TransitScreen>
               style: theme.textTheme.titleMedium,
             ),
             const SizedBox(height: 8),
-            ..._journeys!.map((j) => _JourneyCard(
+            if (pinned != null)
+              _JourneyCard(
+                journey: pinned,
+                cfg: _cfg!,
+                isMorning: _isMorning,
+                theme: theme,
+                isPinned: true,
+                onTogglePin: () => pinStore.unpin(),
+              ),
+            ...others.map((j) => _JourneyCard(
                   journey: j,
                   cfg: _cfg!,
                   isMorning: _isMorning,
                   theme: theme,
+                  isPinned: false,
+                  onTogglePin: () => pinStore.pin(j, _cfg!, _isMorning),
                 )),
           ],
 
           // -- Empty state --
-          if (_journeys == null || _journeys!.isEmpty) ...[
+          if (pinned == null && (_journeys == null || _journeys!.isEmpty)) ...[
             const SizedBox(height: 32),
             Center(
               child: Column(
@@ -325,12 +346,16 @@ class _JourneyCard extends StatelessWidget {
   final TransitConfig cfg;
   final bool isMorning;
   final ThemeData theme;
+  final bool isPinned;
+  final VoidCallback? onTogglePin;
 
   const _JourneyCard({
     required this.journey,
     required this.cfg,
     required this.isMorning,
     required this.theme,
+    this.isPinned = false,
+    this.onTogglePin,
   });
 
   @override
@@ -359,8 +384,19 @@ class _JourneyCard extends StatelessWidget {
     // ignore: unused_local_variable, no_leading_underscores_for_local_identifiers
     final mode_ = mode;
 
+    final pinnedColor = isPinned
+        ? theme.colorScheme.tertiary
+        : theme.colorScheme.surfaceContainerHighest;
+
     return Card(
       margin: const EdgeInsets.symmetric(vertical: 4),
+      color: isPinned ? pinnedColor.withValues(alpha: 0.25) : null,
+      shape: isPinned
+          ? RoundedRectangleBorder(
+              side: BorderSide(color: theme.colorScheme.tertiary, width: 1.5),
+              borderRadius: BorderRadius.circular(12),
+            )
+          : null,
       child: Padding(
         padding: const EdgeInsets.all(12),
         child: Column(
@@ -411,6 +447,8 @@ class _JourneyCard extends StatelessWidget {
                     ),
                   ),
                 ),
+                const Spacer(),
+                _pinControl(),
               ],
             ),
             const SizedBox(height: 6),
@@ -457,6 +495,44 @@ class _JourneyCard extends StatelessWidget {
     if (diff <= 0) return Colors.green;
     if (diff <= 5) return Colors.orange.shade700;
     return Colors.red;
+  }
+
+  /// Compact pin/commit control shown on every journey card.
+  Widget _pinControl() {
+    final label = isPinned ? 'Locked' : 'Pin';
+    final icon = isPinned ? Icons.lock : Icons.push_pin_outlined;
+    final color = isPinned
+        ? theme.colorScheme.tertiary
+        : theme.colorScheme.primary;
+    return Tooltip(
+      message: isPinned ? 'Unpin this journey' : 'Commit to this journey',
+      child: InkWell(
+        onTap: onTogglePin,
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.15),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, size: 12, color: color),
+              const SizedBox(width: 4),
+              Text(
+                label,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  fontWeight: FontWeight.w600,
+                  color: color,
+                  fontSize: 11,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }
 
