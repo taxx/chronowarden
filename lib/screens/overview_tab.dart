@@ -1110,7 +1110,7 @@ class _AddDayDialogState extends State<_AddDayDialog> {
                     _overtime == 0 ? '✓ exactly on target' : '${_overtime > 0 ? '+' : ''}$_overtime min',
                     style: theme.textTheme.titleMedium?.copyWith(
                       fontWeight: FontWeight.bold,
-                      color: _overtime >= 0 ? theme.colorScheme.primary : Colors.orange,
+                      color: _overtime > 0 ? theme.colorScheme.error : Colors.green.shade700,
                     ),
                   ),
                 ],
