@@ -448,6 +448,28 @@ class _MyDayTabState extends State<MyDayTab> with SingleTickerProviderStateMixin
               _statRow(theme, 'Productive commute', '${log.morningProductiveCommuteMinutes}/${log.eveningProductiveCommuteMinutes} min (am/pm)'),
             _statRow(theme, 'Total', _fmtMins(log.expectedMinutes + log.overheadMinutes + log.productiveCommuteMinutes)),
 
+            const SizedBox(height: 8),
+            // Banked time to withdraw (flex) — live projection only
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text('Banked time to withdraw',
+                    style: theme.textTheme.titleSmall),
+                Text(
+                  _fmtMins(log.flexMinutes),
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: theme.colorScheme.secondary,
+                  ),
+                ),
+                TextButton(
+                  onPressed: () =>
+                      _showEditFlexDialog(context, log.flexMinutes),
+                  child: const Text('Adjust'),
+                ),
+              ],
+            ),
+
             // Lunch timer section
             _LunchTimerSection(
               lunchMinutes: lunch,
@@ -665,6 +687,69 @@ class _MyDayTabState extends State<MyDayTab> with SingleTickerProviderStateMixin
               onPressed: () {
                 Navigator.pop(ctx);
                 _state.updateLunchMinutes(lunch);
+              },
+              child: const Text('Save'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Adjust how much banked overtime the user plans to withdraw as personal
+  /// time. Live projection only — moves the projected leave time earlier.
+  Future<void> _showEditFlexDialog(BuildContext ctx, int currentFlex) async {
+    int flex = currentFlex;
+    await showDialog<void>(
+      context: ctx,
+      builder: (_) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text('Banked time to withdraw'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Time taken from your bank as personal time. This moves your '
+                'projected leave time earlier.',
+                style: Theme.of(ctx).textTheme.bodySmall,
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Expanded(
+                    child: Slider(
+                      value: flex.toDouble(),
+                      min: 0,
+                      max: 240,
+                      divisions: _sliderDivisions(0, 240),
+                      label: '$flex min',
+                      onChanged: (v) {
+                        flex = v.round();
+                        setDialogState(() {});
+                      },
+                    ),
+                  ),
+                  Text(
+                    '$flex min',
+                    style: Theme.of(ctx)
+                        .textTheme
+                        .bodyMedium
+                        ?.copyWith(fontWeight: FontWeight.w600),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () {
+                Navigator.pop(ctx);
+                _state.updateFlexMinutes(flex);
               },
               child: const Text('Save'),
             ),

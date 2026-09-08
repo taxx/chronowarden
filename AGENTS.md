@@ -383,6 +383,21 @@ in **Settings → Slider step size**.
 
 ---
 
+## Flex (banked-time) withdrawal visualization
+
+The amount of banked overtime the user plans to withdraw as personal time is
+chosen at Start Day and stored in `time_logs.flex_minutes`. It is a **live
+projection** for the current day only — it is intentionally NOT used in
+edit-day / add-day calculations.
+
+- Shown on the active-day card as "Banked time to withdraw" with an **Adjust**
+  button so the user can change it mid-day.
+- `AppState.updateFlexMinutes()` writes the new value; the `leaveTime` getter
+  subtracts flex, so the projected leave time moves earlier immediately.
+- Final overtime (`calculateOvertimeMinutes()`) excludes flex by design.
+
+---
+
 ## iOS Safari Paste Compatibility
 
 Flutter web on iOS Safari doesn't fire paste events to canvas-rendered

@@ -205,6 +205,56 @@ void main() {
     });
   });
 
+  group('TimeLog.flexMinutes (banked-time withdrawal projection)', () {
+    test('leave time shifts earlier by the flex minutes', () {
+      // No flex: start + expected + lunch + morningOverhead - eveningProductive
+      final noFlex = TimeLog(
+        date: '2024-01-15',
+        startTime: '07:30:00',
+        expectedMinutes: 480,
+        lunchMinutes: 0,
+        morningOverheadMinutes: 25,
+        eveningOverheadMinutes: 25,
+        eveningProductiveCommuteMinutes: 30,
+        overtimeMinutes: 0,
+      );
+      final withFlex = TimeLog(
+        date: '2024-01-15',
+        startTime: '07:30:00',
+        expectedMinutes: 480,
+        lunchMinutes: 0,
+        flexMinutes: 60,
+        morningOverheadMinutes: 25,
+        eveningOverheadMinutes: 25,
+        eveningProductiveCommuteMinutes: 30,
+        overtimeMinutes: 0,
+      );
+      // 07:30 + 480 + 25 - 30 = 15:25
+      final base = DateTime(2024, 1, 15, 15, 25);
+      expect(noFlex.leaveTime, base);
+      // With 60 min flex: 15:25 - 60 = 14:25
+      expect(withFlex.leaveTime, base.subtract(const Duration(minutes: 60)));
+    });
+
+    test('overtime calculation ignores flex (live projection only)', () {
+      // flex is a planning offset for the active day; final overtime must not
+      // be affected by it.
+      final withFlex = TimeLog(
+        date: '2024-01-15',
+        startTime: '07:30:00',
+        endTime: '16:20:00',
+        expectedMinutes: 480,
+        lunchMinutes: 0,
+        flexMinutes: 60,
+        morningOverheadMinutes: 25,
+        eveningOverheadMinutes: 25,
+        overtimeMinutes: 0,
+      );
+      // 530 elapsed - 480 - 50 overhead = 0 overtime (flex excluded)
+      expect(withFlex.calculateOvertimeMinutes(), 0);
+    });
+  });
+
   group('TimeLog.totalExpectedMinutes', () {
     test('sums expected and total overhead', () {
       final log = TimeLog(

@@ -363,6 +363,18 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
+  // -- update banked-time (flex) withdrawal on the active day ------
+  /// Adjusts how much banked overtime the user plans to withdraw as
+  /// personal time. A live projection only — flex is intentionally NOT
+  /// used in edit-day / add-day calculations.
+  Future<void> updateFlexMinutes(int flexMinutes) async {
+    final log = _todayLog;
+    if (log == null || log.id == null) return;
+    await logs.update(log.id!, {'flex_minutes': flexMinutes});
+    await _loadToday();
+    notifyListeners();
+  }
+
   // -- update commute values on the active day ---------------------
   Future<void> updateCommuteValues({
     required int morningOverheadMinutes,
