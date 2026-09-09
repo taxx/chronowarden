@@ -3,8 +3,9 @@ import 'journey_info.dart';
 /// A journey the user has committed to ("pinned"), so it stays visible even
 /// when the rolling 3-trip window from the API pushes it out of the response.
 ///
-/// Stored in localStorage (per-device, ephemeral). Auto-expires once the
-/// departure time has passed — or the day ends, whichever comes first.
+/// Stored in localStorage (per-device, ephemeral). Auto-expires when the day
+/// ends, not at departure — the pinned trip stays visible all day even after
+/// the departure time has passed.
 class PinnedJourney {
   final String originId; // journey planner global ID of origin stop
   final String destId;   // journey planner global ID of destination stop
@@ -44,9 +45,14 @@ class PinnedJourney {
         depLocal.minute == departure.minute;
   }
 
-  /// Whether the pin has expired: departure has passed, or the day has ended.
-  /// (A departure always precedes end-of-day, so checking departure covers both.)
-  bool get isExpired => DateTime.now().isAfter(departure);
+  /// Whether the pin has expired: the day on which the pin was made has ended.
+  /// The pinned trip stays visible all day (even after departure) until the
+  /// day ends or the user manually unpins it.
+  bool get isExpired {
+    final now = DateTime.now();
+    final endOfDay = DateTime(departure.year, departure.month, departure.day + 1);
+    return now.isAfter(endOfDay);
+  }
 
   /// Build a synthetic [JourneyInfo] so the pinned card can be rendered even
   /// when the API no longer returns it in the current 3-trip window.

@@ -1366,9 +1366,11 @@ class _TransitJourneyRow extends StatelessWidget {
           Row(
             children: [
               Icon(
-                isCatchable ? Icons.check_circle : Icons.cancel,
+                isPinned || isCatchable
+                    ? Icons.check_circle
+                    : Icons.cancel,
                 size: 16,
-                color: isCatchable
+                color: isPinned || isCatchable
                     ? Colors.green
                     : theme.colorScheme.error,
               ),
@@ -1410,14 +1412,22 @@ class _TransitJourneyRow extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 4),
+          // For pinned journeys: never show "missed".
+          // If the leave time has passed, show a neutral label instead.
           Text(
-            isCatchable
-                ? 'Leave at $leaveStr · ${journey.durationMinutes}min trip$untilStr'
-                : 'Missed — needed to leave by $leaveStr',
+            isPinned
+                ? (isCatchable
+                    ? 'Leave at $leaveStr · ${journey.durationMinutes}min trip$untilStr'
+                    : 'Committed ride — leave time passed')
+                : (isCatchable
+                    ? 'Leave at $leaveStr · ${journey.durationMinutes}min trip$untilStr'
+                    : 'Missed — needed to leave by $leaveStr'),
             style: theme.textTheme.bodySmall?.copyWith(
-              color: isCatchable
+              color: isPinned
                   ? theme.colorScheme.onSurfaceVariant
-                  : theme.colorScheme.error,
+                  : (isCatchable
+                      ? theme.colorScheme.onSurfaceVariant
+                      : theme.colorScheme.error),
             ),
           ),
         ],

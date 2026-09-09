@@ -65,7 +65,7 @@ void main() {
   });
 
   group('PinnedJourney.isExpired', () {
-    test('expired once departure passes', () {
+    test('not expired on same day even after departure passes', () {
       final pin = PinnedJourney(
         originId: 'home',
         destId: 'work',
@@ -73,6 +73,20 @@ void main() {
         line: '28',
         destination: 'Work',
         departure: DateTime.now().subtract(const Duration(minutes: 1)),
+        durationMinutes: 30,
+      );
+      // Still the same day — not expired.
+      expect(pin.isExpired, isFalse);
+    });
+
+    test('expired once the day ends', () {
+      final pin = PinnedJourney(
+        originId: 'home',
+        destId: 'work',
+        isMorning: true,
+        line: '28',
+        destination: 'Work',
+        departure: DateTime.now().subtract(const Duration(days: 1)),
         durationMinutes: 30,
       );
       expect(pin.isExpired, isTrue);
@@ -205,7 +219,7 @@ void main() {
           [futureJourney('28', 30)], 'home', 'other', true), isNull);
     });
 
-    test('expired pin is dropped', () async {
+    test('expired pin (previous day) is dropped', () async {
       final store = PinnedJourneyStore();
       SharedPreferences.setMockInitialValues({
         'pinned_journey': jsonEncode(PinnedJourney(
@@ -214,7 +228,7 @@ void main() {
           isMorning: true,
           line: '28',
           destination: 'Work',
-          departure: DateTime.now().subtract(const Duration(minutes: 1)),
+          departure: DateTime.now().subtract(const Duration(days: 1)),
           durationMinutes: 30,
         ).toJson()),
       });

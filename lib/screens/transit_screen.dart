@@ -483,6 +483,7 @@ class _JourneyCard extends StatelessWidget {
               cfg: cfg,
               isMorning: isMorning,
               theme: theme,
+              isPinned: isPinned,
             ),
           ],
         ),
@@ -604,12 +605,14 @@ class _LeaveTimeInfo extends StatelessWidget {
   final TransitConfig cfg;
   final bool isMorning;
   final ThemeData theme;
+  final bool isPinned;
 
   const _LeaveTimeInfo({
     required this.journey,
     required this.cfg,
     required this.isMorning,
     required this.theme,
+    this.isPinned = false,
   });
 
   @override
@@ -648,18 +651,35 @@ class _LeaveTimeInfo extends StatelessWidget {
         '${arrLocal.hour.toString().padLeft(2, '0')}:'
         '${arrLocal.minute.toString().padLeft(2, '0')}';
 
+    // For pinned journeys: never show "missed". If the leave time has passed,
+    // show a neutral "Committed ride — leave time passed" label instead.
+    String text;
+    Color textColor;
+    TextStyle? textStyle;
+    if (isPinned) {
+      text = isCatchable
+          ? 'Leave at $leaveStr · arrive $arrStr$untilStr'
+          : 'Committed ride — leave time passed';
+      textColor = theme.colorScheme.onSurfaceVariant;
+      textStyle = const TextStyle(fontStyle: FontStyle.normal);
+    } else {
+      text = isCatchable
+          ? 'Leave at $leaveStr · arrive $arrStr$untilStr'
+          : 'Missed — needed to leave by $leaveStr';
+      textColor = isCatchable
+          ? theme.colorScheme.onSurfaceVariant
+          : theme.colorScheme.error;
+      textStyle = isCatchable ? null : const TextStyle(fontStyle: FontStyle.italic);
+    }
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          isCatchable
-              ? 'Leave at $leaveStr · arrive $arrStr$untilStr'
-              : 'Missed — needed to leave by $leaveStr',
+          text,
           style: theme.textTheme.bodySmall?.copyWith(
-            color: isCatchable
-                ? theme.colorScheme.onSurfaceVariant
-                : theme.colorScheme.error,
-            fontStyle: isCatchable ? null : FontStyle.italic,
+            color: textColor,
+            fontStyle: textStyle?.fontStyle,
           ),
         ),
       ],
