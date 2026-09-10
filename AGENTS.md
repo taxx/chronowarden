@@ -9,6 +9,7 @@ You are an expert Flutter & Dart developer acting as a dedicated pair-programmer
 4. **Data Privacy & Isolation:** Ensure all models strictly retain a `user_id` field to align properly with Supabase Row Level Security (RLS). All data queries MUST scope to the current authenticated user.
 5. **Validation:** Use `flutter analyze` to make sure there are no warnings or errors.
 6. **Tests:** Use tests and mocks where applicable to ensure you don't break things and make sure new features works as expected.
+7. **Deploy as part of the routine:** Every code change that is completed (fix or feature) MUST be deployed to production as part of the same working session, unless the user explicitly says not to. After committing and pushing, run the SSH rebuild + verification steps in the "Release to production" section below (git pull, docker compose up --build -d, docker compose ps). Do not stop after local changes — deploy and verify. Remember: the `sl-proxy` Edge Function is deployed separately from the Flutter app and is NOT part of the Docker build (see the Edge Function section).
 
 ## Authentication & Multi-User
 ChronoWarden uses Supabase Auth with an admin-invite model. Key points:

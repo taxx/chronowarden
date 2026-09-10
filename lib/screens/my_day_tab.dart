@@ -158,22 +158,22 @@ class _MyDayTabState extends State<MyDayTab> with SingleTickerProviderStateMixin
       return const SizedBox.shrink();
     }
 
-    // If day is active, check if the selected travel preset uses transit
-    if (hasActiveDay) {
-      TravelPreset? selectedPreset;
-      if (_lastPresetId != null) {
-        for (final p in _state.travelPresets) {
-          if (p.id == _lastPresetId) {
-            selectedPreset = p;
-            break;
-          }
+    // Only show transit if the last-used travel preset uses public transit.
+    // Applies whether or not a day is currently active — a non-transit preset
+    // (e.g. work-from-home) hides the transit card even for morning planning.
+    TravelPreset? selectedPreset;
+    if (_lastPresetId != null) {
+      for (final p in _state.travelPresets) {
+        if (p.id == _lastPresetId) {
+          selectedPreset = p;
+          break;
         }
       }
-      // If no matching preset or it doesn't use transit, hide transit card
-      if (selectedPreset == null || !selectedPreset.usesTransit) {
-        _transitCardShown = false;
-        return const SizedBox.shrink();
-      }
+    }
+    // If no matching preset or it doesn't use transit, hide transit card
+    if (selectedPreset == null || !selectedPreset.usesTransit) {
+      _transitCardShown = false;
+      return const SizedBox.shrink();
     }
 
     // Direction: active day → always afternoon (commute home)
@@ -938,6 +938,10 @@ class _MyDayTabState extends State<MyDayTab> with SingleTickerProviderStateMixin
         eveningOverheadMinutes: selected.eveningOverheadMinutes,
         eveningProductiveCommuteMinutes: selected.eveningProductiveCommuteMinutes,
       );
+      // Track the preset now in effect so transit visibility stays correct
+      // when switching to a non-transit preset mid-day.
+      _lastPresetId = selected.id;
+      await PreferencesService().setLastTravelPresetId(selected.id);
     }
   }
 }
