@@ -8,20 +8,33 @@ class AboutEncryptionScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
     return Scaffold(
       appBar: AppBar(
         title: const Text('Encryption & Privacy'),
       ),
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 600),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
+        child: const EncryptionInfoContent(),
+      ),
+    );
+  }
+}
+
+/// Shared explainer content — used both by the full screen (Settings) and
+/// the login screen's modal dialog, so the two stay in sync.
+class EncryptionInfoContent extends StatelessWidget {
+  const EncryptionInfoContent({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(24),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 600),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
                 // --- Overview ---
                 Text(
                   'How ChronoWarden Protects Your Data',
@@ -170,9 +183,7 @@ class AboutEncryptionScreen extends StatelessWidget {
               ],
             ),
           ),
-        ),
-      ),
-    );
+      );
   }
 
   Widget _section(ThemeData theme, String title, String body) {

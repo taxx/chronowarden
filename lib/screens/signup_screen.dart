@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 
 import '../services/auth_service.dart';
 import '../utils/paste_button.dart';
+import 'about_encryption_screen.dart';
 import 'login_screen.dart';
 import 'pending_screen.dart';
 
@@ -129,6 +130,59 @@ class _SignupScreenState extends State<SignupScreen> {
         ),
       );
     }
+  }
+
+  void _showEncryptionInfoDialog(BuildContext ctx) {
+    showDialog<void>(
+      context: ctx,
+      builder: (dialogContext) => Dialog(
+        insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 560, maxHeight: 600),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(24, 20, 24, 4),
+                child: Row(
+                  children: [
+                    Icon(Icons.shield_outlined,
+                        color: Theme.of(dialogContext).colorScheme.primary),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        'How we store & protect your data',
+                        style: Theme.of(dialogContext).textTheme.titleLarge
+                            ?.copyWith(fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close),
+                      onPressed: () => Navigator.pop(dialogContext),
+                    ),
+                  ],
+                ),
+              ),
+              Flexible(
+                child: SingleChildScrollView(
+                  child: SizedBox(
+                    width: double.infinity,
+                    child: const EncryptionInfoContent(),
+                  ),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.only(bottom: 16),
+                child: FilledButton(
+                  onPressed: () => Navigator.pop(dialogContext),
+                  child: const Text('Got it'),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   @override
@@ -361,6 +415,16 @@ class _SignupScreenState extends State<SignupScreen> {
                     color: theme.colorScheme.onSurfaceVariant,
                   ),
                   textAlign: TextAlign.center,
+                ),
+                TextButton(
+                  onPressed: () => _showEncryptionInfoDialog(context),
+                  child: Text(
+                    'How we store & protect your data',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.primary,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
                 ),
               ],
             ),

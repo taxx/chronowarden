@@ -98,6 +98,13 @@ Passphrase → PBKDF2(310k) → Master Key → wrap DEK → AES-256-GCM encrypt 
 - 24-word BIP39 mnemonic encodes the DEK directly
 - If passphrase + recovery phrase are both lost, data is gone forever
 
+### Transparency for new users
+Login and Signup screens show a "How we store & protect your data" link that
+opens a modal explainer (zero-knowledge architecture, key hierarchy, recovery
+phrase guidance, and the critical warning) so prospective users understand
+the encryption setup — and the importance of keeping their keys and recovery
+phrase safe — before they sign in.
+
 ### DEK Cache
 - The unwrapped DEK is cached in `localStorage` (not `sessionStorage`)
 - Survives closing and reopening the browser tab

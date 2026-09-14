@@ -185,7 +185,7 @@ Passphrase → PBKDF2(310k) → Master Key (KEK)
 | `lib/services/auth_service.dart` | DEK lifecycle, passphrase unlock, migration detection |
 | `lib/services/migration_service.dart` | One-time encryption of legacy plaintext data |
 | `lib/screens/migration_screen.dart` | Migration UI with passphrase setup + recovery display |
-| `lib/screens/about_encryption_screen.dart` | Full encryption explainer with key hierarchy diagram |
+| `lib/screens/about_encryption_screen.dart` | Full encryption explainer with key hierarchy diagram (reusable `EncryptionInfoContent`) |
 | `lib/screens/passphrase_screen.dart` | Passphrase entry on new devices |
 
 ### Recovery phrase
@@ -197,6 +197,13 @@ Passphrase → PBKDF2(310k) → Master Key (KEK)
 > If you lose both your encryption passphrase AND your recovery phrase,
 > your data is gone forever. No one — not even the app administrator —
 > can recover it.
+
+### Login/Signup encryption explainer
+Login and Signup screens show a "How we store & protect your data" link below
+the encrypted-data note. It opens a modal dialog reusing the same
+`EncryptionInfoContent` widget as the full Settings page, so prospective or
+new-device users can read the zero-knowledge architecture, key hierarchy,
+recovery-phrase guidance, and the critical warning before signing in.
 
 ---
 
