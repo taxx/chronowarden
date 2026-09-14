@@ -73,23 +73,26 @@ class WorkConfig {
 ///
 /// Implements the standard algorithm: the week containing the first Thursday
 /// of the year is week 1.
+///
+/// All arithmetic is done on [DateTime.utc] dates so that the day-count is
+/// unaffected by Daylight Saving Time transitions (Europe/Sweden has DST),
+/// which would otherwise skew the week number by ±1 for part of the year.
 int isoWeekNumber(DateTime date) {
-  final d = DateTime(date.year, date.month, date.day);
-
-  // Find the nearest Thursday (weekday 4)
+  final d = DateTime.utc(date.year, date.month, date.day);
   final wd = d.weekday; // 1=Mon ... 7=Sun
-  final nearestThursday = d.add(Duration(days: (4 - wd + 7) % 7));
 
-  // Year of the nearest Thursday
-  final year = nearestThursday.year;
+  // Thursday of the ISO week (Mon–Sun) that contains [d]. The offset must
+  // go backwards for Fri/Sat/Sun, so it ranges −3..+3 days.
+  final thu = DateTime.utc(d.year, d.month, d.day + ((4 - wd + 3) % 7 - 3));
 
-  // First Thursday of that year
-  final firstJan = DateTime(year, 1, 1);
-  final firstThursday = firstJan.add(Duration(
-    days: (4 - firstJan.weekday + 7) % 7,
-  ));
+  // ISO year of that week (may differ from the calendar year near Jan 1).
+  final year = thu.year;
+
+  // First Thursday of that calendar year (always within Jan 1..7).
+  final jan1 = DateTime.utc(year, 1, 1);
+  final firstThu = DateTime.utc(year, 1, 1 + ((4 - jan1.weekday + 7) % 7));
 
   // Difference in days → weeks
-  final days = nearestThursday.difference(firstThursday).inDays;
+  final days = thu.difference(firstThu).inDays;
   return (days ~/ 7) + 1;
 }

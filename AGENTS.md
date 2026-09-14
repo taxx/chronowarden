@@ -212,6 +212,34 @@ reads from legacy columns. See `LEGACY_COLUMN_CLEANUP.md` for the full plan.
 
 ---
 
+## Reduced-week (Seasonal) Work Config
+
+ChronoWarden picks between default and reduced expected work minutes per day
+using ISO week numbers. Users configure `reduced_start_week` / `reduced_end_week`
+(e.g. weeks 20–37 for summer hours) and the app applies `reduced_expected_minutes`
+when today's ISO week falls inside that range.
+
+- **ISO week numbering** — weeks start on Monday (as in Sweden).
+- **DST-safe calculation** — `isoWeekNumber()` in `lib/models/work_config.dart`
+  performs all arithmetic on `DateTime.utc` dates. The original implementation
+  used wall-clock `DateTime` + `Duration`, and Europe/Sweden's Daylight Saving
+  Time transitions made `difference().inDays` truncate by one day for part of
+  the year, skewing the week number by −1 (e.g. real ISO week 38 was reported
+  as 37).
+- **Week transparency** — the Week overview header shows the ISO week number
+  (e.g. `Wk 38 · 14/9 — 20/9`) and the Month overview header shows the week
+  range it covers (e.g. `Sep 2026 · Wk 36–40`). The month calendar also adds a
+  per-row week-number gutter so each grid row maps directly to its ISO week.
+
+### Key files
+| File | Purpose |
+|------|---------|
+| `lib/models/work_config.dart` | `WorkConfig` model + DST-safe `isoWeekNumber()` |
+| `lib/screens/overview_tab.dart` | Week/Month overview headers + month week-number gutter |
+| `test/work_config_test.dart` | ISO week + reduced-period regression tests |
+
+---
+
 ## Cross-Device Realtime Sync
 
 ChronoWarden uses Supabase Realtime to sync time log changes across devices

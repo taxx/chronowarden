@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../app_state.dart';
 import '../models/time_log.dart';
+import '../models/work_config.dart' show isoWeekNumber;
 import '../services/preferences_service.dart';
 import '../widgets/edit_day_dialog.dart';
 
@@ -209,9 +210,11 @@ class _PeriodTabState extends State<_PeriodTab> {
       case Period.week:
         final weekStart = _weekStart(now);
         final weekEnd = weekStart.add(const Duration(days: 6));
-        return '${weekStart.day}/${weekStart.month} — ${weekEnd.day}/${weekEnd.month}';
+        return 'Wk ${isoWeekNumber(weekStart)} · ${weekStart.day}/${weekStart.month} — ${weekEnd.day}/${weekEnd.month}';
       case Period.month:
-        return _monthYearLabel(now);
+        final firstWeek = isoWeekNumber(DateTime(now.year, now.month, 1));
+        final lastWeek = isoWeekNumber(DateTime(now.year, now.month + 1, 0));
+        return '${_monthYearLabel(now)} · Wk $firstWeek–$lastWeek';
       case Period.year:
         return '${now.year}';
     }
@@ -637,9 +640,11 @@ Widget _monthCalendar(BuildContext context, Map<String, TimeLog> logByDate, {
 }) {
   final theme = Theme.of(context);
   final numDays = showWeekends ? 7 : 5;
+  // Week-number gutter on the left of each row
+  final weekGutter = 34.0;
   // Account for 4px gap between cells for visual separation
   final availWidth = MediaQuery.of(context).size.width - 32;
-  final cellWidth = (availWidth - (numDays - 1) * 4) / numDays;
+  final cellWidth = (availWidth - weekGutter - (numDays - 1) * 4) / numDays;
   final firstDay = DateTime(refDate.year, refDate.month, 1);
   final lastDay = DateTime(refDate.year, refDate.month + 1, 0);
   // Monday = 0, Tuesday = 1, …, Sunday = 6
@@ -651,13 +656,23 @@ Widget _monthCalendar(BuildContext context, Map<String, TimeLog> logByDate, {
     children: [
       Text('Daily overview', style: theme.textTheme.titleMedium),
       const SizedBox(height: 8),
-      // Day-of-week header with gaps matching grid rows
+      // Week-number gutter + day-of-week header with gaps matching grid rows
       Row(
-        children: _buildMonthHeader(showWeekends, cellWidth, theme),
+        children: [
+          SizedBox(
+            width: weekGutter,
+            child: Text('Wk', textAlign: TextAlign.center,
+              style: theme.textTheme.bodySmall?.copyWith(
+                fontWeight: FontWeight.w600,
+                color: theme.colorScheme.onSurfaceVariant,
+              )),
+          ),
+          ..._buildMonthHeader(showWeekends, cellWidth, theme),
+        ],
       ),
       const SizedBox(height: 4),
       // Grid rows
-      ..._buildMonthRows(context, cellWidth, logByDate, firstDay, startWeekday, daysInMonth, numDays, showWeekends, onDayTap, onEmptyPastDayTap),
+      ..._buildMonthRows(context, cellWidth, logByDate, firstDay, startWeekday, daysInMonth, numDays, showWeekends, onDayTap, onEmptyPastDayTap, weekGutter),
     ],
   );
 }
@@ -683,7 +698,8 @@ List<Widget> _buildMonthRows(BuildContext context, double cellWidth, Map<String,
     int numDays,
     bool showWeekends,
     void Function(TimeLog)? onDayTap,
-    void Function(DateTime)? onEmptyPastDayTap) {
+    void Function(DateTime)? onEmptyPastDayTap,
+    double weekGutter) {
   final theme = Theme.of(context);
 
   // Collect visible days (skip weekends when hidden)
@@ -702,6 +718,19 @@ List<Widget> _buildMonthRows(BuildContext context, double cellWidth, Map<String,
   // We iterate over the 7-column grid and only add cells for visible columns
   for (int r = 0; r < numRows; r++) {
     final rowChildren = <Widget>[];
+    // Week number of this grid row (from its first visible day).
+    final rowStartIdx = r * numDays;
+    final rowWeek = rowStartIdx < visibleDays.length
+        ? isoWeekNumber(visibleDays[rowStartIdx])
+        : null;
+    rowChildren.add(SizedBox(
+      width: weekGutter,
+      child: Text(rowWeek?.toString() ?? '', textAlign: TextAlign.center,
+        style: theme.textTheme.bodySmall?.copyWith(
+          fontWeight: FontWeight.w600,
+          color: theme.colorScheme.onSurfaceVariant,
+        )),
+    ));
     for (int col = 0; col < numDays; col++) {
       // Add gap between cells (matching header spacing)
       if (col > 0) rowChildren.add(const SizedBox(width: 4));
