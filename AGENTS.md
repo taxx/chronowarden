@@ -237,12 +237,20 @@ when today's ISO week falls inside that range.
   (e.g. `Wk 38 · 14/9 — 20/9`) and the Month overview header shows the week
   range it covers (e.g. `Sep 2026 · Wk 36–40`). The month calendar also adds a
   per-row week-number gutter so each grid row maps directly to its ISO week.
+- **Month calendar alignment** — the month grid is built over the full Mon–Sun
+  week structure. The 1st of the month is placed under its real weekday (the
+  leading days of the first row are the previous month's Monday, shown dimmed
+  and unclickable), and the trailing days of the last row are the next month's
+  days, also dimmed. Cells are built from date components (not `Duration`) so
+  DST cannot shift a date, and weekend columns are skipped when weekends are
+  hidden. Previously the grid filled days linearly without the weekday offset,
+  so the 1st landed in the Monday column and every day was misaligned.
 
 ### Key files
 | File | Purpose |
 |------|---------|
 | `lib/models/work_config.dart` | `WorkConfig` model + DST-safe `isoWeekNumber()` |
-| `lib/screens/overview_tab.dart` | Week/Month overview headers + month week-number gutter |
+| `lib/screens/overview_tab.dart` | Week/Month overview headers + month week-number gutter + aligned month grid |
 | `test/work_config_test.dart` | ISO week + reduced-period regression tests |
 
 ---

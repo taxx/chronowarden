@@ -702,127 +702,132 @@ List<Widget> _buildMonthRows(BuildContext context, double cellWidth, Map<String,
     double weekGutter) {
   final theme = Theme.of(context);
 
-  // Collect visible days (skip weekends when hidden)
-  final visibleDays = <DateTime>[];
-  for (int day = 1; day <= daysInMonth; day++) {
-    final date = DateTime(firstDay.year, firstDay.month, day);
-    if (!showWeekends && date.weekday > 5) continue;
-    visibleDays.add(date);
-  }
+  // Monday of the first grid row — may fall in the previous month.
+  // Built from components (not Duration) so DST can't shift the date.
+  final gridStart = DateTime(firstDay.year, firstDay.month, 1 - startWeekday);
 
-  // Build rows of numDays
+  // Number of full 7-day grid rows needed to cover the month.
+  final numRows = ((startWeekday + daysInMonth) / 7).ceil();
+
   final rows = <Widget>[];
-  final totalCells = startWeekday + daysInMonth;
-  final numRows = (totalCells / 7).ceil();
-
-  // We iterate over the 7-column grid and only add cells for visible columns
   for (int r = 0; r < numRows; r++) {
     final rowChildren = <Widget>[];
-    // Week number of this grid row (from its first visible day).
-    final rowStartIdx = r * numDays;
-    final rowWeek = rowStartIdx < visibleDays.length
-        ? isoWeekNumber(visibleDays[rowStartIdx])
-        : null;
+    // Week number of this grid row, taken from its Monday.
+    final rowWeek = isoWeekNumber(
+        DateTime(gridStart.year, gridStart.month, gridStart.day + r * 7));
     rowChildren.add(SizedBox(
       width: weekGutter,
-      child: Text(rowWeek?.toString() ?? '', textAlign: TextAlign.center,
+      child: Text(rowWeek.toString(), textAlign: TextAlign.center,
         style: theme.textTheme.bodySmall?.copyWith(
           fontWeight: FontWeight.w600,
           color: theme.colorScheme.onSurfaceVariant,
         )),
     ));
-    for (int col = 0; col < numDays; col++) {
-      // Add gap between cells (matching header spacing)
-      if (col > 0) rowChildren.add(const SizedBox(width: 4));
-      // Find which day (if any) belongs at this position in the visible grid
-      final visibleDayIdx = r * numDays + col;
-      // Map visible index back to absolute day number
-      // visibleDays[visibleDayIdx] gives us the actual date if it exists
-      if (visibleDayIdx < visibleDays.length) {
-        final date = visibleDays[visibleDayIdx];
-        final dateStr = _dateStr(date);
-        final log = logByDate[dateStr];
-        final isToday = _isToday(date);
 
-        Color? bgColor;
-        if (log != null && log.endTime != null) {
-          final ot = log.overtimeMinutes;
-          bgColor = ot > 0
-              ? theme.colorScheme.errorContainer.withValues(alpha: 0.3)
-              : Colors.green.shade100.withValues(alpha: 0.35);
-        } else if (log != null && log.endTime == null) {
-          bgColor = Colors.amber.shade50;
-        }
+    int rendered = 0;
+    // Iterate the full Mon–Sun week; skip weekend columns when hidden.
+    for (int col7 = 0; col7 < 7; col7++) {
+      if (!showWeekends && col7 >= 5) continue;
+      if (rendered > 0) rowChildren.add(const SizedBox(width: 4));
+      rendered++;
 
-        final hasNote = log?.note?.isNotEmpty == true;
-        rowChildren.add(Container(
-          width: cellWidth,
-          height: 48,
-          decoration: BoxDecoration(
-            color: bgColor,
-            borderRadius: BorderRadius.circular(8),
-            border: isToday ? Border.all(color: theme.colorScheme.primary, width: 2) : null,
-          ),
-          child: InkWell(
-            onTap: log != null
-                ? (onDayTap != null ? () => onDayTap(log) : null)
-                : (onEmptyPastDayTap != null ? () => onEmptyPastDayTap(date) : null),
-            borderRadius: BorderRadius.circular(8),
-            child: Tooltip(
-              message: log != null
-                  ? '${log.date}: ${log.startTime}${log.endTime != null ? ' → ${log.endTime}' : ' → …'}\n${_fmtMins(log.expectedMinutes)} work${log.note != null ? '\n📝 ${log.note}' : ''}'
-                  : '',
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text('${date.day}', style: theme.textTheme.bodySmall?.copyWith(
-                        fontWeight: FontWeight.w600,
-                      )),
-                      if (hasNote)
-                        Padding(
-                          padding: const EdgeInsets.only(left: 3),
-                          child: Icon(Icons.note_outlined, size: 10, color: theme.colorScheme.onSurfaceVariant),
-                        ),
-                    ],
-                  ),
-                  if (log != null && log.endTime != null)
-                    Text(
-                      _overtimeStr(log.overtimeMinutes),
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 10,
-                        color: log.overtimeMinutes > 0
-                            ? theme.colorScheme.error
-                            : Colors.green.shade700,
-                      ),
-                    ),
-                ],
-              ),
-            ),
-          ),
-        ));
-      } else {
-        // No more visible days — empty spacer
-        rowChildren.add(Container(
-          width: cellWidth,
-          height: 48,
-          decoration: BoxDecoration(
-            color: Colors.transparent,
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: const SizedBox.shrink(),
-        ));
-      }
+      final date = DateTime(gridStart.year, gridStart.month, gridStart.day + r * 7 + col7);
+      final inMonth = date.month == firstDay.month && date.year == firstDay.year;
+      final dateStr = _dateStr(date);
+      final log = inMonth ? logByDate[dateStr] : null;
+      final isToday = inMonth && _isToday(date);
+      rowChildren.add(_monthCell(
+        context, cellWidth, theme,
+        date: date, inMonth: inMonth, isToday: isToday, log: log,
+        onDayTap: onDayTap, onEmptyPastDayTap: onEmptyPastDayTap,
+      ));
     }
+
     rows.add(Padding(
       padding: const EdgeInsets.symmetric(vertical: 2),
       child: Row(children: rowChildren),
     ));
   }
   return rows;
+}
+
+Widget _monthCell(BuildContext context, double cellWidth, ThemeData theme, {
+  required DateTime date,
+  required bool inMonth,
+  required bool isToday,
+  required TimeLog? log,
+  required void Function(TimeLog)? onDayTap,
+  required void Function(DateTime)? onEmptyPastDayTap,
+}) {
+  Color? bgColor;
+  if (!inMonth) {
+    // Adjacent-month day — dimmed, unclickable.
+    bgColor = theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.4);
+  } else if (log != null && log.endTime != null) {
+    final ot = log.overtimeMinutes;
+    bgColor = ot > 0
+        ? theme.colorScheme.errorContainer.withValues(alpha: 0.3)
+        : Colors.green.shade100.withValues(alpha: 0.35);
+  } else if (log != null && log.endTime == null) {
+    bgColor = Colors.amber.shade50;
+  }
+
+  final hasNote = log?.note?.isNotEmpty == true;
+  final tap = !inMonth
+      ? null
+      : (log != null
+          ? (onDayTap != null ? () => onDayTap(log) : null)
+          : (onEmptyPastDayTap != null ? () => onEmptyPastDayTap(date) : null));
+
+  final dayStyle = inMonth
+      ? theme.textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w600)
+      : theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant);
+
+  return Container(
+    width: cellWidth,
+    height: 48,
+    decoration: BoxDecoration(
+      color: bgColor,
+      borderRadius: BorderRadius.circular(8),
+      border: isToday ? Border.all(color: theme.colorScheme.primary, width: 2) : null,
+    ),
+    child: InkWell(
+      onTap: tap,
+      borderRadius: BorderRadius.circular(8),
+      child: Tooltip(
+        message: log != null
+            ? '${log.date}: ${log.startTime}${log.endTime != null ? ' → ${log.endTime}' : ' → …'}\n${_fmtMins(log.expectedMinutes)} work${log.note != null ? '\n📝 ${log.note}' : ''}'
+            : '',
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text('${date.day}', style: dayStyle),
+                if (hasNote)
+                  Padding(
+                    padding: const EdgeInsets.only(left: 3),
+                    child: Icon(Icons.note_outlined, size: 10, color: theme.colorScheme.onSurfaceVariant),
+                  ),
+              ],
+            ),
+            if (log != null && log.endTime != null)
+              Text(
+                _overtimeStr(log.overtimeMinutes),
+                style: theme.textTheme.bodySmall?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 10,
+                  color: log.overtimeMinutes > 0
+                      ? theme.colorScheme.error
+                      : Colors.green.shade700,
+                ),
+              ),
+          ],
+        ),
+      ),
+    ),
+  );
 }
 
 String _overtimeStr(int minutes) {

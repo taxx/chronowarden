@@ -23,7 +23,7 @@ ChronoWarden supports multiple users with role-based access:
 See `AUTH.md` for the full authentication architecture.
 
 ## Core Logic & Features
-1. **Seasonal Work Periods:** Automatically detects if the current day requires summer hours (e.g., 7h 15m / 435 mins) or winter hours (e.g., 8h / 480 mins) based on user-defined reduced-week ranges (ISO week numbers, weeks start on Monday as in Sweden). The ISO week number is computed with UTC date arithmetic so Daylight Saving Time transitions never skew the week count. The Week/Month overview headers show the current ISO week(s) to make the reduced-period mapping transparent.
+1. **Seasonal Work Periods:** Automatically detects if the current day requires summer hours (e.g., 7h 15m / 435 mins) or winter hours (e.g., 8h / 480 mins) based on user-defined reduced-week ranges (ISO week numbers, weeks start on Monday as in Sweden). The ISO week number is computed with UTC date arithmetic so Daylight Saving Time transitions never skew the week count. The Week/Month overview headers show the current ISO week(s) to make the reduced-period mapping transparent. The month calendar is aligned to the real weekday columns — the 1st of the month sits under its actual weekday, with the previous/next month's boundary days shown dimmed and unclickable.
 2. **Dynamic Travel Presets:** Users configure their commute/work scenarios (e.g., "Train via Mörby", "Car", "WFH") along with their associated `overhead_minutes` (combined buffer for lunch, walking, driving, etc.).
 3. **Morning Calculator:** Instantly determines the target departure time as soon as the day starts:  
    `Leave Time = Start Time + Expected Work Minutes + Overhead Minutes + Lunch Minutes`
