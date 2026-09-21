@@ -18,8 +18,8 @@ services:
   backup:
     # Daily pg_dump backup of the Supabase database, gzipped, with retention.
     build:
-      context: ./src
-      dockerfile: backup/Dockerfile
+      context: ./src/backup
+      dockerfile: Dockerfile
     env_file:
       - .env.db
     environment:
