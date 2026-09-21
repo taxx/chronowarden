@@ -657,9 +657,22 @@ class _LeaveTimeInfo extends StatelessWidget {
     Color textColor;
     TextStyle? textStyle;
     if (isPinned) {
-      text = isCatchable
-          ? 'Leave at $leaveStr · arrive $arrStr$untilStr'
-          : 'Committed ride — leave time passed';
+      if (isCatchable) {
+        text = 'Leave at $leaveStr · arrive $arrStr$untilStr';
+      } else {
+        // Leave time has passed — keep showing the countdown to departure.
+        final minutesUntilDeparture = now.isBefore(depTime)
+            ? depTime.difference(now).inMinutes
+            : 0;
+        if (minutesUntilDeparture > 0) {
+          final depCountdown = minutesUntilDeparture == 1
+              ? '1 min'
+              : '$minutesUntilDeparture min';
+          text = 'Departs in $depCountdown · arrive $arrStr';
+        } else {
+          text = 'Committed ride — departed';
+        }
+      }
       textColor = theme.colorScheme.onSurfaceVariant;
       textStyle = const TextStyle(fontStyle: FontStyle.normal);
     } else {

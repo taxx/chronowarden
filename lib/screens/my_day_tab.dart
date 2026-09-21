@@ -1348,12 +1348,39 @@ class _TransitJourneyRow extends StatelessWidget {
         '${leaveTime.minute.toString().padLeft(2, '0')}';
 
     final lineBadge = journey.mainLine ?? '';
-    final dest = journey.mainDestination ?? 'Unknown';
     final delayColor = _delayColor(journey);
 
     final pinnedColor = isPinned
         ? theme.colorScheme.tertiary
         : theme.colorScheme.surfaceContainerHighest;
+
+    // For pinned journeys: never show "missed".
+    // If the leave time has passed, keep showing the countdown to departure
+    // instead of a flat "leave time passed" label.
+    String statusText;
+    if (isPinned) {
+      if (isCatchable) {
+        statusText =
+            'Leave at $leaveStr · ${journey.durationMinutes}min trip$untilStr';
+      } else {
+        final minutesUntilDeparture = now.isBefore(depLocal)
+            ? depLocal.difference(now).inMinutes
+            : 0;
+        if (minutesUntilDeparture > 0) {
+          final depCountdown = minutesUntilDeparture == 1
+              ? '1 min'
+              : '$minutesUntilDeparture min';
+          statusText =
+              'Departs in $depCountdown · ${journey.durationMinutes}min trip';
+        } else {
+          statusText = 'Committed ride — departed';
+        }
+      }
+    } else {
+      statusText = isCatchable
+          ? 'Leave at $leaveStr · ${journey.durationMinutes}min trip$untilStr'
+          : 'Missed — needed to leave by $leaveStr';
+    }
 
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 6),
@@ -1416,16 +1443,8 @@ class _TransitJourneyRow extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 4),
-          // For pinned journeys: never show "missed".
-          // If the leave time has passed, show a neutral label instead.
           Text(
-            isPinned
-                ? (isCatchable
-                    ? 'Leave at $leaveStr · ${journey.durationMinutes}min trip$untilStr'
-                    : 'Committed ride — leave time passed')
-                : (isCatchable
-                    ? 'Leave at $leaveStr · ${journey.durationMinutes}min trip$untilStr'
-                    : 'Missed — needed to leave by $leaveStr'),
+            statusText,
             style: theme.textTheme.bodySmall?.copyWith(
               color: isPinned
                   ? theme.colorScheme.onSurfaceVariant
