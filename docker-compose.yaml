@@ -1,10 +1,31 @@
+# ChronoWarden server layout
+# ----------------------------
+# This compose file is symlinked from /opt/appdata/chronowarden/docker-compose.yaml
+# -> src/docker-compose.yaml, so all relative paths here resolve to the PARENT
+# directory (/opt/appdata/chronowarden), where .env and .env.db live and where
+# `docker compose up` is run. The git repo itself lives in ./src.
 services:
   chronowarden:
     build:
-      context: .
+      context: ./src
       args:
         SUPABASE_URL: ${SUPABASE_URL}
         SUPABASE_ANON_KEY: ${SUPABASE_ANON_KEY}
     ports:
       - "8981:80"
+    restart: unless-stopped
+
+  backup:
+    # Daily pg_dump backup of the Supabase database, gzipped, with retention.
+    build:
+      context: ./src
+      dockerfile: backup/Dockerfile
+    env_file:
+      - .env.db
+    environment:
+      BACKUP_DIR: /backups
+      CRON_SCHEDULE: "${CRON_SCHEDULE:-0 2 * * *}"
+      RETENTION_DAYS: "${RETENTION_DAYS:-62}"
+    volumes:
+      - "${BACKUP_VOLUME:-./backup}:/backups"
     restart: unless-stopped

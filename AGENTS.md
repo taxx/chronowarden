@@ -71,7 +71,7 @@ The project includes a multi-stage Dockerfile + docker-compose.yaml for containe
 |--------|-------|
 | **Server IP** | `192.168.1.50` |
 | **SSH user** | `tobbe` (SSH key auth, no password) |
-| **Repo path** | `/opt/appdata/chronowarden` |
+| **Repo path** | `/opt/appdata/chronowarden/src` |
 | **Git remote** | `origin` → `github.com:taxx/chronowarden.git` |
 | **Branch** | `main` |
 | **App URL** | `https://chronowarden.slumpen.com/` |
@@ -94,13 +94,14 @@ git push origin main
 #### Step 2 — SSH into the server and rebuild
 
 ```bash
-ssh tobbe@192.168.1.50 "cd /opt/appdata/chronowarden && git pull && docker compose up --build -d"
+ssh tobbe@192.168.1.50 "cd /opt/appdata/chronowarden/src && git pull && cd /opt/appdata/chronowarden && docker compose up --build -d"
 ```
 
-This does three things:
-1. **`git pull`** — Fetches the latest code from GitHub
-2. **`docker compose up --build`** — Rebuilds any images whose Dockerfile or dependencies changed, then (re)starts all containers
-3. **`-d`** — Runs in detached mode
+This does four things:
+1. **`git pull`** — Fetches the latest code from GitHub into `src/`
+2. **`cd /opt/appdata/chronowarden`** — Runs compose from the parent dir, where `.env` auto-loads and the `docker-compose.yaml` symlink lives
+3. **`docker compose up --build`** — Rebuilds any images whose Dockerfile or dependencies changed, then (re)starts all containers
+4. **`-d`** — Runs in detached mode
 
 #### Step 3 — Verify the deployment
 
@@ -108,6 +109,48 @@ This does three things:
 # Check all containers are running
 ssh tobbe@192.168.1.50 "cd /opt/appdata/chronowarden && docker compose ps"
 ```
+
+---
+
+## Server directory layout
+
+```
+/opt/appdata/chronowarden/
+├── .env                     # secrets (gitignored) — auto-loaded by compose
+├── .env.db                  # DB credentials for the backup container (gitignored)
+├── docker-compose.yaml      # symlink -> src/docker-compose.yaml
+├── backup/                  # host dir where daily backups land (bind-mounted)
+└── src/                     # the git repo (git pull happens here)
+```
+
+Relative paths in `docker-compose.yaml` resolve to the **parent** dir (the symlink's directory), so `build.context: ./src` points at the repo and `./backup` is the host backup dir.
+
+---
+
+## Backup Job
+
+A dedicated `backup` container runs `pg_dump` on a cron schedule, gzips each dump, and prunes old ones.
+
+| Detail | Value |
+|--------|-------|
+| **Image** | `alpine:3.20` + `postgresql-client` + busybox cron |
+| **Cron schedule** | daily `0 2 * * *` (02:00), override via `CRON_SCHEDULE` |
+| **Retention** | keep dumps newer than `RETENTION_DAYS` (default `62` ≈ 2 months) |
+| **Host dir** | `/opt/appdata/chronowarden/backup` (override via `BACKUP_VOLUME`) |
+| **Credentials** | `env_file: .env.db` at the parent dir (gitignored, never committed) |
+| **Format** | `pg_dump --format=tar --no-owner`, then `gzip -9` → `chronowarden_backup_*.tar.gz` |
+
+### Files
+| File | Purpose |
+|------|---------|
+| `backup/Dockerfile` | Alpine image with pg client + cron |
+| `backup/backup.sh` | pg_dump → gzip → retention cleanup |
+| `backup/entrypoint.sh` | writes crontab from `CRON_SCHEDULE`, starts `crond` |
+| `docker-compose.yaml` | `backup` service (env_file `.env.db`, `./backup` volume) |
+
+### Troubleshooting
+- Backup logs go to `docker compose logs backup`.
+- If the container isn't running, check `.env.db` exists at `/opt/appdata/chronowarden/.env.db` (compose errors if the `env_file` is missing).
 
 ---
 
@@ -395,7 +438,7 @@ SUPABASE_ACCESS_TOKEN="$SUPABASE_ACCESS_TOKEN" supabase functions deploy sl-prox
 ```bash
 cd /path/to/chronowarden
 source .env.edge
-ssh tobbe@192.168.1.50 "cd /opt/appdata/chronowarden && SUPABASE_ACCESS_TOKEN='$SUPABASE_ACCESS_TOKEN' supabase functions deploy sl-proxy"
+ssh tobbe@192.168.1.50 "cd /opt/appdata/chronowarden/src && SUPABASE_ACCESS_TOKEN='$SUPABASE_ACCESS_TOKEN' supabase functions deploy sl-proxy"
 ```
 
 ---
