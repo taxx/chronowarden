@@ -7,6 +7,7 @@ import '../models/journey_info.dart';
 import '../models/transit_config.dart';
 import '../services/pinned_journey_store.dart';
 import '../services/transit_service.dart';
+import '../widgets/journey_tile.dart';
 
 /// Transit tab — shows journey options between home ↔ work stations.
 ///
@@ -85,12 +86,9 @@ class _TransitScreenState extends State<TransitScreen>
     _isMorning = hasActiveDay ? false : _timeIsMorning();
 
     // Morning: home → work. Afternoon: work → home.
-    final originId = _isMorning ? _cfg!.homeStopId : _cfg!.workStopId;
-    final destId = _isMorning ? _cfg!.workStopId : _cfg!.homeStopId;
-
-    final walkOffset = _isMorning
-        ? _cfg!.walkHomeMinutes
-        : _cfg!.walkWorkMinutes;
+    final originId = _cfg!.originStopId(_isMorning);
+    final destId = _cfg!.destStopId(_isMorning);
+    final walkOffset = _cfg!.walkMinutes(_isMorning);
 
     final journeys = await _transit.fetchJourneys(
       originId: originId,
@@ -181,12 +179,10 @@ class _TransitScreenState extends State<TransitScreen>
       );
     }
 
-    final directionLabel = _isMorning
-        ? '${_cfg!.homeStopName} → ${_cfg!.workStopName}'
-        : '${_cfg!.workStopName} → ${_cfg!.homeStopName}';
+    final directionLabel = _cfg!.directionLabel(_isMorning);
 
-    final originId = _isMorning ? _cfg!.homeStopId : _cfg!.workStopId;
-    final destId = _isMorning ? _cfg!.workStopId : _cfg!.homeStopId;
+    final originId = _cfg!.originStopId(_isMorning);
+    final destId = _cfg!.destStopId(_isMorning);
     final pinStore = PinnedJourneyStore();
     final pinned = pinStore.effectivePinnedJourney(
         _journeys ?? [], originId, destId, _isMorning);
@@ -365,7 +361,7 @@ class _JourneyCard extends StatelessWidget {
         '${depLocal.hour.toString().padLeft(2, '0')}:'
         '${depLocal.minute.toString().padLeft(2, '0')}';
 
-    final delayColor = _delayColor(journey);
+    final delayColor = journeyDelayColor(journey);
 
     // Line badge
     final line = journey.mainLine;
@@ -448,7 +444,7 @@ class _JourneyCard extends StatelessWidget {
                   ),
                 ),
                 const Spacer(),
-                _pinControl(),
+                PinButton(isPinned: isPinned, onTogglePin: onTogglePin),
               ],
             ),
             const SizedBox(height: 6),
@@ -491,50 +487,6 @@ class _JourneyCard extends StatelessWidget {
     );
   }
 
-  Color _delayColor(JourneyInfo j) {
-    final diff = j.departureDelayMinutes;
-    if (diff <= 0) return Colors.green;
-    if (diff <= 5) return Colors.orange.shade700;
-    return Colors.red;
-  }
-
-  /// Compact pin/commit control shown on every journey card.
-  Widget _pinControl() {
-    final label = isPinned ? 'Locked' : 'Pin';
-    final icon = isPinned ? Icons.lock : Icons.push_pin_outlined;
-    final color = isPinned
-        ? theme.colorScheme.tertiary
-        : theme.colorScheme.primary;
-    return Tooltip(
-      message: isPinned ? 'Unpin this journey' : 'Commit to this journey',
-      child: InkWell(
-        onTap: onTogglePin,
-        borderRadius: BorderRadius.circular(12),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-          decoration: BoxDecoration(
-            color: color.withValues(alpha: 0.15),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(icon, size: 12, color: color),
-              const SizedBox(width: 4),
-              Text(
-                label,
-                style: theme.textTheme.bodySmall?.copyWith(
-                  fontWeight: FontWeight.w600,
-                  color: color,
-                  fontSize: 11,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
 }
 
 // ---------------------------------------------------------------------------
@@ -618,81 +570,34 @@ class _LeaveTimeInfo extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final now = DateTime.now();
-    final depTime = journey.departureTime.toLocal();
-    final walkBuffer = isMorning
-        ? cfg.walkHomeMinutes
-        : cfg.walkWorkMinutes;
-    // Leave time accounts for walking to station
-    final leaveTime = depTime.subtract(
-        Duration(minutes: walkBuffer));
-    final isCatchable = leaveTime.isAfter(now) ||
-        leaveTime.difference(now).inMinutes.abs() <= 1;
+    final walkBuffer = cfg.walkMinutes(isMorning);
 
-    final leaveStr =
-        '${leaveTime.hour.toString().padLeft(2, '0')}:'
-        '${leaveTime.minute.toString().padLeft(2, '0')}';
-
-    // Time until user must leave
-    final minutesUntilLeave = now.isBefore(leaveTime)
-        ? leaveTime.difference(now).inMinutes
-        : 0;
-    String untilStr;
-    if (minutesUntilLeave <= 0) {
-      untilStr = '';
-    } else if (minutesUntilLeave == 1) {
-      untilStr = ' · leave in 1 min';
-    } else {
-      untilStr = ' · leave in $minutesUntilLeave min';
-    }
-
-    // Arrival time (local)
+    // Arrival time (local) — the "trip" wording shown after leave/departure.
     final arrLocal = journey.arrivalTime.toLocal();
     final arrStr =
         '${arrLocal.hour.toString().padLeft(2, '0')}:'
         '${arrLocal.minute.toString().padLeft(2, '0')}';
 
-    // For pinned journeys: never show "missed". If the leave time has passed,
-    // show a neutral "Committed ride — leave time passed" label instead.
-    String text;
-    Color textColor;
-    TextStyle? textStyle;
-    if (isPinned) {
-      if (isCatchable) {
-        text = 'Leave at $leaveStr · arrive $arrStr$untilStr';
-      } else {
-        // Leave time has passed — keep showing the countdown to departure.
-        final minutesUntilDeparture = now.isBefore(depTime)
-            ? depTime.difference(now).inMinutes
-            : 0;
-        if (minutesUntilDeparture > 0) {
-          final depCountdown = minutesUntilDeparture == 1
-              ? '1 min'
-              : '$minutesUntilDeparture min';
-          text = 'Departs in $depCountdown · arrive $arrStr';
-        } else {
-          text = 'Committed ride — departed';
-        }
-      }
-      textColor = theme.colorScheme.onSurfaceVariant;
-      textStyle = const TextStyle(fontStyle: FontStyle.normal);
-    } else {
-      text = isCatchable
-          ? 'Leave at $leaveStr · arrive $arrStr$untilStr'
-          : 'Missed — needed to leave by $leaveStr';
-      textColor = isCatchable
-          ? theme.colorScheme.onSurfaceVariant
-          : theme.colorScheme.error;
-      textStyle = isCatchable ? null : const TextStyle(fontStyle: FontStyle.italic);
-    }
+    final status = journeyStatus(
+      journey: journey,
+      now: now,
+      walkBuffer: walkBuffer,
+      isPinned: isPinned,
+      tripLabel: 'arrive $arrStr',
+      theme: theme,
+    );
+
+    // Non-pinned missed journeys are italicized (card-specific styling).
+    final italic = !isPinned && !status.catchable;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          text,
+          status.text,
           style: theme.textTheme.bodySmall?.copyWith(
-            color: textColor,
-            fontStyle: textStyle?.fontStyle,
+            color: status.color,
+            fontStyle: italic ? FontStyle.italic : null,
           ),
         ),
       ],

@@ -35,6 +35,20 @@ class TransitConfig {
   /// Total walking buffer for a given direction.
   int get totalWalkMinutes => walkHomeMinutes + walkWorkMinutes;
 
+  /// Origin stop ID for a direction: morning = home → work, otherwise work → home.
+  String originStopId(bool morning) => morning ? homeStopId : workStopId;
+
+  /// Destination stop ID for a direction.
+  String destStopId(bool morning) => morning ? workStopId : homeStopId;
+
+  /// Walking buffer (home↔station vs station↔work) for a direction.
+  int walkMinutes(bool morning) => morning ? walkHomeMinutes : walkWorkMinutes;
+
+  /// Human-readable direction label for a direction.
+  String directionLabel(bool morning) => morning
+      ? '$homeStopName → $workStopName'
+      : '$workStopName → $homeStopName';
+
   factory TransitConfig.fromJson(Map<String, dynamic> json) {
     return TransitConfig(
       enabled: json['enabled'] as bool? ?? false,

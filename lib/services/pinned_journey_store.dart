@@ -51,8 +51,8 @@ class PinnedJourneyStore extends ChangeNotifier {
 
   /// Pin the journey the user committed to, for the given route/direction.
   Future<void> pin(JourneyInfo journey, TransitConfig cfg, bool isMorning) async {
-    final originId = isMorning ? cfg.homeStopId : cfg.workStopId;
-    final destId = isMorning ? cfg.workStopId : cfg.homeStopId;
+    final originId = cfg.originStopId(isMorning);
+    final destId = cfg.destStopId(isMorning);
     final depLocal = journey.departureTime.toLocal();
     _pinned = PinnedJourney(
       originId: originId,

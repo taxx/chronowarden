@@ -12,6 +12,7 @@ import '../services/preferences_service.dart';
 import '../services/transit_service.dart';
 import '../services/user_settings_service.dart';
 import '../widgets/edit_day_dialog.dart';
+import '../widgets/journey_tile.dart';
 
 int _sliderDivisions(double min, double max) {
   final interval = PreferencesService().sliderInterval.value;
@@ -181,16 +182,10 @@ class _MyDayTabState extends State<MyDayTab> with SingleTickerProviderStateMixin
     final isMorning = hasActiveDay ? false : DateTime.now().hour < 11;
 
     // Get origin/dest IDs based on direction
-    final originId = isMorning
-        ? _transitCfg!.homeStopId
-        : _transitCfg!.workStopId;
-    final destId = isMorning
-        ? _transitCfg!.workStopId
-        : _transitCfg!.homeStopId;
+    final originId = _transitCfg!.originStopId(isMorning);
+    final destId = _transitCfg!.destStopId(isMorning);
 
-    final walkOffset = isMorning
-        ? _transitCfg!.walkHomeMinutes
-        : _transitCfg!.walkWorkMinutes;
+    final walkOffset = _transitCfg!.walkMinutes(isMorning);
 
     // Fetch journey data if cache is stale, missing, or for wrong route
     _transitJourneys = _transit.cachedJourneys;
@@ -238,12 +233,8 @@ class _MyDayTabState extends State<MyDayTab> with SingleTickerProviderStateMixin
 
     _transitCardShown = true;
 
-    final walkBuffer = isMorning
-        ? _transitCfg!.walkHomeMinutes
-        : _transitCfg!.walkWorkMinutes;
-    final directionLabel = isMorning
-        ? '${_transitCfg!.homeStopName} → ${_transitCfg!.workStopName}'
-        : '${_transitCfg!.workStopName} → ${_transitCfg!.homeStopName}';
+    final walkBuffer = _transitCfg!.walkMinutes(isMorning);
+    final directionLabel = _transitCfg!.directionLabel(isMorning);
 
     final others = relevant
         .where((j) => !pinStore.isPinnedJourney(j, originId, destId, isMorning))
@@ -1322,65 +1313,25 @@ class _TransitJourneyRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final depLocal = journey.departureTime.toLocal();
-    final leaveTime = depLocal.subtract(
-        Duration(minutes: walkBuffer));
-    final isCatchable = leaveTime.isAfter(now) ||
-        leaveTime.difference(now).inMinutes.abs() <= 1;
-
-    // Time until user must leave
-    final minutesUntilLeave = now.isBefore(leaveTime)
-        ? leaveTime.difference(now).inMinutes
-        : 0;
-    String untilStr;
-    if (minutesUntilLeave <= 0) {
-      untilStr = '';
-    } else if (minutesUntilLeave == 1) {
-      untilStr = ' · leave in 1 min';
-    } else {
-      untilStr = ' · leave in $minutesUntilLeave min';
-    }
-
     final depStr =
         '${depLocal.hour.toString().padLeft(2, '0')}:'
         '${depLocal.minute.toString().padLeft(2, '0')}';
-    final leaveStr =
-        '${leaveTime.hour.toString().padLeft(2, '0')}:'
-        '${leaveTime.minute.toString().padLeft(2, '0')}';
 
     final lineBadge = journey.mainLine ?? '';
-    final delayColor = _delayColor(journey);
+    final delayColor = journeyDelayColor(journey);
 
     final pinnedColor = isPinned
         ? theme.colorScheme.tertiary
         : theme.colorScheme.surfaceContainerHighest;
 
-    // For pinned journeys: never show "missed".
-    // If the leave time has passed, keep showing the countdown to departure
-    // instead of a flat "leave time passed" label.
-    String statusText;
-    if (isPinned) {
-      if (isCatchable) {
-        statusText =
-            'Leave at $leaveStr · ${journey.durationMinutes}min trip$untilStr';
-      } else {
-        final minutesUntilDeparture = now.isBefore(depLocal)
-            ? depLocal.difference(now).inMinutes
-            : 0;
-        if (minutesUntilDeparture > 0) {
-          final depCountdown = minutesUntilDeparture == 1
-              ? '1 min'
-              : '$minutesUntilDeparture min';
-          statusText =
-              'Departs in $depCountdown · ${journey.durationMinutes}min trip';
-        } else {
-          statusText = 'Committed ride — departed';
-        }
-      }
-    } else {
-      statusText = isCatchable
-          ? 'Leave at $leaveStr · ${journey.durationMinutes}min trip$untilStr'
-          : 'Missed — needed to leave by $leaveStr';
-    }
+    final status = journeyStatus(
+      journey: journey,
+      now: now,
+      walkBuffer: walkBuffer,
+      isPinned: isPinned,
+      tripLabel: '${journey.durationMinutes}min trip',
+      theme: theme,
+    );
 
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 6),
@@ -1397,11 +1348,11 @@ class _TransitJourneyRow extends StatelessWidget {
           Row(
             children: [
               Icon(
-                isPinned || isCatchable
+                isPinned || status.catchable
                     ? Icons.check_circle
                     : Icons.cancel,
                 size: 16,
-                color: isPinned || isCatchable
+                color: isPinned || status.catchable
                     ? Colors.green
                     : theme.colorScheme.error,
               ),
@@ -1439,18 +1390,14 @@ class _TransitJourneyRow extends StatelessWidget {
                 fontSize: 10,
               )),
               const Spacer(),
-              _pinControl(),
+              PinButton(isPinned: isPinned, onTogglePin: onTogglePin, compact: true),
             ],
           ),
           const SizedBox(height: 4),
           Text(
-            statusText,
+            status.text,
             style: theme.textTheme.bodySmall?.copyWith(
-              color: isPinned
-                  ? theme.colorScheme.onSurfaceVariant
-                  : (isCatchable
-                      ? theme.colorScheme.onSurfaceVariant
-                      : theme.colorScheme.error),
+              color: status.color,
             ),
           ),
         ],
@@ -1458,50 +1405,6 @@ class _TransitJourneyRow extends StatelessWidget {
     );
   }
 
-  /// Compact pin/commit control shown on every journey row.
-  Widget _pinControl() {
-    final label = isPinned ? 'Locked' : 'Pin';
-    final icon = isPinned ? Icons.lock : Icons.push_pin_outlined;
-    final color = isPinned
-        ? theme.colorScheme.tertiary
-        : theme.colorScheme.primary;
-    return Tooltip(
-      message: isPinned ? 'Unpin this journey' : 'Commit to this journey',
-      child: InkWell(
-        onTap: onTogglePin,
-        borderRadius: BorderRadius.circular(8),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-          decoration: BoxDecoration(
-            color: color.withValues(alpha: 0.15),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(icon, size: 11, color: color),
-              const SizedBox(width: 3),
-              Text(
-                label,
-                style: theme.textTheme.bodySmall?.copyWith(
-                  fontWeight: FontWeight.w600,
-                  color: color,
-                  fontSize: 10,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Color _delayColor(JourneyInfo j) {
-    final diff = j.departureDelayMinutes;
-    if (diff <= 0) return Colors.green;
-    if (diff <= 5) return Colors.orange.shade700;
-    return Colors.red;
-  }
 }
 
 /// Lunch timer section — Start/Stop buttons plus elapsed display.
