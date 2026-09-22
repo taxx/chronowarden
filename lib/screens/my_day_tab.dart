@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 
 import '../app_state.dart';
 import '../models/journey_info.dart';
-import '../models/travel_preset.dart';
 import '../models/transit_config.dart';
 import '../services/notification_service.dart';
 import '../services/pinned_journey_store.dart';
@@ -45,7 +44,6 @@ class _MyDayTabState extends State<MyDayTab> with SingleTickerProviderStateMixin
   TransitConfig? _transitCfg;
   // ignore: unused_field
   bool _transitCardShown = false;
-  String? _lastPresetId;
   String? _alertMessage;
 
   @override
@@ -57,10 +55,6 @@ class _MyDayTabState extends State<MyDayTab> with SingleTickerProviderStateMixin
         _checkNotification();
         setState(() {});
       }
-    });
-    // Load last travel preset ID for transit visibility check
-    PreferencesService().getLastTravelPresetId().then((id) {
-      if (mounted) setState(() => _lastPresetId = id);
     });
   }
 
@@ -155,24 +149,6 @@ class _MyDayTabState extends State<MyDayTab> with SingleTickerProviderStateMixin
     final hasActiveDay = todayLog != null && todayLog.endTime == null;
 
     if (dayEnded) {
-      _transitCardShown = false;
-      return const SizedBox.shrink();
-    }
-
-    // Only show transit if the last-used travel preset uses public transit.
-    // Applies whether or not a day is currently active — a non-transit preset
-    // (e.g. work-from-home) hides the transit card even for morning planning.
-    TravelPreset? selectedPreset;
-    if (_lastPresetId != null) {
-      for (final p in _state.travelPresets) {
-        if (p.id == _lastPresetId) {
-          selectedPreset = p;
-          break;
-        }
-      }
-    }
-    // If no matching preset or it doesn't use transit, hide transit card
-    if (selectedPreset == null || !selectedPreset.usesTransit) {
       _transitCardShown = false;
       return const SizedBox.shrink();
     }
@@ -629,7 +605,6 @@ class _MyDayTabState extends State<MyDayTab> with SingleTickerProviderStateMixin
       );
       // Save last-used selections
       await prefs.setLastTravelPresetId(result.presetId);
-      _lastPresetId = result.presetId;
     }
   }
 
@@ -929,9 +904,7 @@ class _MyDayTabState extends State<MyDayTab> with SingleTickerProviderStateMixin
         eveningOverheadMinutes: selected.eveningOverheadMinutes,
         eveningProductiveCommuteMinutes: selected.eveningProductiveCommuteMinutes,
       );
-      // Track the preset now in effect so transit visibility stays correct
-      // when switching to a non-transit preset mid-day.
-      _lastPresetId = selected.id;
+      // Persist the preset now in effect (used as dialog default elsewhere).
       await PreferencesService().setLastTravelPresetId(selected.id);
     }
   }
