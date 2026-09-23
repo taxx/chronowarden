@@ -11,7 +11,6 @@ import 'services/travel_preset_service.dart';
 import 'services/work_config_service.dart';
 import 'services/supabase_service.dart';
 import 'services/transit_service.dart';
-// import 'models/departure_info.dart';  // Legacy — replaced by journey planner
 import 'models/transit_config.dart';
 import 'utils/csv_import.dart';
 
