@@ -14,6 +14,7 @@ import '../models/transit_config.dart';
 import '../models/station_info.dart';
 import '../widgets/recovery_phrase_card.dart';
 import '../widgets/station_picker.dart';
+import '../widgets/stat_row.dart';
 import '../utils/csv_export.dart';
 import '../utils/format.dart';
 import 'about_encryption_screen.dart';
@@ -800,20 +801,18 @@ class _WorkConfigSection extends StatelessWidget {
               style: theme.textTheme.bodySmall,
             ),
             const SizedBox(height: 16),
-            _statRow(theme, 'Default', '${formatMins(dflt)} per day'),
+            StatRow(label: 'Default', value: '${formatMins(dflt)} per day'),
             if (hasReduced) ...[
-              _statRow(
-                theme,
-                'Reduced period',
-                '${formatMins(reducedMinutes!)} per day',
+              StatRow(
+                label: 'Reduced period',
+                value: '${formatMins(reducedMinutes!)} per day',
               ),
-              _statRow(
-                theme,
-                'ISO weeks',
-                '$reducedStartWeek – $reducedEndWeek',
+              StatRow(
+                label: 'ISO weeks',
+                value: '$reducedStartWeek – $reducedEndWeek',
               ),
             ] else ...[
-              _statRow(theme, 'Reduced period', 'Not configured'),
+              StatRow(label: 'Reduced period', value: 'Not configured'),
             ],
             const SizedBox(height: 16),
             SizedBox(
@@ -830,21 +829,6 @@ class _WorkConfigSection extends StatelessWidget {
     );
   }
 
-  Widget _statRow(ThemeData theme, String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 2),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(label, style: theme.textTheme.bodyMedium),
-          Text(
-            value,
-            style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
-          ),
-        ],
-      ),
-    );
-  }
 
 }
 

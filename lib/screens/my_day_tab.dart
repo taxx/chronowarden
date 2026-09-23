@@ -11,8 +11,10 @@ import '../services/preferences_service.dart';
 import '../services/transit_service.dart';
 import '../services/user_settings_service.dart';
 import '../utils/format.dart';
+import '../widgets/commute_summary.dart';
 import '../widgets/edit_day_dialog.dart';
 import '../widgets/journey_tile.dart';
+import '../widgets/stat_row.dart';
 
 /// The "My Day" content widget — shows today's time tracking.
 /// This is a standalone widget (no Scaffold) meant for use inside MainShell.
@@ -396,12 +398,12 @@ class _MyDayTabState extends State<MyDayTab> with SingleTickerProviderStateMixin
               ],
             ),
             const SizedBox(height: 24),
-            _statRow(theme, 'Expected', formatMins(log.expectedMinutes)),
+            StatRow(label: 'Expected', value: formatMins(log.expectedMinutes), verticalPadding: 4),
             if (log.morningOverheadMinutes + log.eveningOverheadMinutes > 0)
-              _statRow(theme, 'Commute overhead', '${log.morningOverheadMinutes}/${log.eveningOverheadMinutes} min (am/pm)'),
+              StatRow(label: 'Commute overhead', value: '${log.morningOverheadMinutes}/${log.eveningOverheadMinutes} min (am/pm)', verticalPadding: 4),
             if (log.morningProductiveCommuteMinutes + log.eveningProductiveCommuteMinutes > 0)
-              _statRow(theme, 'Productive commute', '${log.morningProductiveCommuteMinutes}/${log.eveningProductiveCommuteMinutes} min (am/pm)'),
-            _statRow(theme, 'Total', formatMins(log.expectedMinutes + log.overheadMinutes + log.productiveCommuteMinutes)),
+              StatRow(label: 'Productive commute', value: '${log.morningProductiveCommuteMinutes}/${log.eveningProductiveCommuteMinutes} min (am/pm)', verticalPadding: 4),
+            StatRow(label: 'Total', value: formatMins(log.expectedMinutes + log.overheadMinutes + log.productiveCommuteMinutes), verticalPadding: 4),
 
             const SizedBox(height: 8),
             // Banked time to withdraw (flex) — live projection only
@@ -481,15 +483,15 @@ class _MyDayTabState extends State<MyDayTab> with SingleTickerProviderStateMixin
             const SizedBox(height: 12),
             Text('Day completed', style: theme.textTheme.titleLarge),
             const SizedBox(height: 16),
-            _statRow(theme, 'Started', log.startTime),
-            _statRow(theme, 'Ended', log.endTime ?? '—'),
-            _statRow(
-              theme,
-              log.overtimeMinutes < 0 ? 'Undertime' : 'Overtime',
-              formatSignedMinutes(log.overtimeMinutes),
+            StatRow(label: 'Started', value: log.startTime, verticalPadding: 4),
+            StatRow(label: 'Ended', value: log.endTime ?? '—', verticalPadding: 4),
+            StatRow(
+              label: log.overtimeMinutes < 0 ? 'Undertime' : 'Overtime',
+              value: formatSignedMinutes(log.overtimeMinutes),
+              verticalPadding: 4,
             ),
             if (log.lunchMinutes != null && log.lunchMinutes > 0)
-              _statRow(theme, 'Lunch', '${log.lunchMinutes} min'),
+              StatRow(label: 'Lunch', value: '${log.lunchMinutes} min', verticalPadding: 4),
             if (log.note?.isNotEmpty == true)
               Padding(
                 padding: const EdgeInsets.only(top: 8),
@@ -521,18 +523,6 @@ class _MyDayTabState extends State<MyDayTab> with SingleTickerProviderStateMixin
     );
   }
 
-  Widget _statRow(ThemeData theme, String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(label, style: theme.textTheme.bodyMedium),
-          Text(value, style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600)),
-        ],
-      ),
-    );
-  }
 
   String _formatDuration(Duration d) {
     final h = d.inHours.toString().padLeft(2, '0');
@@ -1041,7 +1031,12 @@ class _StartDayDialogState extends State<_StartDayDialog> {
               onChanged: (v) { if (v != null) setState(() => _selectedPreset = v); },
             ),
             const SizedBox(height: 8),
-            _commuteSummary(theme),
+            CommuteSummary(
+              morningOverhead: _morningOverhead,
+              morningProductive: _morningProductive,
+              eveningOverhead: _eveningOverhead,
+              eveningProductive: _eveningProductive,
+            ),
             const SizedBox(height: 16),
             Text('Lunch break', style: theme.textTheme.titleSmall),
             const SizedBox(height: 4),
@@ -1133,30 +1128,6 @@ class _StartDayDialogState extends State<_StartDayDialog> {
           child: const Text('Start'),
         ),
       ],
-    );
-  }
-
-  Widget _commuteSummary(ThemeData theme) {
-    final morningTotal = _morningOverhead + _morningProductive;
-    final eveningTotal = _eveningOverhead + _eveningProductive;
-    final totalCommute = morningTotal + eveningTotal;
-    if (totalCommute == 0) return const SizedBox.shrink();
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.4),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text('Commute breakdown', style: theme.textTheme.labelSmall?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
-          const SizedBox(height: 4),
-          Text('Morning: $_morningOverhead min walk, $_morningProductive min train work', style: theme.textTheme.bodySmall),
-          Text('Evening: $_eveningOverhead min walk, $_eveningProductive min train work', style: theme.textTheme.bodySmall),
-          Text('Total: $totalCommute min commute', style: theme.textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w600)),
-        ],
-      ),
     );
   }
 

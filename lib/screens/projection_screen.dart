@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../app_state.dart';
 import '../models/time_log.dart';
 import '../utils/format.dart';
+import '../widgets/stat_row.dart';
 
 /// Projection calculator — shows how daily flex minutes reduce the time bank.
 class ProjectionScreen extends StatefulWidget {
@@ -165,12 +166,12 @@ class _ProjectionScreenState extends State<ProjectionScreen> {
                 Text('Projection', style: theme.textTheme.titleMedium),
                 const SizedBox(height: 8),
                 if (_useTrend) ...[  
-                  _statRow(theme, 'Avg growth rate', '${formatDurationMinutes(avgGrowth)}/week'),
-                  _statRow(theme, 'Net weekly change', formatDurationMinutes(-effectiveWeekly)),
+                  StatRow(label: 'Avg growth rate', value: '${formatDurationMinutes(avgGrowth)}/week'),
+                  StatRow(label: 'Net weekly change', value: formatDurationMinutes(-effectiveWeekly)),
                 ],
-                _statRow(theme, 'Weekly reduction', formatDurationMinutes(-effectiveWeekly)),
-                _statRow(theme, 'Weeks to zero', '$weeksToZero weeks'),
-                _statRow(theme, 'Estimated zero date', zeroDate),
+                StatRow(label: 'Weekly reduction', value: formatDurationMinutes(-effectiveWeekly)),
+                StatRow(label: 'Weeks to zero', value: '$weeksToZero weeks'),
+                StatRow(label: 'Estimated zero date', value: zeroDate),
                 if (effectiveFlex > 0) ...[  
                   const SizedBox(height: 8),
                   Text(
@@ -236,23 +237,6 @@ class _ProjectionScreenState extends State<ProjectionScreen> {
     );
   }
 
-  Widget _statRow(ThemeData theme, String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 2),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(label, style: theme.textTheme.bodyMedium),
-          Text(
-            value,
-            style: theme.textTheme.bodyMedium?.copyWith(
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 
   // -- Projection calculation ------------------------------------------------
 

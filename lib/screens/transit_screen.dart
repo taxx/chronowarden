@@ -8,6 +8,7 @@ import '../models/transit_config.dart';
 import '../services/pinned_journey_store.dart';
 import '../services/transit_service.dart';
 import '../widgets/journey_tile.dart';
+import '../widgets/stat_row.dart';
 
 /// Transit tab — shows journey options between home ↔ work stations.
 ///
@@ -216,11 +217,9 @@ class _TransitScreenState extends State<TransitScreen>
                     ],
                   ),
                   const SizedBox(height: 8),
-                  _statRow(theme, 'Direction', directionLabel),
-                  _statRow(theme, 'Walk home↔station',
-                      '${_cfg!.walkHomeMinutes} min'),
-                  _statRow(theme, 'Walk station↔work',
-                      '${_cfg!.walkWorkMinutes} min'),
+                  StatRow(label: 'Direction', value: directionLabel, expanded: true),
+                  StatRow(label: 'Walk home↔station', value: '${_cfg!.walkHomeMinutes} min', expanded: true),
+                  StatRow(label: 'Walk station↔work', value: '${_cfg!.walkWorkMinutes} min', expanded: true),
                 ],
               ),
             ),
@@ -317,22 +316,6 @@ class _TransitScreenState extends State<TransitScreen>
     );
   }
 
-  Widget _statRow(ThemeData theme, String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 2),
-      child: Row(
-        children: [
-          Text(label, style: theme.textTheme.bodySmall),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(value,
-                style: theme.textTheme.bodySmall?.copyWith(
-                    fontWeight: FontWeight.w600)),
-          ),
-        ],
-      ),
-    );
-  }
 }
 
 // ---------------------------------------------------------------------------

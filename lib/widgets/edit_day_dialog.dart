@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import '../models/time_log.dart';
 import '../services/preferences_service.dart';
 import '../utils/format.dart';
+import 'commute_summary.dart';
+import 'stat_row.dart';
 
 // ---------------------------------------------------------------------------
 // EditDayResult — unified result class
@@ -180,7 +182,12 @@ class _EditDayDialogState extends State<EditDayDialog> {
               },
             ),
             const SizedBox(height: 8),
-            _commuteSummary(theme),
+            CommuteSummary(
+              morningOverhead: _morningOverhead,
+              morningProductive: _morningProductive,
+              eveningOverhead: _eveningOverhead,
+              eveningProductive: _eveningProductive,
+            ),
             const SizedBox(height: 16),
             Text('Lunch break', style: theme.textTheme.titleSmall),
             const SizedBox(height: 4),
@@ -207,14 +214,14 @@ class _EditDayDialogState extends State<EditDayDialog> {
             // ── Time breakdown ──
             Text('Time breakdown', style: theme.textTheme.titleSmall),
             const SizedBox(height: 4),
-            _statRow(theme, 'Actual work', formatMins(_netWorkMinutes)),
-            _statRow(theme, 'Expected work', formatMins(_expected)),
-            _statRow(
-              theme,
-              'Over/under',
-              _overUnderMinutes > 0
+            StatRow(label: 'Actual work', value: formatMins(_netWorkMinutes), verticalPadding: 4),
+            StatRow(label: 'Expected work', value: formatMins(_expected), verticalPadding: 4),
+            StatRow(
+              label: 'Over/under',
+              value: _overUnderMinutes > 0
                   ? '+${formatMins(_overUnderMinutes)}'
                   : formatMins(_overUnderMinutes),
+              verticalPadding: 4,
               valueColor: _overUnderMinutes > 0
                   ? theme.colorScheme.error
                   : Colors.green.shade700,
@@ -290,69 +297,4 @@ class _EditDayDialogState extends State<EditDayDialog> {
     );
   }
 
-  Widget _commuteSummary(ThemeData theme) {
-    final morningTotal = _morningOverhead + _morningProductive;
-    final eveningTotal = _eveningOverhead + _eveningProductive;
-    final totalCommute = morningTotal + eveningTotal;
-    if (totalCommute == 0) return const SizedBox.shrink();
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerHighest
-            .withValues(alpha: 0.4),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Commute breakdown',
-            style: theme.textTheme.labelSmall?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            'Morning: $_morningOverhead min walk, '
-            '$_morningProductive min train work',
-            style: theme.textTheme.bodySmall,
-          ),
-          Text(
-            'Evening: $_eveningOverhead min walk, '
-            '$_eveningProductive min train work',
-            style: theme.textTheme.bodySmall,
-          ),
-          Text(
-            'Total: $totalCommute min commute',
-            style: theme.textTheme.bodySmall
-                ?.copyWith(fontWeight: FontWeight.w600),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _statRow(
-    ThemeData theme,
-    String label,
-    String value, {
-    Color? valueColor,
-  }) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(label, style: theme.textTheme.bodyMedium),
-          Text(
-            value,
-            style: theme.textTheme.bodyMedium?.copyWith(
-              fontWeight: FontWeight.w600,
-              color: valueColor,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 }
