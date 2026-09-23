@@ -236,7 +236,7 @@ class _EditDayDialogState extends State<EditDayDialog> {
                 padding: const EdgeInsets.only(top: 4),
                 child: Text(
                   '$_actualMinutes min total · $_lunch min lunch · '
-                  '${_netWorkMinutes} min net',
+                  '$_netWorkMinutes min net',
                   style: theme.textTheme.bodySmall?.copyWith(
                     color: theme.colorScheme.onSurfaceVariant,
                   ),

@@ -118,7 +118,7 @@ class JourneyInfo {
       'Journey(depart ${_fmtTime(departureTime)}, '
       'arrive ${_fmtTime(arrivalTime)}, '
       '${durationMinutes}min, '
-      '${delayLabel})';
+      '$delayLabel)';
 
   static String _fmtTime(DateTime dt) =>
       '${dt.hour.toString().padLeft(2, '0')}:'

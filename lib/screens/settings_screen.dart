@@ -231,7 +231,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final eveningOverheadCtrl = TextEditingController(text: existing?.eveningOverheadMinutes.toString() ?? '0');
     final eveningProductiveCtrl = TextEditingController(text: existing?.eveningProductiveCommuteMinutes.toString() ?? '0');
 
-    CommuteMode _commuteMode = existing?.commuteMode ?? CommuteMode.none;
+    CommuteMode commuteMode = existing?.commuteMode ?? CommuteMode.none;
 
     final result = await showDialog<bool>(
       context: ctx,
@@ -252,14 +252,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
               TextField(controller: eveningProductiveCtrl, decoration: const InputDecoration(labelText: 'Evening productive commute (train work)'), keyboardType: const TextInputType.numberWithOptions(),),
               const SizedBox(height: 12),
               DropdownButton<CommuteMode>(
-                value: _commuteMode,
+                value: commuteMode,
                 isExpanded: true,
                 items: CommuteMode.values.map((mode) {
                   final label = switch (mode) {
-                    CommuteMode.none => 'No commute (work from home)' as String,
-                    CommuteMode.transit => 'Public transit (train/bus)' as String,
-                    CommuteMode.car => 'Car (coming soon)' as String,
-                    CommuteMode.vespa => '🛵 Vespa (coming soon)' as String,
+                    CommuteMode.none => 'No commute (work from home)',
+                    CommuteMode.transit => 'Public transit (train/bus)',
+                    CommuteMode.car => 'Car (coming soon)',
+                    CommuteMode.vespa => '🛵 Vespa (coming soon)',
                   };
                   return DropdownMenuItem(
                     value: mode,
@@ -267,7 +267,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   );
                 }).toList(),
                 onChanged: (v) {
-                  if (v != null) setDialogState(() => _commuteMode = v);
+                  if (v != null) setDialogState(() => commuteMode = v);
                 },
               ),
             ],
@@ -299,7 +299,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         morningProductiveCommuteMinutes: int.parse(morningProductiveCtrl.text),
         eveningOverheadMinutes: int.parse(eveningOverheadCtrl.text),
         eveningProductiveCommuteMinutes: int.parse(eveningProductiveCtrl.text),
-        commuteMode: _commuteMode,
+        commuteMode: commuteMode,
       );
     }
     return null;
@@ -875,10 +875,12 @@ class _TransitConfigSectionState extends State<_TransitConfigSection> {
 
   Future<void> _load() async {
     await _transit.loadConfig();
-    if (mounted) setState(() {
-      _cfg = _transit.config;
-      _loading = false;
-    });
+    if (mounted) {
+      setState(() {
+        _cfg = _transit.config;
+        _loading = false;
+      });
+    }
   }
 
   @override
@@ -1008,9 +1010,9 @@ class _TransitConfigSectionState extends State<_TransitConfigSection> {
 
   void _update(TransitConfig updated) {
     setState(() => _cfg = updated);
-    _transit.applyConfig(updated);         // sync — config available immediately
-    _transit.saveConfig(updated);          // async — persist to Supabase
-    AppState().notifyListeners();
+    // AppState owns the apply + persist + notify flow so dependent UI
+    // (nav visibility, My Day transit card) stays in sync.
+    AppState().saveTransitConfig(updated);
   }
 }
 

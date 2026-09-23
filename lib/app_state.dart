@@ -116,6 +116,16 @@ class AppState extends ChangeNotifier {
   /// Transit config (loaded lazily).
   TransitConfig get transitConfig => transit.config;
 
+  /// Apply a transit config change immediately (so nav visibility and the
+  /// My Day transit card update at once), then persist it to encrypted
+  /// user_settings. Keeps all transit writes flowing through AppState.
+  Future<void> saveTransitConfig(TransitConfig cfg) async {
+    transit.applyConfig(cfg);
+    notifyListeners();
+    await transit.saveConfig(cfg);
+    notifyListeners();
+  }
+
   // Legacy departure methods removed — using journey planner API instead
   // Cached journey plans accessed via TransitService().cachedJourneys
 

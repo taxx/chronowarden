@@ -96,10 +96,12 @@ class _TransitScreenState extends State<TransitScreen>
       walkOffsetMinutes: walkOffset,
     );
 
-    if (mounted) setState(() {
-      _journeys = journeys;
-      _lastUpdatedAt = DateTime.now();
-    });
+    if (mounted) {
+      setState(() {
+        _journeys = journeys;
+        _lastUpdatedAt = DateTime.now();
+      });
+    }
   }
 
   void _startAutoRefresh() {
