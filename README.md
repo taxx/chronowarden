@@ -231,6 +231,7 @@ lib/
 │   ├── journey_info.dart   # Slimmed journey planner response
 │   ├── station_info.dart    # Station model (global IDs + site IDs)
 │   ├── user_profile.dart    # Auth user profile (role, status)
+│   ├── period.dart          # Overview aggregation period enum
 │   └── invite.dart          # Invite token
 ├── services/                # Business logic & API layer
 │   ├── auth_service.dart    # Sign in/out, sign up, session management
@@ -258,12 +259,27 @@ lib/
 │   ├── settings_screen.dart # Transit config card (Work/Home pickers)
 │   └── about_encryption_screen.dart
 ├── widgets/                 # Reusable widgets
+│   ├── add_day_dialog.dart  # Shared add-past-day dialog (Overview + History)
+│   ├── edit_day_dialog.dart
+│   ├── start_stop_day_dialogs.dart
+│   ├── commute_summary.dart
+│   ├── stat_row.dart
+│   ├── time_bank_chart.dart
+│   ├── projection_chart.dart
+│   ├── transit_config_section.dart
+│   ├── encryption_settings_section.dart
+│   ├── export_settings_section.dart
+│   ├── recovery_phrase_card.dart
+│   ├── journey_tile.dart
 │   └── station_picker.dart  # SL station autocomplete with debounce
 ├── utils/                   # Utilities
 │   ├── csv_export.dart
 │   ├── csv_import.dart
-│   ├── overtime_colors.dart
-│   └── paste_button.dart
+│   ├── format.dart          # Shared minute/duration formatting
+│   ├── paste_button.dart
+│   ├── web_browser.dart     # Conditional web bridge (beep/vibrate)
+│   ├── web_download.dart    # Conditional file download
+│   └── web_local_storage.dart # Conditional localStorage facade
 ├── app_state.dart           # Central ChangeNotifier
 └── main.dart                # Auth gate & app entry point
 supabase/
