@@ -3,20 +3,8 @@ import 'package:flutter/material.dart';
 import '../app_state.dart';
 import '../models/time_log.dart';
 import '../services/preferences_service.dart';
+import '../utils/format.dart';
 import '../widgets/edit_day_dialog.dart';
-
-int _sliderDivisions(double min, double max) {
-  final interval = PreferencesService().sliderInterval.value;
-  return ((max - min) / interval).round();
-}
-
-String _fmtMins(int minutes) {
-  final abs = minutes.abs();
-  final h = abs ~/ 60;
-  final m = abs % 60;
-  if (h == 0) return '$m min';
-  return '${h}h ${m}m';
-}
 
 /// History content widget — lists past logs with cumulative time-bank balance.
 /// No Scaffold wrapper — meant for use inside MainShell.
@@ -78,7 +66,7 @@ class _HistoryContentState extends State<HistoryContent> {
                                   children: [
                                     Text('Time Bank', style: theme.textTheme.titleSmall),
                                     Text(
-                                      _formatBalance(balance),
+                                      formatSignedMinutes(balance),
                                       style: theme.textTheme.headlineSmall?.copyWith(
                                         fontWeight: FontWeight.bold,
                                         color: balance >= 0 ? null : Colors.orange,
@@ -266,14 +254,6 @@ class _HistoryContentState extends State<HistoryContent> {
     }
   }
 
-  String _formatBalance(int minutes) {
-    final sign = minutes >= 0 ? '+' : '';
-    final h = minutes.abs() ~/ 60;
-    final m = minutes.abs() % 60;
-    if (h == 0) return '$sign$m min';
-    return '$sign${h}h ${m}m';
-  }
-
   Future<void> _showEditDayDialog(BuildContext ctx, TimeLog log) async {
     final state = _state;
     if (state.travelPresets.isEmpty) {
@@ -373,7 +353,7 @@ class _LogCard extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                '${log.startTime}${log.endTime != null ? ' → ${log.endTime}' : ' → …'}  ·  ${_fmtMins(log.expectedMinutes)} work + ${_fmtMins(log.overheadMinutes)} overhead${log.lunchMinutes > 0 ? ' · ${_fmtMins(log.lunchMinutes)} lunch' : ''}',
+                '${log.startTime}${log.endTime != null ? ' → ${log.endTime}' : ' → …'}  ·  ${formatMins(log.expectedMinutes)} work + ${formatMins(log.overheadMinutes)} overhead${log.lunchMinutes > 0 ? ' · ${formatMins(log.lunchMinutes)} lunch' : ''}',
                 style: theme.textTheme.bodySmall,
               ),
               if (hasNote)
@@ -387,7 +367,7 @@ class _LogCard extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(
-                isCompleted ? (overtime == 0 ? '✓' : _fmtMins(overtime)) : 'active',
+                isCompleted ? (overtime == 0 ? '✓' : formatMins(overtime)) : 'active',
                 style: theme.textTheme.titleMedium?.copyWith(
                   fontWeight: FontWeight.bold,
                   color: isCompleted
@@ -576,7 +556,7 @@ class _AddDayDialogState extends State<_AddDayDialog> {
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Text(
-                '${_fmtMins(widget.expectedMinutes)} per day',
+                '${formatMins(widget.expectedMinutes)} per day',
                 style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
               ),
             ),
@@ -602,7 +582,7 @@ class _AddDayDialogState extends State<_AddDayDialog> {
                     value: _lunch.toDouble(),
                     min: 0,
                     max: 240,
-                    divisions: _sliderDivisions(0, 240),
+                    divisions: PreferencesService().sliderDivisions(0, 240),
                     label: '$_lunch min',
                     onChanged: (v) => setState(() => _lunch = v.round()),
                   ),

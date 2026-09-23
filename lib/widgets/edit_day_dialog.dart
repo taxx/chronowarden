@@ -2,19 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../models/time_log.dart';
 import '../services/preferences_service.dart';
-
-int _sliderDivisions(double min, double max) {
-  final interval = PreferencesService().sliderInterval.value;
-  return ((max - min) / interval).round();
-}
-
-String _fmtMins(int minutes) {
-  final abs = minutes.abs();
-  final h = abs ~/ 60;
-  final m = abs % 60;
-  if (h == 0) return '$m min';
-  return '${h}h ${m}m';
-}
+import '../utils/format.dart';
 
 // ---------------------------------------------------------------------------
 // EditDayResult — unified result class
@@ -183,7 +171,7 @@ class _EditDayDialogState extends State<EditDayDialog> {
                 return DropdownMenuItem(
                   value: p,
                   child: Text(
-                    '${p.name} (+${_fmtMins(p.defaultOverheadMinutes)})',
+                    '${p.name} (+${formatMins(p.defaultOverheadMinutes)})',
                   ),
                 );
               }).toList(),
@@ -203,7 +191,7 @@ class _EditDayDialogState extends State<EditDayDialog> {
                     value: _lunch.toDouble(),
                     min: 0,
                     max: 240,
-                    divisions: _sliderDivisions(0, 240),
+                    divisions: PreferencesService().sliderDivisions(0, 240),
                     label: '$_lunch min',
                     onChanged: (v) => setState(() => _lunch = v.round()),
                   ),
@@ -219,14 +207,14 @@ class _EditDayDialogState extends State<EditDayDialog> {
             // ── Time breakdown ──
             Text('Time breakdown', style: theme.textTheme.titleSmall),
             const SizedBox(height: 4),
-            _statRow(theme, 'Actual work', _fmtMins(_netWorkMinutes)),
-            _statRow(theme, 'Expected work', _fmtMins(_expected)),
+            _statRow(theme, 'Actual work', formatMins(_netWorkMinutes)),
+            _statRow(theme, 'Expected work', formatMins(_expected)),
             _statRow(
               theme,
               'Over/under',
               _overUnderMinutes > 0
-                  ? '+${_fmtMins(_overUnderMinutes)}'
-                  : _fmtMins(_overUnderMinutes),
+                  ? '+${formatMins(_overUnderMinutes)}'
+                  : formatMins(_overUnderMinutes),
               valueColor: _overUnderMinutes > 0
                   ? theme.colorScheme.error
                   : Colors.green.shade700,

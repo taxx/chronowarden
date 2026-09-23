@@ -70,6 +70,13 @@ class PreferencesService {
     sliderInterval.value = minutes;
   }
 
+  /// Number of slider divisions spanning [min]..[max] using the user's
+  /// configured step interval (Settings → Slider step size).
+  int sliderDivisions(double min, double max) {
+    final interval = sliderInterval.value;
+    return ((max - min) / interval).round();
+  }
+
   // -- Trend line visibility -----------------------------------------------
 
   Future<bool> getShowTrend() async {

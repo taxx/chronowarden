@@ -6,15 +6,8 @@ import '../app_state.dart';
 import '../models/time_log.dart';
 import '../models/work_config.dart' show isoWeekNumber;
 import '../services/preferences_service.dart';
+import '../utils/format.dart';
 import '../widgets/edit_day_dialog.dart';
-
-String _fmtMins(int minutes) {
-  final abs = minutes.abs();
-  final h = abs ~/ 60;
-  final m = abs % 60;
-  if (h == 0) return '$m min';
-  return '${h}h ${m}m';
-}
 
 /// Aggregated overview: week / month / year summaries with period navigation.
 class OverviewTab extends StatefulWidget {
@@ -301,13 +294,13 @@ class _PeriodTabState extends State<_PeriodTab> {
         padding: const EdgeInsets.all(16),
         children: [
           _summaryCard(theme, 'Days logged', '${filtered.length}'),
-          _summaryCard(theme, 'Total hours worked', _formatMinutes(totalActual)),
-          _summaryCard(theme, 'Expected work', _formatMinutes(totalExpected)),
-          _summaryCard(theme, 'Overhead buffer', _formatMinutes(totalOverhead)),
+          _summaryCard(theme, 'Total hours worked', formatDurationMinutes(totalActual)),
+          _summaryCard(theme, 'Expected work', formatDurationMinutes(totalExpected)),
+          _summaryCard(theme, 'Overhead buffer', formatDurationMinutes(totalOverhead)),
           _summaryCard(
             theme,
             'Net overtime',
-            _formatMinutes(totalOvertime),
+            formatDurationMinutes(totalOvertime),
             isOvertime: true,
             valueMinutes: totalOvertime,
           ),
@@ -438,15 +431,6 @@ class _PeriodTabState extends State<_PeriodTab> {
     }
   }
 
-  String _formatMinutes(int minutes) {
-    final sign = minutes < 0 ? '-' : '';
-    final abs = minutes.abs();
-    final h = abs ~/ 60;
-    final m = abs % 60;
-    if (h == 0) return '$sign$m min';
-    return '$sign${h}h ${m}m';
-  }
-
 }
 
 // ---------------------------------------------------------------------------
@@ -552,10 +536,10 @@ Widget _dayCell(ThemeData theme, {
       label = '✓';
     } else if (ot > 0) {
       bgColor = theme.colorScheme.errorContainer.withValues(alpha: 0.35);
-      label = _overtimeStr(ot);
+      label = formatOvertimeStatus(ot);
     } else {
       bgColor = Colors.green.shade100.withValues(alpha: 0.35);
-      label = _overtimeStr(ot);
+      label = formatOvertimeStatus(ot);
     }
   } else if (log != null && log.endTime == null) {
     bgColor = theme.colorScheme.secondaryContainer.withValues(alpha: 0.35);
@@ -566,7 +550,7 @@ Widget _dayCell(ThemeData theme, {
     padding: const EdgeInsets.symmetric(horizontal: 4),
     child: Tooltip(
       message: log != null
-          ? '${log.date}: ${log.startTime}${log.endTime != null ? ' → ${log.endTime}' : ' → …'}\n${_fmtMins(log.expectedMinutes)} work${log.note != null ? '\n📝 ${log.note}' : ''}'
+          ? '${log.date}: ${log.startTime}${log.endTime != null ? ' → ${log.endTime}' : ' → …'}\n${formatMins(log.expectedMinutes)} work${log.note != null ? '\n📝 ${log.note}' : ''}'
           : '',
       child: InkWell(
         onTap: log != null ? onTap : onEmptyPastDayTap,
@@ -796,7 +780,7 @@ Widget _monthCell(BuildContext context, double cellWidth, ThemeData theme, {
       borderRadius: BorderRadius.circular(8),
       child: Tooltip(
         message: log != null
-            ? '${log.date}: ${log.startTime}${log.endTime != null ? ' → ${log.endTime}' : ' → …'}\n${_fmtMins(log.expectedMinutes)} work${log.note != null ? '\n📝 ${log.note}' : ''}'
+            ? '${log.date}: ${log.startTime}${log.endTime != null ? ' → ${log.endTime}' : ' → …'}\n${formatMins(log.expectedMinutes)} work${log.note != null ? '\n📝 ${log.note}' : ''}'
             : '',
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -814,7 +798,7 @@ Widget _monthCell(BuildContext context, double cellWidth, ThemeData theme, {
             ),
             if (log != null && log.endTime != null)
               Text(
-                _overtimeStr(log.overtimeMinutes),
+                formatOvertimeStatus(log.overtimeMinutes),
                 style: theme.textTheme.bodySmall?.copyWith(
                   fontWeight: FontWeight.bold,
                   fontSize: 10,
@@ -828,15 +812,6 @@ Widget _monthCell(BuildContext context, double cellWidth, ThemeData theme, {
       ),
     ),
   );
-}
-
-String _overtimeStr(int minutes) {
-  if (minutes == 0) return '✓';
-  final sign = minutes > 0 ? '+' : '';
-  final h = minutes.abs() ~/ 60;
-  final m = minutes.abs() % 60;
-  if (h == 0) return '$sign$m min';
-  return '$sign${h}h ${m}min';
 }
 
 // ---------------------------------------------------------------------------
@@ -894,7 +869,7 @@ Widget _yearCalendar(BuildContext context, Map<String, TimeLog> logByDate, {
                   Text('$daysLogged days', style: theme.textTheme.bodySmall),
                   if (daysLogged > 0)
                     Text(
-                      _overtimeStr(totalOt),
+                      formatOvertimeStatus(totalOt),
                       style: theme.textTheme.bodySmall?.copyWith(
                         fontWeight: FontWeight.bold,
                         color: totalOt > 0
@@ -1087,7 +1062,7 @@ class _AddDayDialogState extends State<_AddDayDialog> {
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Text(
-                '${_fmtMins(widget.expectedMinutes)} per day',
+                '${formatMins(widget.expectedMinutes)} per day',
                 style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
               ),
             ),
@@ -1097,7 +1072,7 @@ class _AddDayDialogState extends State<_AddDayDialog> {
             DropdownButtonFormField(
               initialValue: _selectedPreset,
               items: widget.travelPresets.map<DropdownMenuItem>((p) {
-                return DropdownMenuItem(value: p, child: Text('${p.name} (+${_fmtMins(p.defaultOverheadMinutes)})'));
+                return DropdownMenuItem(value: p, child: Text('${p.name} (+${formatMins(p.defaultOverheadMinutes)})'));
               }).toList(),
               onChanged: (v) { if (v != null) setState(() => _selectedPreset = v); },
             ),
@@ -1306,8 +1281,8 @@ class _TimeBankChartState extends State<_TimeBankChart> {
     final endBalance = data.cumulative.last;
     final netChange = endBalance - baseline;
 
-    final baselineStr = _fmtMins(baseline);
-    final endStr = _fmtMins(endBalance);
+    final baselineStr = formatMins(baseline);
+    final endStr = formatMins(endBalance);
     final changeSign = netChange >= 0 ? '+' : '';
     final changeH = netChange.abs() ~/ 60;
     final changeM = netChange.abs() % 60;

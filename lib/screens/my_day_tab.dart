@@ -10,21 +10,9 @@ import '../services/pinned_journey_store.dart';
 import '../services/preferences_service.dart';
 import '../services/transit_service.dart';
 import '../services/user_settings_service.dart';
+import '../utils/format.dart';
 import '../widgets/edit_day_dialog.dart';
 import '../widgets/journey_tile.dart';
-
-int _sliderDivisions(double min, double max) {
-  final interval = PreferencesService().sliderInterval.value;
-  return ((max - min) / interval).round();
-}
-
-String _fmtMins(int minutes) {
-  final abs = minutes.abs();
-  final h = abs ~/ 60;
-  final m = abs % 60;
-  if (h == 0) return '$m min';
-  return '${h}h ${m}m';
-}
 
 /// The "My Day" content widget — shows today's time tracking.
 /// This is a standalone widget (no Scaffold) meant for use inside MainShell.
@@ -289,7 +277,7 @@ class _MyDayTabState extends State<MyDayTab> with SingleTickerProviderStateMixin
                 children: [
                   Text('Time Bank', style: theme.textTheme.titleSmall),
                   Text(
-                    _formatBankMinutes(minutes),
+                    formatSignedMinutes(minutes),
                     style: theme.textTheme.headlineSmall?.copyWith(
                       color: isPositive ? null : Colors.orange,
                       fontWeight: FontWeight.bold,
@@ -408,12 +396,12 @@ class _MyDayTabState extends State<MyDayTab> with SingleTickerProviderStateMixin
               ],
             ),
             const SizedBox(height: 24),
-            _statRow(theme, 'Expected', _fmtMins(log.expectedMinutes)),
+            _statRow(theme, 'Expected', formatMins(log.expectedMinutes)),
             if (log.morningOverheadMinutes + log.eveningOverheadMinutes > 0)
               _statRow(theme, 'Commute overhead', '${log.morningOverheadMinutes}/${log.eveningOverheadMinutes} min (am/pm)'),
             if (log.morningProductiveCommuteMinutes + log.eveningProductiveCommuteMinutes > 0)
               _statRow(theme, 'Productive commute', '${log.morningProductiveCommuteMinutes}/${log.eveningProductiveCommuteMinutes} min (am/pm)'),
-            _statRow(theme, 'Total', _fmtMins(log.expectedMinutes + log.overheadMinutes + log.productiveCommuteMinutes)),
+            _statRow(theme, 'Total', formatMins(log.expectedMinutes + log.overheadMinutes + log.productiveCommuteMinutes)),
 
             const SizedBox(height: 8),
             // Banked time to withdraw (flex) — live projection only
@@ -423,7 +411,7 @@ class _MyDayTabState extends State<MyDayTab> with SingleTickerProviderStateMixin
                 Text('Banked time to withdraw',
                     style: theme.textTheme.titleSmall),
                 Text(
-                  _fmtMins(log.flexMinutes),
+                  formatMins(log.flexMinutes),
                   style: theme.textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.bold,
                     color: theme.colorScheme.secondary,
@@ -498,7 +486,7 @@ class _MyDayTabState extends State<MyDayTab> with SingleTickerProviderStateMixin
             _statRow(
               theme,
               log.overtimeMinutes < 0 ? 'Undertime' : 'Overtime',
-              _formatBankMinutes(log.overtimeMinutes),
+              formatSignedMinutes(log.overtimeMinutes),
             ),
             if (log.lunchMinutes != null && log.lunchMinutes > 0)
               _statRow(theme, 'Lunch', '${log.lunchMinutes} min'),
@@ -551,14 +539,6 @@ class _MyDayTabState extends State<MyDayTab> with SingleTickerProviderStateMixin
     final m = (d.inMinutes % 60).toString().padLeft(2, '0');
     final s = (d.inSeconds % 60).toString().padLeft(2, '0');
     return '$h:$m:$s';
-  }
-
-  String _formatBankMinutes(int minutes) {
-    final sign = minutes >= 0 ? '+' : '';
-    final h = minutes.abs() ~/ 60;
-    final m = minutes.abs() % 60;
-    if (h == 0) return '$sign$m min';
-    return '$sign${h}h ${m}m';
   }
 
   // -- Start day dialog ------------------------------------------------
@@ -636,7 +616,7 @@ class _MyDayTabState extends State<MyDayTab> with SingleTickerProviderStateMixin
                 value: lunch.toDouble(),
                 min: 0,
                 max: 120,
-                divisions: _sliderDivisions(0, 120),
+                divisions: PreferencesService().sliderDivisions(0, 120),
                 label: '$lunch min',
                 onChanged: (v) {
                   lunch = v.round();
@@ -688,7 +668,7 @@ class _MyDayTabState extends State<MyDayTab> with SingleTickerProviderStateMixin
                       value: flex.toDouble(),
                       min: 0,
                       max: 240,
-                      divisions: _sliderDivisions(0, 240),
+                      divisions: PreferencesService().sliderDivisions(0, 240),
                       label: '$flex min',
                       onChanged: (v) {
                         flex = v.round();
@@ -761,7 +741,7 @@ class _MyDayTabState extends State<MyDayTab> with SingleTickerProviderStateMixin
                       value: lunch.toDouble(),
                       min: 0,
                       max: 240,
-                      divisions: _sliderDivisions(0, 240),
+                      divisions: PreferencesService().sliderDivisions(0, 240),
                       label: '$lunch min',
                       onChanged: (v) {
                         lunch = v.round();
@@ -1046,7 +1026,7 @@ class _StartDayDialogState extends State<_StartDayDialog> {
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Text(
-                '${_fmtMins(widget.expectedMinutes)} per day',
+                '${formatMins(widget.expectedMinutes)} per day',
                 style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
               ),
             ),
@@ -1072,7 +1052,7 @@ class _StartDayDialogState extends State<_StartDayDialog> {
                     value: _lunchMinutes.toDouble(),
                     min: 0,
                     max: 120,
-                    divisions: _sliderDivisions(0, 120),
+                    divisions: PreferencesService().sliderDivisions(0, 120),
                     label: '$_lunchMinutes min',
                     onChanged: (v) => setState(() => _lunchMinutes = v.round()),
                   ),
@@ -1090,7 +1070,7 @@ class _StartDayDialogState extends State<_StartDayDialog> {
                     value: _flexMinutes.toDouble(),
                     min: 0,
                     max: 240,
-                    divisions: _sliderDivisions(0, 240),
+                    divisions: PreferencesService().sliderDivisions(0, 240),
                     label: '$_flexMinutes min',
                     onChanged: (v) => setState(() => _flexMinutes = v.round()),
                   ),
@@ -1238,7 +1218,7 @@ class _StopDayDialogState extends State<_StopDayDialog> {
                   value: _lunchMinutes.toDouble(),
                   min: 0,
                   max: 240,
-                  divisions: _sliderDivisions(0, 240),
+                  divisions: PreferencesService().sliderDivisions(0, 240),
                   label: '$_lunchMinutes min',
                   onChanged: (v) => setState(() => _lunchMinutes = v.round()),
                 ),

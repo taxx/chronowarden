@@ -15,6 +15,7 @@ import '../models/station_info.dart';
 import '../widgets/recovery_phrase_card.dart';
 import '../widgets/station_picker.dart';
 import '../utils/csv_export.dart';
+import '../utils/format.dart';
 import 'about_encryption_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -799,12 +800,12 @@ class _WorkConfigSection extends StatelessWidget {
               style: theme.textTheme.bodySmall,
             ),
             const SizedBox(height: 16),
-            _statRow(theme, 'Default', '${_fmtMins(dflt)} per day'),
+            _statRow(theme, 'Default', '${formatMins(dflt)} per day'),
             if (hasReduced) ...[
               _statRow(
                 theme,
                 'Reduced period',
-                '${_fmtMins(reducedMinutes!)} per day',
+                '${formatMins(reducedMinutes!)} per day',
               ),
               _statRow(
                 theme,
@@ -845,13 +846,6 @@ class _WorkConfigSection extends StatelessWidget {
     );
   }
 
-  String _fmtMins(int minutes) {
-    final abs = minutes.abs();
-    final h = abs ~/ 60;
-    final m = abs % 60;
-    if (h == 0) return '$m min';
-    return '${h}h ${m}m';
-  }
 }
 
 // ---------------------------------------------------------------------------

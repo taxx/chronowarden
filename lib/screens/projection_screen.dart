@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../app_state.dart';
 import '../models/time_log.dart';
+import '../utils/format.dart';
 
 /// Projection calculator — shows how daily flex minutes reduce the time bank.
 class ProjectionScreen extends StatefulWidget {
@@ -63,7 +64,7 @@ class _ProjectionScreenState extends State<ProjectionScreen> {
 
   Widget _buildContent(ThemeData theme) {
     final projection = _computeProjection(_dailyFlex, _useTrend);
-    final balanceStr = _formatMinutes(_currentBalance);
+    final balanceStr = formatDurationMinutes(_currentBalance);
     final avgGrowth = _computeAvgGrowth();
     final netDailyChange = _dailyFlex - (avgGrowth ~/ 5);
     final effectiveFlex = _useTrend ? netDailyChange : _dailyFlex;
@@ -121,7 +122,7 @@ class _ProjectionScreenState extends State<ProjectionScreen> {
                 const SizedBox(height: 4),
                 Text(
                   _useTrend
-                      ? 'Minutes to take from the bank each workday.\nTrend adjusts for your avg growth (${_formatMinutes(avgGrowth)}/week).'
+                      ? 'Minutes to take from the bank each workday.\nTrend adjusts for your avg growth (${formatDurationMinutes(avgGrowth)}/week).'
                       : 'Minutes to take from the bank each workday.',
                   style: theme.textTheme.bodySmall?.copyWith(
                     color: theme.colorScheme.onSurfaceVariant,
@@ -164,17 +165,17 @@ class _ProjectionScreenState extends State<ProjectionScreen> {
                 Text('Projection', style: theme.textTheme.titleMedium),
                 const SizedBox(height: 8),
                 if (_useTrend) ...[  
-                  _statRow(theme, 'Avg growth rate', '${_formatMinutes(avgGrowth)}/week'),
-                  _statRow(theme, 'Net weekly change', _formatMinutes(-effectiveWeekly)),
+                  _statRow(theme, 'Avg growth rate', '${formatDurationMinutes(avgGrowth)}/week'),
+                  _statRow(theme, 'Net weekly change', formatDurationMinutes(-effectiveWeekly)),
                 ],
-                _statRow(theme, 'Weekly reduction', _formatMinutes(-effectiveWeekly)),
+                _statRow(theme, 'Weekly reduction', formatDurationMinutes(-effectiveWeekly)),
                 _statRow(theme, 'Weeks to zero', '$weeksToZero weeks'),
                 _statRow(theme, 'Estimated zero date', zeroDate),
                 if (effectiveFlex > 0) ...[  
                   const SizedBox(height: 8),
                   Text(
                     _useTrend
-                        ? 'Taking $_dailyFlex min flex per workday (net ${_formatMinutes(-effectiveWeekly)}/week after avg growth of ${_formatMinutes(avgGrowth)}/week), your bank of $balanceStr will reach zero in ~$weeksToZero weeks ($zeroDate).'
+                        ? 'Taking $_dailyFlex min flex per workday (net ${formatDurationMinutes(-effectiveWeekly)}/week after avg growth of ${formatDurationMinutes(avgGrowth)}/week), your bank of $balanceStr will reach zero in ~$weeksToZero weeks ($zeroDate).'
                         : 'Taking $_dailyFlex min per workday, your bank of $balanceStr will reach zero in ~$weeksToZero weeks ($zeroDate).',
                     style: theme.textTheme.bodySmall?.copyWith(
                       color: theme.colorScheme.onSurfaceVariant,
@@ -356,17 +357,6 @@ class _ProjectionScreenState extends State<ProjectionScreen> {
       splitIndex: splitIndex,
       trendBalances: useTrend ? trendBalances : null,
     );
-  }
-
-  String _formatMinutes(int minutes) {
-    if (minutes == 0) return '0 min';
-    final sign = minutes < 0 ? '-' : '';
-    final abs = minutes.abs();
-    final h = abs ~/ 60;
-    final m = abs % 60;
-    if (h == 0) return '$sign$m min';
-    if (m == 0) return '$sign${h}h';
-    return '$sign${h}h ${m}m';
   }
 
   String _computeZeroDate(int weeks) {
