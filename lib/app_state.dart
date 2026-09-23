@@ -138,8 +138,19 @@ class AppState extends ChangeNotifier {
     return 480; // fallback default
   }
 
+  /// Best-effort check for whether any logged day matches [preset].
+  ///
+  /// Logs don't store a preset id, so we compare the full per-direction
+  /// commute profile. Comparing only the (rounded) total overhead produced
+  /// false positives when two presets happened to share the same total.
   bool isPresetInUse(TravelPreset preset) {
-    return _allLogs.any((l) => l.overheadMinutes == preset.defaultOverheadMinutes);
+    return _allLogs.any((l) =>
+        l.morningOverheadMinutes == preset.morningOverheadMinutes &&
+        l.morningProductiveCommuteMinutes ==
+            preset.morningProductiveCommuteMinutes &&
+        l.eveningOverheadMinutes == preset.eveningOverheadMinutes &&
+        l.eveningProductiveCommuteMinutes ==
+            preset.eveningProductiveCommuteMinutes);
   }
 
   // -- loading -------------------------------------------------------
@@ -147,10 +158,9 @@ class AppState extends ChangeNotifier {
     try {
       await Future.wait([
         _loadToday(),
-        _loadAll(),
+        _loadAllAndBalance(),
         _loadConfig(),
         _loadPresets(),
-        _loadBalance(),
         _loadTransitConfig(),
       ]);
       _tablesReady = true;
@@ -230,8 +240,7 @@ class AppState extends ChangeNotifier {
     // Always re-fetch the full log list so Overview/History refresh
     Future.wait([
       if (newDate == todayStr) _loadToday(),
-      _loadAll(),
-      _loadBalance(),
+      _loadAllAndBalance(),
     ]).then((_) {
       // Restore lunch timer state from the decrypted todayLog
       _restoreLunchFromLog();
@@ -268,10 +277,16 @@ class AppState extends ChangeNotifier {
     _todayLog = await logs.today();
     _restoreLunchFromLog();
   }
-  Future<void> _loadAll() async => _allLogs = await logs.all();
+  /// Fetch all logs once and derive the time-bank balance from them.
+  /// Previously `_loadAll()` + `_loadBalance()` each fetched + decrypted the
+  /// full table, doubling the work on every refresh and realtime event.
+  Future<void> _loadAllAndBalance() async {
+    _allLogs = await logs.all();
+    _timeBankMinutes = _allLogs.fold<int>(0, (sum, l) => sum + l.overtimeMinutes);
+  }
+
   Future<void> _loadConfig() async => _workConfig = await config.get();
   Future<void> _loadPresets() async => _presetsList = await presets.all();
-  Future<void> _loadBalance() async => _timeBankMinutes = await logs.totalOvertime();
   Future<void> _loadTransitConfig() async => await transit.loadConfig();
 
   /// Persist lunch_started_at to encrypted_data so other devices
@@ -421,7 +436,7 @@ class AppState extends ChangeNotifier {
       'note': log.note,
     });
 
-    await Future.wait([_loadToday(), _loadAll(), _loadBalance()]);
+    await Future.wait([_loadToday(), _loadAllAndBalance()]);
     notifyListeners();
   }
 
@@ -429,7 +444,7 @@ class AppState extends ChangeNotifier {
   Future<void> deleteDay(String id) async {
     try {
       await logs.delete(id);
-      await Future.wait([_loadToday(), _loadAll(), _loadBalance()]);
+      await Future.wait([_loadToday(), _loadAllAndBalance()]);
     } catch (e) { _lastError = e.toString(); }
     notifyListeners();
   }
@@ -462,7 +477,7 @@ class AppState extends ChangeNotifier {
     );
     final overtime = newLog.calculateOvertimeMinutes();
     final saved = await logs.insert(newLog.copyWith(overtimeMinutes: overtime));
-    await Future.wait([_loadToday(), _loadAll(), _loadBalance()]);
+    await Future.wait([_loadToday(), _loadAllAndBalance()]);
     notifyListeners();
     return saved;
   }
@@ -489,7 +504,7 @@ class AppState extends ChangeNotifier {
     }
 
     // Reload fresh data
-    await Future.wait([_loadToday(), _loadAll(), _loadBalance()]);
+    await Future.wait([_loadToday(), _loadAllAndBalance()]);
     notifyListeners();
     return result;
   }
@@ -515,7 +530,7 @@ class AppState extends ChangeNotifier {
       'overtime_minutes': overtime,
     });
 
-    await Future.wait([_loadToday(), _loadAll(), _loadBalance()]);
+    await Future.wait([_loadToday(), _loadAllAndBalance()]);
     notifyListeners();
   }
 
