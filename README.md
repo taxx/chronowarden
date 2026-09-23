@@ -18,7 +18,7 @@ ChronoWarden supports multiple users with role-based access:
 
 - **First admin** is created automatically when the app detects an empty database
 - **New users** join via invite tokens shared by an admin, or sign up as pending until approved
-- **Data isolation** is enforced at the database level via RLS policies — each user can only see their own `time_logs`, `work_period_settings`, and `travel_presets`
+- **Data isolation** is enforced at the database level via RLS policies — each user can only see their own `time_logs`, `travel_presets`, and `user_settings`
 
 See `AUTH.md` for the full authentication architecture.
 
@@ -49,7 +49,7 @@ See `.env.db.sample` for the template. Never committed.
 }
 ```
 
-2. Run the database schema SQL from `SetupScreen` (tap "Copy" in the app, paste into Supabase SQL Editor).
+2. Run the database schema SQL from `SetupScreen` (tap "Copy" in the app, paste into Supabase SQL Editor). The SQL is loaded from the canonical [`supabase_schema.sql`](supabase_schema.sql) asset — that file is the single source of truth for the schema.
 
 3. Launch the app:
 ```bash
@@ -238,7 +238,7 @@ lib/
 │   ├── time_log_service.dart
 │   ├── travel_preset_service.dart
 │   ├── transit_service.dart # Transit config + journey planner fetcher + caching
-│   ├── work_period_service.dart
+│   ├── work_config_service.dart # Work config (default/reduced expected minutes)
 │   ├── crypto_service.dart  # Encryption / decryption
 │   ├── notification_service.dart
 │   ├── preferences_service.dart

@@ -27,3 +27,4 @@ flutter:
   assets:
     - chronowarden.png
     - chronowarden.svg
+    - supabase_schema.sql

@@ -14,7 +14,7 @@ You are an expert Flutter & Dart developer acting as a dedicated pair-programmer
 ## Authentication & Multi-User
 ChronoWarden uses Supabase Auth with an admin-invite model. Key points:
 - **Auth state** lives in `AuthService` (singleton `ChangeNotifier`). Always check `AuthService().isAuthenticated` and `AuthService().profile` before making data requests.
-- **User scoping** — all data services (`TimeLogService`, `WorkPeriodService`, `TravelPresetService`) scope queries to the current session's `user_id`. They return empty/null when not authenticated.
+- **User scoping** — all data services (`TimeLogService`, `WorkConfigService`, `TravelPresetService`, `UserSettingsService`, `TransitService`) scope queries to the current session's `user_id`. They return empty/null when not authenticated.
 - **RLS helper functions** — `is_admin()` and `has_profiles()` are `SECURITY DEFINER` RPC functions that bypass RLS. Use them when you need to check admin status or database state from unauthenticated contexts.
 - **Email is stored in `profiles`** — PostgREST cannot join the `auth` schema, so email is mirrored from `auth.users` via the `handle_new_user` trigger.
 - **Profile auto-creation** — `AuthService._ensureProfile()` uses `upsert` to handle cases where the DB trigger didn't fire (e.g., user signed up before tables existed).

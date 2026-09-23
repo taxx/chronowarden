@@ -76,7 +76,7 @@ main()
 
 ### Existing tables
 
-All three (`time_logs`, `work_period_settings`, `travel_presets`):
+All user data tables (`time_logs`, `travel_presets`, `user_settings`):
 - `user_id uuid NOT NULL` (no more `IS NULL` fallback)
 - RLS: `auth.uid() = user_id` only
 - Foreign keys use `ON DELETE CASCADE`
@@ -88,7 +88,7 @@ All three (`time_logs`, `work_period_settings`, `travel_presets`):
 | `profiles` | Users: read own row only. Admins: full CRUD (via `is_admin()` helper function). |
 | `invites` | Admins only: full CRUD (via `is_admin()` helper function). |
 | `time_logs` | Owner only (`auth.uid() = user_id`) |
-| `work_period_settings` | Owner only |
+| `user_settings` | Owner only |
 | `travel_presets` | Owner only |
 
 ### Helper functions (SECURITY DEFINER)
@@ -140,7 +140,7 @@ copying `email`, `full_name`, `role`, and `status` from `raw_user_meta_data`.
 |------|---------|
 | `lib/main.dart` | Auth gate: checks session → routes to login/signup/admin shell/home. Uses `ListenableBuilder` on both `AuthService` and `AppState`. |
 | `lib/services/time_log_service.dart` | All queries scoped to `user_id = currentSession.user.id`. Returns empty/null when not authenticated. |
-| `lib/services/work_period_service.dart` | Same scoping. |
+| `lib/services/work_config_service.dart` | Same scoping. |
 | `lib/services/travel_preset_service.dart` | Same scoping. |
 | `lib/screens/home_screen.dart` | Added `showSettings`/`showLogout` constructor params + logout confirmation dialog. Reused by both `HomeScreen` (standalone) and `AdminShell`. |
 | `lib/screens/setup_screen.dart` | Complete new SQL schema with `profiles`, `invites`, helper functions, RLS policies, and signup trigger. Verification probes tables directly (no auth required). Navigates to next screen after success. |
