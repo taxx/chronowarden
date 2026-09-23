@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
 
-import 'package:flutter/services.dart';
-
 import '../services/auth_service.dart';
 import '../utils/paste_button.dart';
+import '../widgets/recovery_phrase_card.dart';
 import 'about_encryption_screen.dart';
 import 'login_screen.dart';
 import 'pending_screen.dart';
@@ -469,84 +468,13 @@ class _RecoveryOnboardingScreen extends StatelessWidget {
                     style: theme.textTheme.bodyMedium,
                   ),
                   const SizedBox(height: 24),
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(20),
-                    decoration: BoxDecoration(
-                      color: Colors.amber.shade50,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.amber.shade300),
-                    ),
-                    child: Column(
-                      children: [
-                        Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            color: theme.colorScheme.surface,
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(
-                                color: Colors.amber.shade200),
-                          ),
-                          child: SelectableText(
-                            phrase,
-                            style: TextStyle(
-                              fontFamily: 'monospace',
-                              fontSize: 14,
-                              height: 1.5,
-                              color: theme.colorScheme.onSurface,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        OutlinedButton.icon(
-                          onPressed: () {
-                            Clipboard.setData(
-                              ClipboardData(text: phrase),
-                            );
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content:
-                                    Text('Recovery phrase copied'),
-                              ),
-                            );
-                          },
-                          icon:
-                              const Icon(Icons.copy, size: 18),
-                          label: const Text('Copy'),
-                        ),
-                      ],
-                    ),
-                  ),
+                  RecoveryPhraseCard(phrase: phrase),
                   const SizedBox(height: 24),
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: Colors.red.shade50,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.red.shade200),
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(Icons.warning,
-                            color: Colors.red.shade800, size: 28),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Text(
-                            'If you lose both your passphrase AND this '
-                            'recovery phrase, your data is gone forever. '
-                            'No one — not even the app administrator — '
-                            'can recover it.',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Colors.red.shade800,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
+                  const RecoveryWarningCard(
+                    message: 'If you lose both your passphrase AND this '
+                        'recovery phrase, your data is gone forever. '
+                        'No one — not even the app administrator — '
+                        'can recover it.',
                   ),
                   const SizedBox(height: 32),
                   FilledButton.icon(

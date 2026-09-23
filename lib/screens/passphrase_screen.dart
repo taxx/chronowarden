@@ -130,7 +130,7 @@ class _PassphraseScreenState extends State<PassphraseScreen> {
                   width: double.infinity,
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: Colors.red.shade50,
+                    color: theme.colorScheme.errorContainer,
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Text(
@@ -139,7 +139,7 @@ class _PassphraseScreenState extends State<PassphraseScreen> {
                     'your passphrase.',
                     style: TextStyle(
                       fontSize: 12,
-                      color: Colors.red.shade800,
+                      color: theme.colorScheme.onErrorContainer,
                     ),
                     textAlign: TextAlign.center,
                   ),

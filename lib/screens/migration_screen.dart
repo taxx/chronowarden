@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 
 import '../services/auth_service.dart';
 import '../services/migration_service.dart';
+import '../widgets/recovery_phrase_card.dart';
 
 /// One-time encryption setup screen for existing users.
 ///
@@ -97,15 +97,16 @@ class _MigrationScreenState extends State<MigrationScreen> {
                     width: double.infinity,
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
-                      color: Colors.orange.shade50,
+                      color: theme.colorScheme.tertiaryContainer,
                       borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.orange.shade200),
+                      border: Border.all(color: theme.colorScheme.tertiary),
                     ),
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Icon(Icons.warning_amber_rounded,
-                            color: Colors.orange.shade800, size: 28),
+                            color: theme.colorScheme.onTertiaryContainer,
+                            size: 28),
                         const SizedBox(width: 12),
                         Expanded(
                           child: Column(
@@ -115,7 +116,7 @@ class _MigrationScreenState extends State<MigrationScreen> {
                                 'Important Security Update',
                                 style: theme.textTheme.titleMedium?.copyWith(
                                   fontWeight: FontWeight.bold,
-                                  color: Colors.orange.shade800,
+                                  color: theme.colorScheme.onTertiaryContainer,
                                 ),
                               ),
                               const SizedBox(height: 8),
@@ -124,7 +125,7 @@ class _MigrationScreenState extends State<MigrationScreen> {
                                 'To protect your privacy, we need to encrypt all your '
                                 'existing records. This is a one-time process.',
                                 style: theme.textTheme.bodySmall?.copyWith(
-                                  color: theme.colorScheme.onSurfaceVariant,
+                                  color: theme.colorScheme.onTertiaryContainer,
                                 ),
                               ),
                             ],
@@ -251,101 +252,20 @@ class _MigrationScreenState extends State<MigrationScreen> {
                   const SizedBox(height: 24),
 
                   // --- Recovery phrase ---
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(20),
-                    decoration: BoxDecoration(
-                      color: Colors.amber.shade50,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.amber.shade300),
-                    ),
-                    child: Column(
-                      children: [
-                        Icon(Icons.key, color: Colors.amber.shade800, size: 32),
-                        const SizedBox(height: 8),
-                        Text(
-                          'Recovery Phrase',
-                          style: theme.textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          'Write this down and keep it in a safe place. '
-                          'If you forget your passphrase, this is the only '
-                          'way to recover your data.',
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: theme.colorScheme.onSurfaceVariant,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                        const SizedBox(height: 16),
-                        Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            color: theme.colorScheme.surface,
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(color: Colors.amber.shade200),
-                          ),
-                          child: SelectableText(
-                            _recoveryPhrase!,
-                            style: TextStyle(
-                              fontFamily: 'monospace',
-                              fontSize: 14,
-                              height: 1.5,
-                              color: theme.colorScheme.onSurface,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        OutlinedButton.icon(
-                          onPressed: () {
-                            Clipboard.setData(
-                              ClipboardData(text: _recoveryPhrase!),
-                            );
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('Recovery phrase copied'),
-                              ),
-                            );
-                          },
-                          icon: const Icon(Icons.copy, size: 18),
-                          label: const Text('Copy'),
-                        ),
-                      ],
-                    ),
+                  RecoveryPhraseCard(
+                    phrase: _recoveryPhrase!,
+                    description: 'Write this down and keep it in a safe place. '
+                        'If you forget your passphrase, this is the only '
+                        'way to recover your data.',
                   ),
 
                   // --- Warning ---
                   const SizedBox(height: 24),
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: Colors.red.shade50,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.red.shade200),
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(Icons.warning,
-                            color: Colors.red.shade800, size: 28),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Text(
-                            'If you lose both your passphrase AND this '
-                            'recovery phrase, your data is gone forever. '
-                            'No one — not even the app administrator — '
-                            'can recover it.',
-                            style: theme.textTheme.bodySmall?.copyWith(
-                              color: Colors.red.shade800,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
+                  const RecoveryWarningCard(
+                    message: 'If you lose both your passphrase AND this '
+                        'recovery phrase, your data is gone forever. '
+                        'No one — not even the app administrator — '
+                        'can recover it.',
                   ),
                   const SizedBox(height: 32),
 

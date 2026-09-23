@@ -12,6 +12,7 @@ import '../services/user_settings_service.dart';
 import '../services/transit_service.dart';
 import '../models/transit_config.dart';
 import '../models/station_info.dart';
+import '../widgets/recovery_phrase_card.dart';
 import '../widgets/station_picker.dart';
 import '../utils/csv_export.dart';
 import 'about_encryption_screen.dart';
@@ -1211,23 +1212,7 @@ class _EncryptionSection extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.amber.shade50,
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.amber.shade300),
-              ),
-              child: SelectableText(
-                phrase,
-                style: const TextStyle(
-                  fontFamily: 'monospace',
-                  fontSize: 14,
-                  height: 1.5,
-                ),
-              ),
-            ),
+            RecoveryPhraseCard(phrase: phrase, title: null),
             const SizedBox(height: 16),
             Text(
               'If you forget your encryption passphrase, this 24-word '
@@ -1236,22 +1221,9 @@ class _EncryptionSection extends StatelessWidget {
               style: theme.textTheme.bodySmall,
             ),
             const SizedBox(height: 12),
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.red.shade50,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Text(
-                '⚠ Without this phrase, lost data is gone forever. '
-                'No one — not even the admin — can recover it.',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: Colors.red.shade800,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
+            const RecoveryWarningCard(
+              message: 'Without this phrase, lost data is gone forever. '
+                  'No one — not even the admin — can recover it.',
             ),
           ],
         ),

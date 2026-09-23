@@ -293,14 +293,15 @@ class EncryptionInfoContent extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.red.shade50,
+        color: theme.colorScheme.errorContainer,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.red.shade200),
+        border: Border.all(color: theme.colorScheme.error),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(Icons.warning, color: Colors.red.shade800, size: 28),
+          Icon(Icons.warning,
+              color: theme.colorScheme.onErrorContainer, size: 28),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
@@ -310,7 +311,7 @@ class EncryptionInfoContent extends StatelessWidget {
                   '⚠️ Critical Warning',
                   style: theme.textTheme.titleSmall?.copyWith(
                     fontWeight: FontWeight.bold,
-                    color: Colors.red.shade800,
+                    color: theme.colorScheme.onErrorContainer,
                   ),
                 ),
                 const SizedBox(height: 4),
@@ -321,7 +322,7 @@ class EncryptionInfoContent extends StatelessWidget {
                   'There is no backdoor, no password reset, no support '
                   'ticket that can restore your data.',
                   style: theme.textTheme.bodySmall?.copyWith(
-                    color: Colors.red.shade800,
+                    color: theme.colorScheme.onErrorContainer,
                     fontWeight: FontWeight.w500,
                   ),
                 ),
