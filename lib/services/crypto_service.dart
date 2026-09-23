@@ -4,11 +4,8 @@ import 'dart:typed_data';
 
 import 'package:crypto/crypto.dart' as crypto;
 import 'package:cryptography/cryptography.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
 
-// Web-only: sessionStorage access
-// ignore: avoid_web_libraries_in_flutter
-import 'dart:html' as html;
+import '../utils/web_local_storage.dart';
 
 /// Core cryptographic operations for envelope encryption.
 ///
@@ -209,28 +206,20 @@ class CryptoService {
 
   /// Save DEK to localStorage (survives tab close + reopen).
   static void cacheDekLocally(SecretKey dek) async {
-    if (!kIsWeb) return;
     final bytes = await dek.extractBytes();
-    // ignore: avoid_web_libraries_in_flutter
-    html.window.localStorage[_dekStorageKey] = base64.encode(bytes);
+    writeLocalStorage(_dekStorageKey, base64.encode(bytes));
   }
 
   /// Load DEK from localStorage (returns null if not cached).
   static Future<SecretKey?> loadDekFromLocal() async {
-    if (!kIsWeb) return null;
-    // ignore: avoid_web_libraries_in_flutter
-    final cached = html.window.localStorage[_dekStorageKey];
+    final cached = readLocalStorage(_dekStorageKey);
     if (cached == null || cached.isEmpty) return null;
     final bytes = base64.decode(cached);
     return SecretKey(Uint8List.fromList(bytes));
   }
 
   /// Clear DEK from localStorage (on logout).
-  static void clearLocalCache() {
-    if (!kIsWeb) return;
-    // ignore: avoid_web_libraries_in_flutter
-    html.window.localStorage.remove(_dekStorageKey);
-  }
+  static void clearLocalCache() => removeLocalStorage(_dekStorageKey);
 }
 
 // ---------------------------------------------------------------------------

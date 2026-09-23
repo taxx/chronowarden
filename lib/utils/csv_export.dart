@@ -1,8 +1,5 @@
-// ignore_for_file: deprecated_member_use, avoid_web_libraries_in_flutter
-
-import 'dart:html' as html;
-
 import '../models/time_log.dart';
+import 'web_download.dart';
 
 /// Generates a CSV string from a list of [TimeLog] entries, compatible with
 /// the CSV import format (including productive_commute_minutes).
@@ -38,11 +35,5 @@ String _csvEscape(String value) {
 
 /// Trigger a browser download of the CSV content.
 void downloadCsv(String csv, String filename) {
-  final blob = html.Blob([csv], 'text/csv');
-  final url = html.Url.createObjectUrl(blob);
-  html.AnchorElement()
-    ..href = url
-    ..download = filename
-    ..click();
-  html.Url.revokeObjectUrl(url);
+  downloadTextFile(csv, filename, 'text/csv');
 }

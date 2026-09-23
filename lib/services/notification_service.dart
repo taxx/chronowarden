@@ -1,10 +1,7 @@
-// ignore_for_file: avoid_web_libraries_in_flutter, deprecated_member_use
-
-import 'dart:html' as html;
-import 'dart:js';
-
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
+import '../utils/web_browser.dart';
 
 /// Manages leave-time alerts using in-app UI + audio + vibration.
 ///
@@ -77,15 +74,7 @@ class NotificationService {
 
   // -- Permission (browser Notification API — proven working) ----------------
 
-  void _requestPermissionIfNeeded() {
-    try {
-      if (html.Notification.permission != 'granted') {
-        html.Notification.requestPermission().then((result) {
-          // Permission granted or denied — we don't need it for our alerts.
-        }).catchError((_) {});
-      }
-    } catch (_) {}
-  }
+  void _requestPermissionIfNeeded() => requestNotificationPermission();
 
   // -- Alert (in-app + audio + vibration) -----------------------------------
 
@@ -106,43 +95,22 @@ class NotificationService {
 
   bool _audioInitialized = false;
 
-  /// Register a JS beep function via eval.
+  /// Register the JS beep helper (Web Audio API).
   void ensureAudio() {
     if (_audioInitialized || !kIsWeb) return;
-    try {
-      context.callMethod('eval', ['window._cwBeep = function(count) {'
-        'var ctx = new (window.AudioContext || window.webkitAudioContext)();'
-        'for (var i = 0; i < count; i++) {'
-          'var now = ctx.currentTime;'
-          'var osc = ctx.createOscillator();'
-          'osc.frequency.value = 440;'
-          'var gain = ctx.createGain();'
-          'gain.gain.value = 0.3;'
-          'osc.connect(gain);'
-          'gain.connect(ctx.destination);'
-          'osc.start(now + i * 0.5);'
-          'osc.stop(now + i * 0.5 + 0.3);'
-        '}'
-      '}']);
-      _audioInitialized = true;
-    } catch (_) {}
+    initBeepBridge();
+    _audioInitialized = true;
   }
 
-  /// Play a short beep via the JS beep function.
+  /// Play a short beep via the JS beep helper.
   void playAlertSound({int count = 1}) {
     if (!_soundEnabled || !kIsWeb) return;
-    try {
-      context.callMethod('eval', ['window._cwBeep($count)']);
-    } catch (_) {}
+    playBeep(count);
   }
 
   /// Trigger a short vibration via the Navigator API (no permission needed).
   void _vibrate() {
-    try {
-      final navigator = context['navigator'] as JsObject?;
-      if (navigator == null) return;
-      navigator.callMethod('vibrate', [200]);
-    } catch (_) {}
+    vibrate(200);
   }
 
   // -- Tracking -------------------------------------------------------------
