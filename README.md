@@ -245,9 +245,10 @@ lib/
 │   ├── preferences_service.dart
 │   ├── user_settings_service.dart
 │   └── supabase_service.dart
-├── screens/                 # UI screens
+├── screens/                 # UI screens (thin — layout + wiring only)
 │   ├── login_screen.dart
 │   ├── signup_screen.dart
+│   ├── recovery_onboarding_screen.dart
 │   ├── pending_screen.dart
 │   ├── admin_screen.dart
 │   ├── main_shell.dart      # Bottom nav with conditional Transit tab
@@ -256,21 +257,35 @@ lib/
 │   ├── history_content.dart
 │   ├── projection_screen.dart
 │   ├── transit_screen.dart  # Journey options list with smart direction
-│   ├── settings_screen.dart # Transit config card (Work/Home pickers)
+│   ├── settings_screen.dart # Settings sections wiring
 │   └── about_encryption_screen.dart
-├── widgets/                 # Reusable widgets
+├── widgets/                 # Reusable widgets (extracted from screens)
 │   ├── add_day_dialog.dart  # Shared add-past-day dialog (Overview + History)
 │   ├── edit_day_dialog.dart
 │   ├── start_stop_day_dialogs.dart
 │   ├── commute_summary.dart
 │   ├── stat_row.dart
+│   ├── section_card.dart
+│   ├── summary_card.dart
+│   ├── period_tab.dart      # Week/month/year overview tab
+│   ├── calendar_views.dart  # Week/month/year calendar grids
 │   ├── time_bank_chart.dart
 │   ├── projection_chart.dart
+│   ├── journey_card.dart    # Transit journey card / badges
+│   ├── journey_tile.dart    # Shared journey status + pin controls
+│   ├── lunch_timer_section.dart
+│   ├── alert_banner.dart
+│   ├── small_button.dart
+│   ├── log_card.dart
+│   ├── import_dialog.dart
 │   ├── transit_config_section.dart
 │   ├── encryption_settings_section.dart
 │   ├── export_settings_section.dart
+│   ├── notification_settings.dart
+│   ├── personal_settings.dart
+│   ├── work_config_section.dart
+│   ├── toggle_row.dart
 │   ├── recovery_phrase_card.dart
-│   ├── journey_tile.dart
 │   └── station_picker.dart  # SL station autocomplete with debounce
 ├── utils/                   # Utilities
 │   ├── csv_export.dart
