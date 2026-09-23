@@ -139,3 +139,119 @@ class PinButton extends StatelessWidget {
     );
   }
 }
+
+
+class TransitJourneyRow extends StatelessWidget {
+  final JourneyInfo journey;
+  final DateTime now;
+  final int walkBuffer;
+  final ThemeData theme;
+  final bool isPinned;
+  final VoidCallback? onTogglePin;
+
+  const TransitJourneyRow({
+    super.key,
+    required this.journey,
+    required this.now,
+    required this.walkBuffer,
+    required this.theme,
+    this.isPinned = false,
+    this.onTogglePin,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final depLocal = journey.departureTime.toLocal();
+    final depStr =
+        '${depLocal.hour.toString().padLeft(2, '0')}:'
+        '${depLocal.minute.toString().padLeft(2, '0')}';
+
+    final lineBadge = journey.mainLine ?? '';
+    final delayColor = journeyDelayColor(journey);
+
+    final pinnedColor = isPinned
+        ? theme.colorScheme.tertiary
+        : theme.colorScheme.surfaceContainerHighest;
+
+    final status = journeyStatus(
+      journey: journey,
+      now: now,
+      walkBuffer: walkBuffer,
+      isPinned: isPinned,
+      tripLabel: '${journey.durationMinutes}min trip',
+      theme: theme,
+    );
+
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      decoration: isPinned
+          ? BoxDecoration(
+              color: pinnedColor.withValues(alpha: 0.25),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: theme.colorScheme.tertiary, width: 1),
+            )
+          : null,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                isPinned || status.catchable
+                    ? Icons.check_circle
+                    : Icons.cancel,
+                size: 16,
+                color: isPinned || status.catchable
+                    ? Colors.green
+                    : theme.colorScheme.error,
+              ),
+              const SizedBox(width: 6),
+              Text(
+                depStr,
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontFamily: 'monospace',
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              if (lineBadge.isNotEmpty) ...[ 
+                const SizedBox(width: 6),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.secondaryContainer,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    lineBadge,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: theme.colorScheme.onSecondaryContainer,
+                      fontSize: 10,
+                    ),
+                  ),
+                ),
+              ],
+              const SizedBox(width: 6),
+              Text(journey.delayLabel,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                color: delayColor,
+                fontSize: 10,
+              )),
+              const Spacer(),
+              PinButton(isPinned: isPinned, onTogglePin: onTogglePin, compact: true),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text(
+            status.text,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: status.color,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+}

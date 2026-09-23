@@ -11,7 +11,9 @@ import '../services/preferences_service.dart';
 import '../services/transit_service.dart';
 import '../services/user_settings_service.dart';
 import '../utils/format.dart';
+import '../widgets/alert_banner.dart';
 import '../widgets/edit_day_dialog.dart';
+import '../widgets/lunch_timer_section.dart';
 import '../widgets/journey_tile.dart';
 import '../widgets/start_stop_day_dialogs.dart';
 import '../widgets/stat_row.dart';
@@ -66,7 +68,7 @@ class _MyDayTabState extends State<MyDayTab> with SingleTickerProviderStateMixin
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             if (_alertMessage != null)
-              _AlertBanner(message: _alertMessage!, onDismiss: () {
+              AlertBanner(message: _alertMessage!, onDismiss: () {
                 setState(() => _alertMessage = null);
               }),
             _buildBalanceCard(theme),
@@ -225,7 +227,7 @@ class _MyDayTabState extends State<MyDayTab> with SingleTickerProviderStateMixin
             ),
             const SizedBox(height: 8),
             if (pinned != null)
-              _TransitJourneyRow(
+              TransitJourneyRow(
                 journey: pinned,
                 now: now,
                 walkBuffer: walkBuffer,
@@ -233,7 +235,7 @@ class _MyDayTabState extends State<MyDayTab> with SingleTickerProviderStateMixin
                 isPinned: true,
                 onTogglePin: () => pinStore.unpin(),
               ),
-            ...others.map((j) => _TransitJourneyRow(
+            ...others.map((j) => TransitJourneyRow(
                   journey: j,
                   now: now,
                   walkBuffer: walkBuffer,
@@ -428,7 +430,7 @@ class _MyDayTabState extends State<MyDayTab> with SingleTickerProviderStateMixin
             ),
 
             // Lunch timer section
-            _LunchTimerSection(
+            LunchTimerSection(
               lunchMinutes: lunch,
               lunchStartTime: _state.lunchStartTime,
               lunchEndTime: _state.lunchEndTime,
@@ -887,273 +889,3 @@ class _MyDayTabState extends State<MyDayTab> with SingleTickerProviderStateMixin
 // Transit departure row (used in My Day transit card)
 // ---------------------------------------------------------------------------
 
-class _TransitJourneyRow extends StatelessWidget {
-  final JourneyInfo journey;
-  final DateTime now;
-  final int walkBuffer;
-  final ThemeData theme;
-  final bool isPinned;
-  final VoidCallback? onTogglePin;
-
-  const _TransitJourneyRow({
-    required this.journey,
-    required this.now,
-    required this.walkBuffer,
-    required this.theme,
-    this.isPinned = false,
-    this.onTogglePin,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final depLocal = journey.departureTime.toLocal();
-    final depStr =
-        '${depLocal.hour.toString().padLeft(2, '0')}:'
-        '${depLocal.minute.toString().padLeft(2, '0')}';
-
-    final lineBadge = journey.mainLine ?? '';
-    final delayColor = journeyDelayColor(journey);
-
-    final pinnedColor = isPinned
-        ? theme.colorScheme.tertiary
-        : theme.colorScheme.surfaceContainerHighest;
-
-    final status = journeyStatus(
-      journey: journey,
-      now: now,
-      walkBuffer: walkBuffer,
-      isPinned: isPinned,
-      tripLabel: '${journey.durationMinutes}min trip',
-      theme: theme,
-    );
-
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 6),
-      decoration: isPinned
-          ? BoxDecoration(
-              color: pinnedColor.withValues(alpha: 0.25),
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: theme.colorScheme.tertiary, width: 1),
-            )
-          : null,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(
-                isPinned || status.catchable
-                    ? Icons.check_circle
-                    : Icons.cancel,
-                size: 16,
-                color: isPinned || status.catchable
-                    ? Colors.green
-                    : theme.colorScheme.error,
-              ),
-              const SizedBox(width: 6),
-              Text(
-                depStr,
-                style: theme.textTheme.titleMedium?.copyWith(
-                  fontFamily: 'monospace',
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              if (lineBadge.isNotEmpty) ...[ 
-                const SizedBox(width: 6),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 6, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: theme.colorScheme.secondaryContainer,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Text(
-                    lineBadge,
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: theme.colorScheme.onSecondaryContainer,
-                      fontSize: 10,
-                    ),
-                  ),
-                ),
-              ],
-              const SizedBox(width: 6),
-              Text(journey.delayLabel,
-                  style: theme.textTheme.bodySmall?.copyWith(
-                color: delayColor,
-                fontSize: 10,
-              )),
-              const Spacer(),
-              PinButton(isPinned: isPinned, onTogglePin: onTogglePin, compact: true),
-            ],
-          ),
-          const SizedBox(height: 4),
-          Text(
-            status.text,
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: status.color,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-}
-
-/// Lunch timer section — Start/Stop buttons plus elapsed display.
-class _LunchTimerSection extends StatelessWidget {
-  final int lunchMinutes;
-  final DateTime? lunchStartTime;
-  final DateTime? lunchEndTime;
-  final bool lunchActive;
-  final VoidCallback onStartLunch;
-  final VoidCallback onStopLunch;
-  final VoidCallback onEditLunch;
-  final ThemeData theme;
-
-  const _LunchTimerSection({
-    required this.lunchMinutes,
-    required this.lunchStartTime,
-    required this.lunchEndTime,
-    required this.lunchActive,
-    required this.onStartLunch,
-    required this.onStopLunch,
-    required this.onEditLunch,
-    required this.theme,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    if (lunchActive) {
-      // Timer is running — show elapsed + Stop button
-      final elapsed = DateTime.now().difference(lunchStartTime!);
-      final mins = elapsed.inMinutes;
-      final secs = elapsed.inSeconds % 60;
-      return Container(
-        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
-        decoration: BoxDecoration(
-          color: theme.colorScheme.tertiaryContainer.withValues(alpha: 0.3),
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Row(
-          children: [
-            Icon(Icons.restaurant, size: 16, color: theme.colorScheme.tertiary),
-            const SizedBox(width: 4),
-            Text('Lunch  ', style: theme.textTheme.bodyMedium),
-            Text(
-              '${mins.toString().padLeft(2, '0')}:${secs.toString().padLeft(2, '0')}',
-              style: theme.textTheme.bodyMedium?.copyWith(
-                fontWeight: FontWeight.w600,
-                fontFamily: 'monospace',
-              ),
-            ),
-            const Spacer(),
-            _SmallButton(
-              onPressed: onStopLunch,
-              backgroundColor: theme.colorScheme.tertiary,
-              foregroundColor: theme.colorScheme.onTertiary,
-              label: 'Stop',
-            ),
-          ],
-        ),
-      );
-    }
-
-    // Timer not running — show stored lunch minutes + Start button
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Row(
-        children: [
-          Icon(Icons.restaurant, size: 16, color: theme.colorScheme.onSurfaceVariant),
-          const SizedBox(width: 4),
-          Text('Lunch: $lunchMinutes min', style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600)),
-          if (lunchEndTime != null)
-            Text(' (timer)', style: TextStyle(fontStyle: FontStyle.italic, fontSize: 12)),
-          const Spacer(),
-          _SmallButton(
-            onPressed: onStartLunch,
-            backgroundColor: theme.colorScheme.primary,
-            foregroundColor: theme.colorScheme.onPrimary,
-            label: 'Start',
-          ),
-          const SizedBox(width: 4),
-          _SmallButton(
-            onPressed: onEditLunch,
-            backgroundColor: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
-            foregroundColor: theme.colorScheme.onSurfaceVariant,
-            label: 'Edit',
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// A compact button with label, used in _LunchTimerSection.
-class _SmallButton extends StatelessWidget {
-  final VoidCallback onPressed;
-  final Color backgroundColor;
-  final Color foregroundColor;
-  final String label;
-
-  const _SmallButton({
-    required this.onPressed,
-    required this.backgroundColor,
-    required this.foregroundColor,
-    required this.label,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      height: 28,
-      child: FilledButton(
-        onPressed: onPressed,
-        style: FilledButton.styleFrom(
-          backgroundColor: backgroundColor,
-          foregroundColor: foregroundColor,
-          padding: const EdgeInsets.symmetric(horizontal: 10),
-          textStyle: const TextStyle(fontSize: 12),
-        ),
-        child: Text(label),
-      ),
-    );
-  }
-}
-
-/// A colored banner that appears at the top of MyDayTab when an alert fires.
-class _AlertBanner extends StatelessWidget {
-  final String message;
-  final VoidCallback onDismiss;
-
-  const _AlertBanner({required this.message, required this.onDismiss});
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final isUrgent = message.contains('🚨');
-    return Card(
-      color: isUrgent ? theme.colorScheme.errorContainer : theme.colorScheme.tertiaryContainer,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        child: Row(
-          children: [
-            Icon(
-              isUrgent ? Icons.warning_rounded : Icons.info_outlined,
-              color: isUrgent ? theme.colorScheme.onErrorContainer : theme.colorScheme.onTertiaryContainer,
-            ),
-            const SizedBox(width: 12),
-            Expanded(child: Text(message, style: theme.textTheme.bodyMedium)),
-            IconButton(
-              icon: const Icon(Icons.close, size: 18),
-              onPressed: onDismiss,
-              padding: EdgeInsets.zero,
-              constraints: const BoxConstraints(),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
