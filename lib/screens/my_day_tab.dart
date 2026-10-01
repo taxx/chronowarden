@@ -429,6 +429,31 @@ class _MyDayTabState extends State<MyDayTab> with SingleTickerProviderStateMixin
               ],
             ),
 
+            // Note — editable while the day is active
+            const SizedBox(height: 8),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text('Note', style: theme.textTheme.titleSmall),
+                TextButton(
+                  onPressed: () => _showEditNoteDialog(context, log.note),
+                  child: Text(
+                    (log.note?.isNotEmpty == true) ? 'Edit' : 'Add',
+                  ),
+                ),
+              ],
+            ),
+            if (log.note?.isNotEmpty == true)
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  log.note,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ),
+
             // Lunch timer section
             LunchTimerSection(
               lunchMinutes: lunch,
@@ -574,6 +599,7 @@ class _MyDayTabState extends State<MyDayTab> with SingleTickerProviderStateMixin
         morningProductiveCommuteMinutes: result.morningProductiveCommuteMinutes,
         eveningOverheadMinutes: result.eveningOverheadMinutes,
         eveningProductiveCommuteMinutes: result.eveningProductiveCommuteMinutes,
+        note: result.note,
       );
       // Save last-used selections
       await prefs.setLastTravelPresetId(result.presetId);
@@ -695,6 +721,42 @@ class _MyDayTabState extends State<MyDayTab> with SingleTickerProviderStateMixin
         ),
       ),
     );
+  }
+
+  /// Add or edit the note on the active day.
+  Future<void> _showEditNoteDialog(BuildContext ctx, String? currentNote) async {
+    final controller = TextEditingController(text: currentNote ?? '');
+    await showDialog<void>(
+      context: ctx,
+      builder: (_) => AlertDialog(
+        title: const Text('Note'),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          maxLines: 3,
+          minLines: 1,
+          textCapitalization: TextCapitalization.sentences,
+          decoration: const InputDecoration(
+            hintText: 'Optional note...',
+            border: OutlineInputBorder(),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              _state.updateNote(controller.text);
+            },
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+    controller.dispose();
   }
 
   /// Dialog shown after pressing "Stop Lunch" — shows calculated duration

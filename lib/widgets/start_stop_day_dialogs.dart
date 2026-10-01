@@ -19,6 +19,7 @@ class StartDayResult {
   final int eveningOverheadMinutes;
   final int eveningProductiveCommuteMinutes;
   final String? presetId;
+  final String? note;
   StartDayResult(
     this.time,
     this.expectedMinutes,
@@ -29,6 +30,7 @@ class StartDayResult {
     this.eveningOverheadMinutes,
     this.eveningProductiveCommuteMinutes, {
     this.presetId,
+    this.note,
   });
 }
 
@@ -47,6 +49,7 @@ class StartDayDialog extends StatefulWidget {
   final List<TravelPreset> travelPresets;
   final String? initialPresetId;
   final int initialFlexMinutes;
+  final String? initialNote;
 
   const StartDayDialog({
     super.key,
@@ -54,6 +57,7 @@ class StartDayDialog extends StatefulWidget {
     required this.travelPresets,
     this.initialPresetId,
     this.initialFlexMinutes = 0,
+    this.initialNote,
   });
 
   @override
@@ -63,6 +67,7 @@ class StartDayDialog extends StatefulWidget {
 class _StartDayDialogState extends State<StartDayDialog> {
   late TimeOfDay _startTime;
   late TravelPreset _selectedPreset;
+  late TextEditingController _noteController;
   int _lunchMinutes = 30;
   int _flexMinutes = 0;
 
@@ -72,6 +77,13 @@ class _StartDayDialogState extends State<StartDayDialog> {
     _startTime = TimeOfDay.now();
     _selectedPreset = _initialPreset();
     _flexMinutes = widget.initialFlexMinutes;
+    _noteController = TextEditingController(text: widget.initialNote ?? '');
+  }
+
+  @override
+  void dispose() {
+    _noteController.dispose();
+    super.dispose();
   }
 
   int get _expected => widget.expectedMinutes;
@@ -203,6 +215,19 @@ class _StartDayDialogState extends State<StartDayDialog> {
                 Text('$_flexMinutes min', style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600)),
               ],
             ),
+            const SizedBox(height: 16),
+            Text('Note', style: theme.textTheme.titleSmall),
+            const SizedBox(height: 4),
+            TextField(
+              controller: _noteController,
+              maxLines: 2,
+              minLines: 1,
+              textCapitalization: TextCapitalization.sentences,
+              decoration: const InputDecoration(
+                hintText: 'Optional note...',
+                border: OutlineInputBorder(),
+              ),
+            ),
             const SizedBox(height: 12),
             Container(
               width: double.infinity,
@@ -254,6 +279,9 @@ class _StartDayDialogState extends State<StartDayDialog> {
             _eveningOverhead,
             _eveningProductive,
             presetId: _selectedPreset.id,
+            note: _noteController.text.trim().isEmpty
+                ? null
+                : _noteController.text.trim(),
           )),
           child: const Text('Start'),
         ),

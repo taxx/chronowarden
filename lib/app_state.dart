@@ -355,6 +355,7 @@ class AppState extends ChangeNotifier {
     int morningProductiveCommuteMinutes = 0,
     int eveningOverheadMinutes = 0,
     int eveningProductiveCommuteMinutes = 0,
+    String? note,
   }) async {
     final date = _dateStr(DateTime.now());
     final existing = await logs.activeToday();
@@ -371,6 +372,7 @@ class AppState extends ChangeNotifier {
       eveningOverheadMinutes: eveningOverheadMinutes,
       eveningProductiveCommuteMinutes: eveningProductiveCommuteMinutes,
       overtimeMinutes: 0,
+      note: note,
     );
     final saved = await logs.insert(newLog);
     _todayLog = saved;
@@ -395,6 +397,18 @@ class AppState extends ChangeNotifier {
     final log = _todayLog;
     if (log == null || log.id == null) return;
     await logs.update(log.id!, {'flex_minutes': flexMinutes});
+    await _loadToday();
+    notifyListeners();
+  }
+
+  // -- update the note on the active day ----------------------------
+  Future<void> updateNote(String? note) async {
+    final log = _todayLog;
+    if (log == null || log.id == null) return;
+    final trimmed = note?.trim();
+    await logs.update(log.id!, {
+      'note': (trimmed == null || trimmed.isEmpty) ? null : trimmed,
+    });
     await _loadToday();
     notifyListeners();
   }
