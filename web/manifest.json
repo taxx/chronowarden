@@ -5,7 +5,7 @@
     "display": "standalone",
     "background_color": "#ffffff",
     "theme_color": "#4C76A4",
-    "description": "Personal time-tracking and overtime protection",
+    "description": "Open-source personal time-tracking and overtime protection",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

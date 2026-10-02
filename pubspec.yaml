@@ -1,5 +1,5 @@
 name: chronowarden
-description: "Personal time-banking & overtime protection system."
+description: "Personal time-banking & overtime protection system. Open source under the MIT license."
 publish_to: 'none'
 version: 0.1.0+1
 
@@ -15,6 +15,7 @@ dependencies:
   shared_preferences: ^2.0.0
   cryptography: ^2.0.0
   crypto: ^3.0.7
+  url_launcher: ^6.3.0
 
 dev_dependencies:
   flutter_test:

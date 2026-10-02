@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 
+import '../app_info.dart';
 import '../services/auth_service.dart';
 import '../services/supabase_service.dart';
 import '../utils/paste_button.dart';
+import '../widgets/external_link.dart';
 import 'about_encryption_screen.dart';
 import 'migration_screen.dart';
 import 'signup_screen.dart';
@@ -236,6 +238,33 @@ class _LoginScreenState extends State<LoginScreen> {
                       fontWeight: FontWeight.w600,
                     ),
                   ),
+                ),
+
+                // --- Open source footer ---
+                const SizedBox(height: 12),
+                Divider(color: theme.colorScheme.outlineVariant),
+                const SizedBox(height: 4),
+                Text(
+                  '${AppInfo.name} is open source (${AppInfo.licenseName}).',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                Wrap(
+                  alignment: WrapAlignment.center,
+                  children: [
+                    ExternalLinkText(
+                      label: 'GitHub',
+                      url: AppInfo.repoUrl,
+                      icon: Icons.code,
+                    ),
+                    ExternalLinkText(
+                      label: 'Report an issue',
+                      url: AppInfo.issuesUrl,
+                      icon: Icons.bug_report_outlined,
+                    ),
+                  ],
                 ),
               ],
             ),

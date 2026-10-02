@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../app_state.dart';
 import '../models/travel_preset.dart';
 import '../models/work_config.dart';
+import '../widgets/about_app_section.dart';
 import '../widgets/encryption_settings_section.dart';
 import '../widgets/export_settings_section.dart';
 import '../widgets/notification_settings.dart';
@@ -76,6 +77,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
         ExportSection(),
         const SizedBox(height: 24),
         EncryptionSection(),
+        const SizedBox(height: 24),
+        AboutAppSection(),
       ],
     );
   }

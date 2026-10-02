@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 
+import '../app_info.dart';
+import '../widgets/external_link.dart';
+
 /// Detailed explanation of the app's encryption model.
 ///
 /// Accessible from Settings → "How encryption works".
@@ -133,9 +136,9 @@ class EncryptionInfoContent extends StatelessWidget {
                   theme,
                   'Session Persistence',
                   'For convenience, the unwrapped DEK is cached in browser '
-                  'sessionStorage. This means refreshing the page (F5) '
-                  'does not require re-entering your passphrase. The cache '
-                  'is automatically cleared when you close the browser tab.',
+                  'localStorage. This means refreshing the page (F5) and '
+                  'reopening the browser tab do not require re-entering your '
+                  'passphrase. The cache is cleared when you sign out.',
                 ),
                 const SizedBox(height: 24),
 
@@ -177,9 +180,39 @@ class EncryptionInfoContent extends StatelessWidget {
                 _techDetail(theme, 'Recovery encoding',
                     'BIP39-style 24-word mnemonic phrase'),
                 _techDetail(theme, 'Session cache',
-                    'Browser sessionStorage (cleared on tab close)'),
+                    'Browser localStorage (cleared on sign out)'),
                 _techDetail(theme, 'Server storage',
                     'Ciphertext only — server cannot read plaintext'),
+                const SizedBox(height: 24),
+
+                // --- Open source ---
+                Text(
+                  'Open Source',
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                _section(
+                  theme,
+                  'Free & Auditable',
+                  '${AppInfo.name} is released under the '
+                  '${AppInfo.licenseName}. Anyone can read the code, verify '
+                  'that the encryption above works as described, self-host '
+                  'it, or contribute improvements.',
+                ),
+                const SizedBox(height: 12),
+                ExternalLinkButton(
+                  label: 'View source on GitHub',
+                  url: AppInfo.repoUrl,
+                  icon: Icons.code,
+                ),
+                const SizedBox(height: 8),
+                ExternalLinkButton(
+                  label: 'Report an issue',
+                  url: AppInfo.issuesUrl,
+                  icon: Icons.bug_report_outlined,
+                ),
               ],
             ),
           ),

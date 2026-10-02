@@ -1,14 +1,65 @@
 # ChronoWarden 🛡️⏱️
 
-ChronoWarden is a personal time-banking and overtime protection system built using Flutter (Mobile/Web) and Supabase. The primary objective of the application is to protect the user's personal time and prevent unintended, unpaid overtime by calculating the exact time they can stop working with a clear conscience.
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![GitHub issues](https://img.shields.io/github/issues/taxx/chronowarden)](https://github.com/taxx/chronowarden/issues)
+[![GitHub stars](https://img.shields.io/github/stars/taxx/chronowarden)](https://github.com/taxx/chronowarden)
+
+ChronoWarden is a personal time-banking and overtime protection system built with
+Flutter (Web/Mobile) and Supabase. Its goal is to protect your personal time and
+prevent unintended, unpaid overtime by calculating the exact moment you can stop
+working with a clear conscience.
+
+It is **free and open-source software** (MIT), built to be **self-hosted**.
+You can also use the maintainer's hosted instance as a convenience — but that
+instance is provided on a **best-effort basis**, with **no guarantees** of
+availability, uptime, or data retention.
+
+| Resource | Link |
+|----------|------|
+| 📦 Source code | <https://github.com/taxx/chronowarden> |
+| 🐛 Report an issue / request a feature | <https://github.com/taxx/chronowarden/issues> |
+| 📖 Self-hosting guide | this file (see [Running it](#two-ways-to-run-chronowarden)) |
+| ⚖️ License | [MIT](LICENSE) |
+| 🔐 Encryption architecture | [`ENCRYPTION_PLAN.md`](ENCRYPTION_PLAN.md) |
+| 👥 Auth architecture | [`AUTH.md`](AUTH.md) |
+
+---
+
+## Two ways to run ChronoWarden
+
+### 1. Self-host it (recommended)
+
+You run the whole stack yourself: your own Supabase project, your own web
+container, your own data. This is the most private and most durable option —
+nobody else can shut it down, and you own your backups. Everything you need is
+in this repository; see [Getting Started](#getting-started--secrets-management)
+and [Docker Deployment](#docker-deployment).
+
+### 2. Use the hosted instance (best effort)
+
+The maintainer also runs a public instance at
+<https://chronowarden.slumpen.com/>. It is meant as a convenience, not a
+service-level commitment:
+
+- **No guarantees.** Availability, uptime, and data retention are best-effort.
+  The instance may be down, reset, or retired at any time.
+- **Your data is still encrypted end-to-end** with your own passphrase, so the
+  host cannot read it. But if you lose your passphrase *and* your recovery
+  phrase, no one — including the administrator — can restore your data.
+- **Back up anything you care about.** Prefer self-hosting or the CSV export if
+  you need long-term guarantees.
+
+---
 
 ## Architecture & Tech Stack
+
 - **Frontend:** Flutter (KISS design principles, responsive for both mobile and web).
 - **Backend & Database:** Supabase (PostgreSQL with automatic REST API generation and built-in Authentication).
 - **Security:** Row Level Security (RLS) in Supabase for seamless multi-user isolation. API secrets managed securely via Dart-defines.
 - **Auth:** Supabase Auth with admin-invite model. Each user operates on their own isolated "island" — admins can manage users but cannot see their data.
 
 ## Multi-User & Auth
+
 ChronoWarden supports multiple users with role-based access:
 
 | Role | Capabilities |
@@ -20,16 +71,20 @@ ChronoWarden supports multiple users with role-based access:
 - **New users** join via invite tokens shared by an admin, or sign up as pending until approved
 - **Data isolation** is enforced at the database level via RLS policies — each user can only see their own `time_logs`, `travel_presets`, and `user_settings`
 
-See `AUTH.md` for the full authentication architecture.
+See [`AUTH.md`](AUTH.md) for the full authentication architecture.
 
 ## Core Logic & Features
+
 1. **Seasonal Work Periods:** Automatically detects if the current day requires summer hours (e.g., 7h 15m / 435 mins) or winter hours (e.g., 8h / 480 mins) based on user-defined reduced-week ranges (ISO week numbers, weeks start on Monday as in Sweden). The ISO week number is computed with UTC date arithmetic so Daylight Saving Time transitions never skew the week count. The Week/Month overview headers show the current ISO week(s) to make the reduced-period mapping transparent. The month calendar is aligned to the real weekday columns — the 1st of the month sits under its actual weekday, with the previous/next month's boundary days shown dimmed and unclickable.
 2. **Dynamic Travel Presets:** Users configure their commute/work scenarios (e.g., "Train via Mörby", "Car", "WFH") along with their associated `overhead_minutes` (combined buffer for lunch, walking, driving, etc.).
 3. **Morning Calculator:** Instantly determines the target departure time as soon as the day starts:  
    `Leave Time = Start Time + Expected Work Minutes + Overhead Minutes + Lunch Minutes`
 4. **Time Bank:** The overall flex-time balance is derived dynamically by summing the `overtime_minutes` (+/- net) across all recorded entries.
 
+---
+
 ## Getting Started & Secrets Management
+
 ChronoWarden uses `--dart-define-from-file` to inject API credentials at compile time.
 Secrets are kept out of version control via `.gitignore` (both `secrets.json`, `.env`, and `.env.db`).
 
@@ -39,6 +94,10 @@ Used for Flutter/Docker builds. Never committed.
 ### Database credentials (`.env.db`)
 Used by the AI agent for direct database operations (SQL migrations, backups).
 See `.env.db.sample` for the template. Never committed.
+
+### Edge Function credentials (`.env.edge`)
+Used to deploy the `sl-proxy` Supabase Edge Function.
+See `.env.edge.sample` for the template. Never committed.
 
 ### Local Development
 1. Create a file named `secrets.json` in the root directory:
@@ -106,12 +165,12 @@ the encryption setup — and the importance of keeping their keys and recovery
 phrase safe — before they sign in.
 
 ### DEK Cache
-- The unwrapped DEK is cached in `localStorage` (not `sessionStorage`)
-- Survives closing and reopening the browser tab
+- The unwrapped DEK is cached in browser `localStorage` (not `sessionStorage`)
+- Survives refreshing and reopening the browser tab
 - Cleared on logout
 - If the cached DEK is missing but an envelope exists, the app prompts for passphrase
 
-See `ENCRYPTION_PLAN.md` for the full architecture decision record.
+See [`ENCRYPTION_PLAN.md`](ENCRYPTION_PLAN.md) for the full architecture decision record.
 
 ---
 
@@ -131,6 +190,9 @@ pg_restore --dbname="$DB_CONNECTION_STRING" --format=tar chronowarden_backup_*.t
 ```
 
 Backup files are gitignored (`chronowarden_backup_*.tar`).
+
+A `backup` container can also run `pg_dump` on a cron schedule (daily at
+02:00, 62-day retention by default) — see `backup/` and `docker-compose.yaml`.
 
 ---
 
@@ -154,16 +216,12 @@ Returns journey planner global IDs (strings like "9091001001009638").
 
 ### CORS proxy + response slimming
 SL Journey Planner API doesn't set CORS headers. The `sl-proxy` Edge
-Function adds CORS headers and **slimes** the verbose `/v2/trips`
+Function adds CORS headers and **slims** the verbose `/v2/trips`
 response (~220KB for 3 journeys) to essential fields (~2KB).
 
 ### Transit tab visibility
 The Transit nav item only appears when enabled in Settings.
 Disabled users never see it.
-
-### Edge Function credentials (`.env.edge`)
-Credentials live in `.env.edge` (gitignored). Template at `.env.edge.sample`.
-Contains the Supabase access token and project reference.
 
 ### Edge Function deployment
 Located at `supabase/functions/sl-proxy/index.ts`.
@@ -171,14 +229,7 @@ Must be deployed separately — NOT included in Docker build:
 ```bash
 cd /path/to/chronowarden
 source .env.edge
-ssh tobbe@192.168.1.50 "cd /opt/appdata/chronowarden && SUPABASE_ACCESS_TOKEN='$SUPABASE_ACCESS_TOKEN' supabase functions deploy sl-proxy"
-```
-
-**First-time CLI install** (already done):
-```bash
-ssh tobbe@192.168.1.50 "curl -fsSL 'https://github.com/supabase/cli/releases/latest/download/supabase_cli_linux_amd64.tar.gz' -o /tmp/supabase.tar.gz && tar -xzf /tmp/supabase.tar.gz -C /tmp && sudo mv /tmp/supabase /usr/local/bin/supabase && sudo chmod +x /usr/local/bin/supabase && rm -f /tmp/supabase.tar.gz"
-source .env.edge
-SUPABASE_ACCESS_TOKEN="$SUPABASE_ACCESS_TOKEN" supabase link --project-ref "$SUPABASE_PROJECT_REF"
+supabase functions deploy sl-proxy
 ```
 
 ---
@@ -222,8 +273,10 @@ Paste buttons appear on:
 ---
 
 ## Project Structure
+
 ```
 lib/
+├── app_info.dart            # Project metadata + public links (repo, issues, license)
 ├── models/                  # Domain models
 │   ├── time_log.dart        # Workday log entry
 │   ├── travel_preset.dart   # Commute scenario preset
@@ -258,7 +311,8 @@ lib/
 │   ├── projection_screen.dart
 │   ├── transit_screen.dart  # Journey options list with smart direction
 │   ├── settings_screen.dart # Settings sections wiring
-│   └── about_encryption_screen.dart
+│   ├── about_encryption_screen.dart
+│   └── about_screen.dart    # About, open source, issue tracker, self-hosting
 ├── widgets/                 # Reusable widgets (extracted from screens)
 │   ├── add_day_dialog.dart  # Shared add-past-day dialog (Overview + History)
 │   ├── edit_day_dialog.dart
@@ -280,6 +334,8 @@ lib/
 │   ├── import_dialog.dart
 │   ├── transit_config_section.dart
 │   ├── encryption_settings_section.dart
+│   ├── about_app_section.dart # Open-source links card (Settings)
+│   ├── external_link.dart   # Reusable link text/button (url_launcher)
 │   ├── export_settings_section.dart
 │   ├── notification_settings.dart
 │   ├── personal_settings.dart
@@ -292,6 +348,7 @@ lib/
 │   ├── csv_import.dart
 │   ├── format.dart          # Shared minute/duration formatting
 │   ├── paste_button.dart
+│   ├── external_link.dart   # Open URLs in the browser
 │   ├── web_browser.dart     # Conditional web bridge (beep/vibrate)
 │   ├── web_download.dart    # Conditional file download
 │   └── web_local_storage.dart # Conditional localStorage facade
@@ -302,3 +359,29 @@ supabase/
     └── sl-proxy/
         └── index.ts         # Edge Function: CORS proxy + response slimming
 ```
+
+---
+
+## Contributing
+
+Contributions are welcome — bug reports, feature ideas, documentation fixes, and
+pull requests.
+
+- **Found a bug or have an idea?** Open an issue at
+  <https://github.com/taxx/chronowarden/issues>. Please include steps to
+  reproduce, expected vs. actual behaviour, and your platform (web, Android, iOS).
+- **Questions about security or encryption?** See [`ENCRYPTION_PLAN.md`](ENCRYPTION_PLAN.md)
+  first; it documents the threat model and design decisions.
+- **Before opening a PR:** run `flutter analyze` and `flutter test`. Keep changes
+  small and consistent with the KISS approach (no heavy state-management or
+  architecture frameworks).
+
+## License
+
+ChronoWarden is released under the [MIT License](LICENSE).
+
+Copyright © 2026 [taxx](https://github.com/taxx) and contributors.
+
+You are free to use, copy, modify, merge, publish, distribute, sublicense, and/or
+sell copies of the software, subject only to including the copyright notice and
+license. The software is provided "as is", without warranty of any kind.
