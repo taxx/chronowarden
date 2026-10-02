@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
+import '../app_info.dart';
 import '../app_state.dart';
 import '../services/auth_service.dart';
 import '../services/theme_service.dart';
 import '../services/transit_service.dart';
+import '../utils/external_link.dart';
 import 'admin_screen.dart';
 import 'history_content.dart';
 import 'my_day_tab.dart';
@@ -39,8 +41,14 @@ class _MainShellState extends State<MainShell> {
         title: const Text('Sign out'),
         content: const Text('Are you sure you want to sign out?'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
-          FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Sign Out')),
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Sign Out'),
+          ),
         ],
       ),
     );
@@ -59,10 +67,7 @@ class _MainShellState extends State<MainShell> {
         final transitEnabled = TransitService().config.enabled;
 
         final destinations = <NavigationDestination>[
-          const NavigationDestination(
-            icon: Icon(Icons.home),
-            label: 'My Day',
-          ),
+          const NavigationDestination(icon: Icon(Icons.home), label: 'My Day'),
           const NavigationDestination(
             icon: Icon(Icons.bar_chart_rounded),
             label: 'Overview',
@@ -101,6 +106,11 @@ class _MainShellState extends State<MainShell> {
               ],
             ),
             actions: [
+              IconButton(
+                icon: const Icon(Icons.bug_report_outlined),
+                tooltip: 'Report an issue',
+                onPressed: () => openExternalLink(context, AppInfo.issuesUrl),
+              ),
               ListenableBuilder(
                 listenable: ThemeService(),
                 builder: (context, _) {
