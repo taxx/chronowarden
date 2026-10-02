@@ -35,28 +35,11 @@ class _MainShellState extends State<MainShell> {
   final _state = AppState();
 
   /// Quick access to the GitHub issue tracker.
-  ///
-  /// Shows a labelled button when there is room for it, and a prominent
-  /// icon button on narrow screens.
   Widget _reportIssueButton(BuildContext context) {
-    final theme = Theme.of(context);
-
-    void openIssues() => openExternalLink(context, AppInfo.issuesUrl);
-
-    if (MediaQuery.sizeOf(context).width >= 640) {
-      return TextButton.icon(
-        onPressed: openIssues,
-        icon: const Icon(Icons.bug_report_outlined, size: 18),
-        label: const Text('Report issue'),
-        style: TextButton.styleFrom(foregroundColor: theme.colorScheme.primary),
-      );
-    }
-
     return IconButton(
       icon: const Icon(Icons.bug_report),
-      color: theme.colorScheme.primary,
-      tooltip: 'Report an issue',
-      onPressed: openIssues,
+      tooltip: 'Report an issue or request a feature',
+      onPressed: () => openExternalLink(context, AppInfo.issuesUrl),
     );
   }
 
