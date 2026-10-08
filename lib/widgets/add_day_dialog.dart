@@ -206,8 +206,9 @@ class _AddDayDialogState extends State<AddDayDialog> {
                   child: Slider(
                     value: _lunch.toDouble(),
                     min: 0,
-                    max: 240,
-                    divisions: PreferencesService().sliderDivisions(0, 240),
+                    max: PreferencesService.maxLunchMinutes.toDouble(),
+                    divisions: PreferencesService()
+                        .sliderDivisions(0, PreferencesService.maxLunchMinutes.toDouble()),
                     label: '$_lunch min',
                     onChanged: (v) => setState(() => _lunch = v.round()),
                   ),

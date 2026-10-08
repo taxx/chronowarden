@@ -633,8 +633,9 @@ class _MyDayTabState extends State<MyDayTab> with SingleTickerProviderStateMixin
               Slider(
                 value: lunch.toDouble(),
                 min: 0,
-                max: 120,
-                divisions: PreferencesService().sliderDivisions(0, 120),
+                max: PreferencesService.maxLunchMinutes.toDouble(),
+                divisions: PreferencesService()
+                    .sliderDivisions(0, PreferencesService.maxLunchMinutes.toDouble()),
                 label: '$lunch min',
                 onChanged: (v) {
                   lunch = v.round();
@@ -768,7 +769,8 @@ class _MyDayTabState extends State<MyDayTab> with SingleTickerProviderStateMixin
     final end = DateTime.now();
     final calculatedMinutes = end.difference(start).inMinutes;
 
-    int lunch = calculatedMinutes.clamp(0, 240);
+    int lunch =
+        calculatedMinutes.clamp(0, PreferencesService.maxLunchMinutes);
     await showDialog<void>(
       context: ctx,
       builder: (_) => StatefulBuilder(
@@ -794,8 +796,9 @@ class _MyDayTabState extends State<MyDayTab> with SingleTickerProviderStateMixin
                     child: Slider(
                       value: lunch.toDouble(),
                       min: 0,
-                      max: 240,
-                      divisions: PreferencesService().sliderDivisions(0, 240),
+                      max: PreferencesService.maxLunchMinutes.toDouble(),
+                      divisions: PreferencesService()
+                          .sliderDivisions(0, PreferencesService.maxLunchMinutes.toDouble()),
                       label: '$lunch min',
                       onChanged: (v) {
                         lunch = v.round();

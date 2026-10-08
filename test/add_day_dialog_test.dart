@@ -1,4 +1,5 @@
 import 'package:chronowarden/models/travel_preset.dart';
+import 'package:chronowarden/services/preferences_service.dart';
 import 'package:chronowarden/widgets/add_day_dialog.dart';
 import 'package:chronowarden/widgets/commute_summary.dart';
 import 'package:flutter/material.dart';
@@ -57,5 +58,43 @@ void main() {
   testWidgets('selects the preset matching initialPresetId', (tester) async {
     await _open(tester, initialPresetId: 'p1');
     expect(find.text('Train (+30 min)'), findsOneWidget);
+  });
+
+  testWidgets('lunch slider allows a 6-hour break', (tester) async {
+    AddDayResult? result;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: Builder(
+            builder: (context) => ElevatedButton(
+              onPressed: () async {
+                result = await showDialog<AddDayResult>(
+                  context: context,
+                  builder: (_) => AddDayDialog(
+                    initialDate: DateTime(2026, 9, 1),
+                    expectedMinutes: 480,
+                    travelPresets: const [_preset],
+                  ),
+                );
+              },
+              child: const Text('open'),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.tap(find.text('open'));
+    await tester.pumpAndSettle();
+
+    final lunchSlider = tester.widget<Slider>(find.byType(Slider));
+    expect(lunchSlider.max, PreferencesService.maxLunchMinutes.toDouble());
+
+    lunchSlider.onChanged!(300);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Add'));
+    await tester.pumpAndSettle();
+
+    expect(result, isNotNull);
+    expect(result!.lunchMinutes, 300);
   });
 }

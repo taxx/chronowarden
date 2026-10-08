@@ -1,4 +1,5 @@
 import 'package:chronowarden/models/travel_preset.dart';
+import 'package:chronowarden/services/preferences_service.dart';
 import 'package:chronowarden/widgets/start_stop_day_dialogs.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -90,5 +91,42 @@ void main() {
     final result = await _openAndConfirm(tester);
     expect(result, isNotNull);
     expect(result!.note, isNull);
+  });
+
+  testWidgets('lunch slider allows a 6-hour break', (tester) async {
+    StartDayResult? result;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: Builder(
+            builder: (context) => ElevatedButton(
+              onPressed: () async {
+                result = await showDialog<StartDayResult>(
+                  context: context,
+                  builder: (_) => const StartDayDialog(
+                    expectedMinutes: 480,
+                    travelPresets: [_preset],
+                  ),
+                );
+              },
+              child: const Text('open'),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.tap(find.text('open'));
+    await tester.pumpAndSettle();
+
+    final lunchSlider = tester.widget<Slider>(find.byType(Slider).first);
+    expect(lunchSlider.max, PreferencesService.maxLunchMinutes.toDouble());
+
+    lunchSlider.onChanged!(300);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Start'));
+    await tester.pumpAndSettle();
+
+    expect(result, isNotNull);
+    expect(result!.lunchMinutes, 300);
   });
 }

@@ -188,8 +188,9 @@ class _StartDayDialogState extends State<StartDayDialog> {
                   child: Slider(
                     value: _lunchMinutes.toDouble(),
                     min: 0,
-                    max: 120,
-                    divisions: PreferencesService().sliderDivisions(0, 120),
+                    max: PreferencesService.maxLunchMinutes.toDouble(),
+                    divisions: PreferencesService()
+                        .sliderDivisions(0, PreferencesService.maxLunchMinutes.toDouble()),
                     label: '$_lunchMinutes min',
                     onChanged: (v) => setState(() => _lunchMinutes = v.round()),
                   ),
@@ -346,8 +347,9 @@ class _StopDayDialogState extends State<StopDayDialog> {
                 child: Slider(
                   value: _lunchMinutes.toDouble(),
                   min: 0,
-                  max: 240,
-                  divisions: PreferencesService().sliderDivisions(0, 240),
+                  max: PreferencesService.maxLunchMinutes.toDouble(),
+                  divisions: PreferencesService()
+                      .sliderDivisions(0, PreferencesService.maxLunchMinutes.toDouble()),
                   label: '$_lunchMinutes min',
                   onChanged: (v) => setState(() => _lunchMinutes = v.round()),
                 ),

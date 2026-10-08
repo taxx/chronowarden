@@ -11,6 +11,9 @@ class PreferencesService {
   static final PreferencesService _instance = PreferencesService._();
   factory PreferencesService() => _instance;
 
+  /// Upper bound for lunch-break sliders (6 hours).
+  static const int maxLunchMinutes = 360;
+
   static const _keyPresetId = 'last_travel_preset_id';
   static const _keyShowWeekends = 'show_weekends';
   static const _keySliderInterval = 'slider_interval_minutes';
