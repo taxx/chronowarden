@@ -5,6 +5,7 @@
 
 ## 2026-10-09
 
+- Add in-app changelog (What's New) generated from git history (`cd23654`)
 - Rework leave-time notifications: snooze, dismiss, persisted state, live-lunch fix (`f8e9290`)
 
 ## 2026-10-08

@@ -57,4 +57,8 @@ trap 'rm -f "$TMP"' EXIT
 mv "$TMP" "$OUT"
 trap - EXIT
 
+# mktemp creates 0600 files; make the asset world-readable so the nginx
+# worker can serve it (and so it behaves like a normal checked-in file).
+chmod 644 "$OUT"
+
 echo "Wrote $OUT from $(git rev-list --count HEAD) commits."
