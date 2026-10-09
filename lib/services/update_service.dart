@@ -69,8 +69,11 @@ class UpdateService extends ChangeNotifier {
   Future<void> check() async {
     try {
       _running ??= await _loadRunningBuild();
+      // Resolve against the app's base URL so a sub-path deployment
+      // (e.g. https://host/chronowarden/) fetches the right file.
+      final url = Uri.base.resolve(versionUrl).toString();
       final raw = await fetchText(
-        '$versionUrl?t=${DateTime.now().millisecondsSinceEpoch}',
+        '$url?t=${DateTime.now().millisecondsSinceEpoch}',
       );
       if (raw == null) return;
       final server = BuildInfo.parse(raw);

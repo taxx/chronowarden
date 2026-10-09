@@ -5,6 +5,7 @@
 
 ## 2026-10-09
 
+- Add update-in-place prompt when a newer build is deployed (`2134a8e`)
 - Fix changelog asset permissions (nginx 403) (`b1245a9`)
 - Add in-app changelog (What's New) generated from git history (`cd23654`)
 - Rework leave-time notifications: snooze, dismiss, persisted state, live-lunch fix (`f8e9290`)
