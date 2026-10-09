@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../app_info.dart';
 import '../screens/about_screen.dart';
+import '../screens/changelog_screen.dart';
 import 'external_link.dart';
 
 /// Settings card linking to the open-source project: source code, issue
@@ -47,6 +48,18 @@ class AboutAppSection extends StatelessWidget {
                 ),
                 icon: const Icon(Icons.info_outline, size: 18),
                 label: const Text('About ChronoWarden'),
+              ),
+            ),
+            const SizedBox(height: 8),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const ChangelogScreen()),
+                ),
+                icon: const Icon(Icons.new_releases_outlined, size: 18),
+                label: const Text("What's New"),
               ),
             ),
             const SizedBox(height: 8),

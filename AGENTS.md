@@ -82,10 +82,14 @@ The project includes a multi-stage Dockerfile + docker-compose.yaml for containe
 
 Whenever source code is changed locally, follow these steps to deploy to the server:
 
-#### Step 1 — Commit and push locally
+#### Step 1 — Regenerate the changelog, then commit and push locally
+
+The in-app changelog is generated from the git history, so refresh it before
+committing (see the "Changelog / What's New" section):
 
 ```bash
 cd /path/to/chronowarden
+tool/generate_changelog.sh
 git add -A
 git commit -m "describe the change"
 git push origin main
@@ -528,6 +532,53 @@ leaving, then again if they overrun.
 | `lib/screens/my_day_tab.dart` | Per-second `_checkNotification()` tick |
 | `lib/screens/main_shell.dart` | Global banner host |
 | `test/notification_service_test.dart` | Alert-timing regression tests |
+
+---
+
+## Changelog / What's New
+
+The app shows an in-app changelog, generated **from the git commit history**.
+There is no hand-maintained list — the commit subjects are the source of truth.
+
+### How it works
+```
+tool/generate_changelog.sh   → CHANGELOG.md (committed)
+        → Flutter asset (pubspec.yaml)
+        → ChangelogService.load() → parseChangelog()
+        → ChangelogScreen ("What's New")
+```
+
+- `tool/generate_changelog.sh` runs `git log --no-merges` (newest first,
+grouped by commit date) and writes `CHANGELOG.md`. Default: last 300 commits.
+- `CHANGELOG.md` **is committed** so local builds and self-hosted instances
+that lack `.git` still ship a changelog.
+- The Docker build also re-runs the script (best effort) so the hosted
+instance always reflects the history it was built from.
+
+### When to run it
+Run `tool/generate_changelog.sh` as part of the release routine — before
+`git commit` (see "Release to production → Step 1").
+
+### UI entry points
+- Settings → **About & Open Source → What's New**
+- About screen → **What's New → View changelog**
+
+The Markdown format is intentionally tiny (headings `## YYYY-MM-DD` and
+bullets `- text (\`hash\`)`) so no Markdown package is needed; see
+`parseChangelog()`.
+
+### Key files
+| File | Purpose |
+|------|---------|
+| `tool/generate_changelog.sh` | Generates `CHANGELOG.md` from `git log` |
+| `CHANGELOG.md` | Generated changelog (committed asset) |
+| `lib/models/changelog.dart` | `ChangelogEntry`/`ChangelogGroup` + `parseChangelog()` |
+| `lib/services/changelog_service.dart` | Loads + caches the asset |
+| `lib/screens/changelog_screen.dart` | "What's New" screen |
+| `lib/screens/about_screen.dart` | "What's New" section / entry point |
+| `lib/widgets/about_app_section.dart` | Settings card entry point |
+| `test/changelog_test.dart` | Parser tests |
+| `test/changelog_screen_test.dart` | Asset-loading widget test |
 
 ---
 

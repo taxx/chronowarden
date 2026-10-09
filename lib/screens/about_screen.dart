@@ -4,6 +4,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 import '../app_info.dart';
 import '../widgets/external_link.dart';
 import 'about_encryption_screen.dart';
+import 'changelog_screen.dart';
 
 /// Everything a user might want to know about the project: what it is,
 /// that it is open source, where to report issues, and how to self-host.
@@ -56,6 +57,30 @@ class AboutScreen extends StatelessWidget {
                           ),
                         ),
                       ],
+                    ),
+                  ),
+                  const SizedBox(height: 32),
+
+                  // --- What's new ----------------------------------------
+                  _sectionTitle(theme, "What's New"),
+                  _paragraph(
+                    theme,
+                    'Every change to ${AppInfo.name} is tracked in the git '
+                    'history — the changelog below is generated straight from '
+                    'those commits.',
+                  ),
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const ChangelogScreen(),
+                        ),
+                      ),
+                      icon: const Icon(Icons.new_releases_outlined, size: 18),
+                      label: const Text('View changelog'),
                     ),
                   ),
                   const SizedBox(height: 32),

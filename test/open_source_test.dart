@@ -38,6 +38,7 @@ void main() {
       expect(find.text('About & Open Source'), findsOneWidget);
       expect(find.textContaining('MIT License'), findsWidgets);
       expect(find.text('About ChronoWarden'), findsOneWidget);
+      expect(find.text("What's New"), findsOneWidget);
       expect(find.text('View source on GitHub'), findsOneWidget);
       expect(find.text('Report an issue'), findsOneWidget);
     });
@@ -51,6 +52,8 @@ void main() {
 
       expect(find.text('About ChronoWarden'), findsOneWidget);
       expect(find.text('Open Source'), findsOneWidget);
+      expect(find.text("What's New"), findsOneWidget);
+      expect(find.text('View changelog'), findsOneWidget);
       expect(find.text('Host It Yourself'), findsOneWidget);
       expect(find.text('The Hosted Instance'), findsOneWidget);
       expect(find.textContaining(AppInfo.hostedUrl), findsOneWidget);

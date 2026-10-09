@@ -22,6 +22,13 @@ RUN flutter pub get
 
 COPY . .
 
+# Refresh the changelog from the checked-out git history so the hosted
+# instance always reflects the commits it was built from. Best effort — the
+# committed CHANGELOG.md is used if git history is unavailable.
+RUN git config --global --add safe.directory /app \
+    && tool/generate_changelog.sh \
+    || echo "changelog generation skipped"
+
 ARG SUPABASE_URL
 ARG SUPABASE_ANON_KEY
 RUN printf '{"SUPABASE_URL":"%s","SUPABASE_ANON_KEY":"%s"}' \
