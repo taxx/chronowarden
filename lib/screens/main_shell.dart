@@ -7,8 +7,10 @@ import '../services/auth_service.dart';
 import '../services/notification_service.dart';
 import '../services/theme_service.dart';
 import '../services/transit_service.dart';
+import '../services/update_service.dart';
 import '../utils/external_link.dart';
 import '../widgets/alert_banner.dart';
+import '../widgets/update_banner.dart';
 import 'admin_screen.dart';
 import 'history_content.dart';
 import 'my_day_tab.dart';
@@ -36,6 +38,19 @@ class _MainShellState extends State<MainShell> {
   final _auth = AuthService();
   final _state = AppState();
   final _notifications = NotificationService();
+  final _updates = UpdateService();
+
+  @override
+  void initState() {
+    super.initState();
+    _updates.start();
+  }
+
+  @override
+  void dispose() {
+    _updates.stop();
+    super.dispose();
+  }
 
   /// Quick access to the GitHub issue tracker.
   Widget _reportIssueButton(BuildContext context) {
@@ -72,7 +87,7 @@ class _MainShellState extends State<MainShell> {
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
-      listenable: Listenable.merge([_auth, _state, _notifications]),
+      listenable: Listenable.merge([_auth, _state, _notifications, _updates]),
       builder: (context, _) {
         final isAdmin = _auth.profile?.isAdmin ?? false;
 
@@ -163,6 +178,19 @@ class _MainShellState extends State<MainShell> {
           ),
           body: Column(
             children: [
+              // New-build prompt (reload into the latest deployment).
+              if (_updates.updateAvailable)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+                  child: UpdateBanner(
+                    message: _updates.serverBuild?.commit.isNotEmpty == true
+                        ? 'A new version (${_updates.serverBuild!.commit}) is '
+                            'available — reload to update.'
+                        : 'A new version is available — reload to update.',
+                    onReload: _updates.reload,
+                    onDismiss: _updates.dismiss,
+                  ),
+                ),
               // Leave-time alert is shown globally so it is visible on every tab.
               if (_notifications.currentAlert != null)
                 Padding(

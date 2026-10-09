@@ -49,3 +49,30 @@ void vibrate(int milliseconds) {
     navigator?.callMethod('vibrate', [milliseconds]);
   } catch (_) {}
 }
+
+/// Fetch a text resource (used to poll the server's `version.json`).
+/// Returns null on any failure so callers can treat it as "no update info".
+Future<String?> fetchText(String url) async {
+  try {
+    return await html.HttpRequest.getString(url);
+  } catch (_) {
+    return null;
+  }
+}
+
+/// Invoke [callback] whenever the page becomes visible again. Lets a
+/// long-lived tab re-check for updates as soon as the user returns to it.
+void onPageVisible(void Function() callback) {
+  try {
+    html.document.onVisibilityChange.listen((_) {
+      if (html.document.hidden != true) callback();
+    });
+  } catch (_) {}
+}
+
+/// Reload the current page, picking up a newly deployed build.
+void reloadPage() {
+  try {
+    html.window.location.reload();
+  } catch (_) {}
+}

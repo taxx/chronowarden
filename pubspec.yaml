@@ -30,3 +30,4 @@ flutter:
     - chronowarden.svg
     - supabase_schema.sql
     - CHANGELOG.md
+    - build_info.json

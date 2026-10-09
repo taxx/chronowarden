@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../app_info.dart';
 import '../screens/about_screen.dart';
 import '../screens/changelog_screen.dart';
+import '../services/update_service.dart';
 import 'external_link.dart';
 
 /// Settings card linking to the open-source project: source code, issue
@@ -63,6 +64,15 @@ class AboutAppSection extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 8),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: () => _checkForUpdates(context),
+                icon: const Icon(Icons.system_update_alt_rounded, size: 18),
+                label: const Text('Check for updates'),
+              ),
+            ),
+            const SizedBox(height: 8),
             ExternalLinkButton(
               label: 'View source on GitHub',
               url: AppInfo.repoUrl,
@@ -77,6 +87,22 @@ class AboutAppSection extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+
+  Future<void> _checkForUpdates(BuildContext context) async {
+    final service = UpdateService();
+    await service.check();
+    if (!context.mounted) return;
+
+    final server = service.serverBuild;
+    final message = service.updateAvailable
+        ? 'A new version is available — use the banner to reload.'
+        : (server != null && server.isKnown
+            ? 'You are on the latest version (${server.commit}).'
+            : 'Update check unavailable.');
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message)),
     );
   }
 }

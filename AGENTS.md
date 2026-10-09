@@ -82,14 +82,16 @@ The project includes a multi-stage Dockerfile + docker-compose.yaml for containe
 
 Whenever source code is changed locally, follow these steps to deploy to the server:
 
-#### Step 1 — Regenerate the changelog, then commit and push locally
+#### Step 1 — Regenerate metadata, then commit and push locally
 
-The in-app changelog is generated from the git history, so refresh it before
-committing (see the "Changelog / What's New" section):
+The in-app changelog and version check are generated from the git history, so
+refresh both before committing (see the "Changelog / What's New" and
+"Version Check / Update Prompt" sections):
 
 ```bash
 cd /path/to/chronowarden
 tool/generate_changelog.sh
+tool/generate_build_info.sh
 git add -A
 git commit -m "describe the change"
 git push origin main
@@ -579,6 +581,48 @@ bullets `- text (\`hash\`)`) so no Markdown package is needed; see
 | `lib/widgets/about_app_section.dart` | Settings card entry point |
 | `test/changelog_test.dart` | Parser tests |
 | `test/changelog_screen_test.dart` | Asset-loading widget test |
+
+---
+
+## Version Check / Update Prompt
+
+Long-lived browser tabs keep running the JavaScript they loaded, so a deploy
+would otherwise go unnoticed until a manual refresh. The app detects newer
+deployments and prompts the user to reload.
+
+### How it works
+```
+tool/generate_build_info.sh
+   ├─ build_info.json    → Flutter asset (the running app's own commit)
+   └─ web/version.json   → served by nginx at /version.json (server commit)
+                ↓
+UpdateService polls /version.json?t=<ts>  →  isUpdateAvailable()
+                ↓
+UpdateBanner (MainShell) → "Reload" button → web_browser.reloadPage()
+```
+
+- Both JSON files contain `{version, commit, built_at}` and are generated from
+the same git commit, so the **commit id is the comparison key**.
+- `UpdateService` polls every **5 minutes**, and immediately whenever the tab
+becomes visible again (`onPageVisible`).
+- The prompt only appears when both commits are known (not `dev`) and differ.
+  Local/dev builds and git-less self-hosted builds therefore stay quiet.
+- **Dismiss** records the server commit in `localStorage`; the prompt stays
+  hidden for that build but reappears for the next deploy.
+- **Reload** calls `window.location.reload()`. nginx already sends
+  `no-cache` for `.js`/`.dart`/`.html`/`.json`, so the new bundle is fetched.
+- The banner is hosted in `MainShell` (same place as the leave-time alert).
+
+### Key files
+| File | Purpose |
+|------|---------|
+| `tool/generate_build_info.sh` | Writes `build_info.json` + `web/version.json` |
+| `lib/models/build_info.dart` | `BuildInfo.parse()` + `isUpdateAvailable()` |
+| `lib/services/update_service.dart` | Polls the server, exposes `updateAvailable` |
+| `lib/widgets/update_banner.dart` | "Reload" + dismiss banner |
+| `lib/screens/main_shell.dart` | Starts polling + hosts the banner |
+| `lib/utils/web_browser*.dart` | `fetchText`, `onPageVisible`, `reloadPage` |
+| `test/build_info_test.dart` | Version-comparison tests |
 
 ---
 
