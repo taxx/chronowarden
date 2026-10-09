@@ -4,9 +4,11 @@ import 'package:flutter_svg/flutter_svg.dart';
 import '../app_info.dart';
 import '../app_state.dart';
 import '../services/auth_service.dart';
+import '../services/notification_service.dart';
 import '../services/theme_service.dart';
 import '../services/transit_service.dart';
 import '../utils/external_link.dart';
+import '../widgets/alert_banner.dart';
 import 'admin_screen.dart';
 import 'history_content.dart';
 import 'my_day_tab.dart';
@@ -33,6 +35,7 @@ class _MainShellState extends State<MainShell> {
   int _currentIndex = 0;
   final _auth = AuthService();
   final _state = AppState();
+  final _notifications = NotificationService();
 
   /// Quick access to the GitHub issue tracker.
   Widget _reportIssueButton(BuildContext context) {
@@ -69,7 +72,7 @@ class _MainShellState extends State<MainShell> {
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
-      listenable: Listenable.merge([_auth, _state]),
+      listenable: Listenable.merge([_auth, _state, _notifications]),
       builder: (context, _) {
         final isAdmin = _auth.profile?.isAdmin ?? false;
 
@@ -158,22 +161,40 @@ class _MainShellState extends State<MainShell> {
               ),
             ],
           ),
-          body: ListenableBuilder(
-            listenable: _state,
-            builder: (context, _) {
-              final showTransit = TransitService().config.enabled;
-              return IndexedStack(
-                index: _currentIndex,
-                children: [
-                  const MyDayTab(),
-                  const OverviewTab(),
-                  const ProjectionScreen(),
-                  const HistoryContent(),
-                  if (showTransit) const TransitScreen(),
-                  if (isAdmin) const AdminScreen(),
-                ],
-              );
-            },
+          body: Column(
+            children: [
+              // Leave-time alert is shown globally so it is visible on every tab.
+              if (_notifications.currentAlert != null)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+                  child: AlertBanner(
+                    message: _notifications.currentAlert!.message,
+                    isUrgent: _notifications.currentAlert!.isUrgent,
+                    snoozeLabel: 'Snooze ${_notifications.snoozeMinutes}m',
+                    onSnooze: () => _notifications.snooze(),
+                    onDismiss: () => _notifications.dismiss(),
+                  ),
+                ),
+              Expanded(
+                child: ListenableBuilder(
+                  listenable: _state,
+                  builder: (context, _) {
+                    final showTransit = TransitService().config.enabled;
+                    return IndexedStack(
+                      index: _currentIndex,
+                      children: [
+                        const MyDayTab(),
+                        const OverviewTab(),
+                        const ProjectionScreen(),
+                        const HistoryContent(),
+                        if (showTransit) const TransitScreen(),
+                        if (isAdmin) const AdminScreen(),
+                      ],
+                    );
+                  },
+                ),
+              ),
+            ],
           ),
           bottomNavigationBar: NavigationBar(
             selectedIndex: _currentIndex,

@@ -9,6 +9,7 @@ import 'screens/pending_screen.dart';
 import 'screens/setup_screen.dart';
 import 'screens/signup_screen.dart';
 import 'services/auth_service.dart';
+import 'services/notification_service.dart';
 import 'services/pinned_journey_store.dart';
 import 'services/theme_service.dart';
 import 'app_state.dart';
@@ -70,6 +71,8 @@ class _ChronoWardenAppState extends State<ChronoWardenApp> {
     if (_auth.isAuthenticated && _auth.profile?.isApproved == true) {
       _state.refresh();
     } else {
+      // Clear any in-flight leave alert so it can't linger after sign out.
+      NotificationService().resetForToday();
       _state.onSignOut();
     }
   }

@@ -112,6 +112,22 @@ class AppState extends ChangeNotifier {
   /// Clear the last error after the UI has consumed it.
   void clearLastError() => _lastError = null;
 
+  /// Projected leave time for [log], adjusted for a lunch break that is
+  /// currently running.
+  ///
+  /// The stored [TimeLog.lunchMinutes] only updates when the timer stops, so
+  /// while lunch is active we take whichever is longer: the planned lunch or
+  /// the lunch elapsed so far. Without this an overrunning break would make
+  /// the UI (and the wrap-up notification) point at an obsolete leave time.
+  DateTime effectiveLeaveTime(TimeLog log) {
+    var lunch = log.lunchMinutes;
+    if (lunchActive && _lunchStartTime != null) {
+      final elapsed = DateTime.now().difference(_lunchStartTime!).inMinutes;
+      if (elapsed > lunch) lunch = elapsed;
+    }
+    return log.leaveTimeWithLunch(lunch);
+  }
+
   /// Transit config (loaded lazily).
   TransitConfig get transitConfig => transit.config;
 

@@ -95,6 +95,34 @@ void main() {
       final calculated = log.calculateLeaveTime(dayStart);
       expect(calculated, log.leaveTime);
     });
+
+    test('leaveTimeWithLunch overrides the stored lunch minutes', () {
+      // An overrunning lunch must push the projected leave time later,
+      // otherwise the wrap-up notification fires too early.
+      final log = makeLog(
+        startTime: '07:30:00',
+        expectedMinutes: 480,
+        overheadMinutes: 0,
+        lunchMinutes: 30,
+      );
+      final planned = log.leaveTime;
+      expect(planned, DateTime(2024, 1, 15, 7, 30).add(
+          const Duration(minutes: 510)));
+
+      final extended = log.leaveTimeWithLunch(150);
+      expect(extended, planned.add(const Duration(minutes: 120)));
+      // The stored value is untouched.
+      expect(log.lunchMinutes, 30);
+    });
+
+    test('leaveTime equals leaveTimeWithLunch(lunchMinutes)', () {
+      final log = makeLog(
+        startTime: '08:00:00',
+        expectedMinutes: 420,
+        lunchMinutes: 45,
+      );
+      expect(log.leaveTime, log.leaveTimeWithLunch(log.lunchMinutes));
+    });
   });
 
   group('TimeLog.calculateOvertimeMinutes', () {

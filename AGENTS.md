@@ -485,6 +485,52 @@ edit-day / add-day calculations.
 
 ---
 
+## Leave-time notifications
+
+While a day is active the app watches the projected leave time and shows an
+in-app alert (plus optional beep + vibration) when the user is close to
+leaving, then again if they overrun.
+
+### Two phases
+- **Wrap-up** — fires once `remaining <= notification_threshold_minutes`
+  (default 30). Message: `⏰ <time> left — wrap up and head out!`
+- **Overtime** — fires once leave time has passed (up to 60 min past).
+  Message: `🚨 <n> min past your time — finish up and stop the day!`
+
+### Snooze & dismiss
+- **Snooze** (default 10 min, configurable 1–30 in Settings) re-arms the
+  alert for later; the same alert fires again when the window expires.
+- **Dismiss** (the ✕ button) suppresses alerts for the rest of the day.
+- Both alert state and settings are persisted to `SharedPreferences`, so a
+  page reload neither re-fires nor forgets a dismissal. An alert that was
+  delivered but neither snoozed nor dismissed is restored silently (no
+  second beep) after a reload.
+
+### Robustness notes
+- All timing decisions live in the pure `evaluateLeaveAlert()` function in
+  `lib/services/notification_service.dart`, so they are unit-tested
+  (`test/notification_service_test.dart`).
+- The projected leave time is computed from the **live lunch timer**: if a
+  lunch break is running longer than the planned lunch, the alert (and the
+  active-day card) shift later via `AppState.effectiveLeaveTime()` /
+  `TimeLog.leaveTimeWithLunch()`. This prevents the wrap-up alert from firing
+  too early during an overrunning lunch.
+- The banner is rendered by `MainShell`, so it is visible on every tab. The
+  per-second check runs in `MyDayTab`, which `MainShell` keeps alive in its
+  `IndexedStack`.
+
+### Key files
+| File | Purpose |
+|------|---------|
+| `lib/services/notification_service.dart` | Settings, per-day state, `evaluateLeaveAlert()` |
+| `lib/widgets/alert_banner.dart` | Banner UI with snooze + dismiss actions |
+| `lib/widgets/notification_settings.dart` | Threshold + snooze sliders, sound/vibration |
+| `lib/screens/my_day_tab.dart` | Per-second `_checkNotification()` tick |
+| `lib/screens/main_shell.dart` | Global banner host |
+| `test/notification_service_test.dart` | Alert-timing regression tests |
+
+---
+
 ## iOS Safari Paste Compatibility
 
 Flutter web on iOS Safari doesn't fire paste events to canvas-rendered

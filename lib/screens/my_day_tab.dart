@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../app_state.dart';
 import '../models/journey_info.dart';
+import '../models/time_log.dart';
 import '../models/transit_config.dart';
 import '../services/notification_service.dart';
 import '../services/pinned_journey_store.dart';
@@ -11,7 +12,6 @@ import '../services/preferences_service.dart';
 import '../services/transit_service.dart';
 import '../services/user_settings_service.dart';
 import '../utils/format.dart';
-import '../widgets/alert_banner.dart';
 import '../widgets/edit_day_dialog.dart';
 import '../widgets/lunch_timer_section.dart';
 import '../widgets/journey_tile.dart';
@@ -36,12 +36,12 @@ class _MyDayTabState extends State<MyDayTab> with SingleTickerProviderStateMixin
   TransitConfig? _transitCfg;
   // ignore: unused_field
   bool _transitCardShown = false;
-  String? _alertMessage;
 
   @override
   void initState() {
     super.initState();
     _notifications.init(); // fire-and-forget; _enabled stays false until ready
+    _notifications.addListener(_onNotificationsChanged);
     _ticker = Timer.periodic(const Duration(seconds: 1), (_) {
       if (mounted) {
         _checkNotification();
@@ -53,7 +53,12 @@ class _MyDayTabState extends State<MyDayTab> with SingleTickerProviderStateMixin
   @override
   void dispose() {
     _ticker.cancel();
+    _notifications.removeListener(_onNotificationsChanged);
     super.dispose();
+  }
+
+  void _onNotificationsChanged() {
+    if (mounted) setState(() {});
   }
 
   @override
@@ -67,10 +72,6 @@ class _MyDayTabState extends State<MyDayTab> with SingleTickerProviderStateMixin
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            if (_alertMessage != null)
-              AlertBanner(message: _alertMessage!, onDismiss: () {
-                setState(() => _alertMessage = null);
-              }),
             _buildBalanceCard(theme),
             const SizedBox(height: 24),
             _buildTodayCard(theme),
@@ -83,45 +84,20 @@ class _MyDayTabState extends State<MyDayTab> with SingleTickerProviderStateMixin
   }
 
   /// Check if we should fire a notification.
-  /// Two-phase: wrap-up alert before leave, over-time alert after leave.
+  ///
+  /// All decision logic lives in [NotificationService.check] so it is
+  /// consistent, testable and unaffected by which tab is visible.
   void _checkNotification() {
     final log = _state.todayLog;
-    if (log == null || log.endTime != null) return;
-    if (!_notifications.enabled) return;
-
-    final dateStr = log.date;
-    if (_notifications.wasNotifiedToday(dateStr)) return;
-
-    final now = DateTime.now();
-    final leaveTime = log.leaveTime;
-    final remaining = leaveTime.difference(now);
-    final threshold = _notifications.thresholdMinutes;
-
-    // Phase 1 — wrap-up alert (before leave time)
-    if (!remaining.isNegative && remaining.inMinutes <= threshold) {
-      final h = remaining.inHours;
-      final m = remaining.inMinutes % 60;
-      final timeStr = h > 0 ? '${h}h ${m}m' : '$m min';
-      final msg = _notifications.alertMessage(
-        'ChronoWarden ⏰',
-        '⏰ $timeStr left — wrap up and head out!',
-      );
-      _alertMessage = msg;
-      _notifications.markNotified(dateStr);
+    if (log == null || log.endTime != null) {
+      _notifications.clearAlert();
       return;
     }
-
-    // Phase 2 — over-time alert (past leave time, day still active)
-    if (remaining.isNegative && remaining.inMinutes.abs() <= 60) {
-      final over = remaining.inMinutes.abs();
-      final msg = _notifications.alertMessage(
-        'ChronoWarden 🚨',
-        '🚨 $over min past your time — finish up and stop the day!',
-        isUrgent: true,
-      );
-      _alertMessage = msg;
-      _notifications.markNotified(dateStr);
-    }
+    _notifications.check(
+      date: log.date,
+      leaveTime: _state.effectiveLeaveTime(log),
+      now: DateTime.now(),
+    );
   }
 
   Widget _buildTransitCard(ThemeData theme) {
@@ -333,9 +309,9 @@ class _MyDayTabState extends State<MyDayTab> with SingleTickerProviderStateMixin
     );
   }
 
-  Widget _buildActive(ThemeData theme, dynamic log) {
+  Widget _buildActive(ThemeData theme, TimeLog log) {
     final elapsed = log.elapsed;
-    final leaveTime = log.leaveTime; // includes lunch
+    final leaveTime = _state.effectiveLeaveTime(log); // includes live lunch
     final now = DateTime.now();
     final remaining = leaveTime.difference(now);
     final isPast = remaining.isNegative;
@@ -447,7 +423,7 @@ class _MyDayTabState extends State<MyDayTab> with SingleTickerProviderStateMixin
               Align(
                 alignment: Alignment.centerLeft,
                 child: Text(
-                  log.note,
+                  log.note!,
                   style: theme.textTheme.bodyMedium?.copyWith(
                     color: theme.colorScheme.onSurfaceVariant,
                   ),
@@ -494,7 +470,7 @@ class _MyDayTabState extends State<MyDayTab> with SingleTickerProviderStateMixin
     );
   }
 
-  Widget _buildCompleted(ThemeData theme, dynamic log) {
+  Widget _buildCompleted(ThemeData theme, TimeLog log) {
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(24),
@@ -517,7 +493,7 @@ class _MyDayTabState extends State<MyDayTab> with SingleTickerProviderStateMixin
               value: formatSignedMinutes(log.overtimeMinutes),
               verticalPadding: 4,
             ),
-            if (log.lunchMinutes != null && log.lunchMinutes > 0)
+            if (log.lunchMinutes > 0)
               StatRow(label: 'Lunch', value: '${log.lunchMinutes} min', verticalPadding: 4),
             if (log.note?.isNotEmpty == true)
               Padding(

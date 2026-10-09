@@ -174,11 +174,17 @@ class TimeLog {
   ///
   /// Does NOT include [eveningOverheadMinutes] — evening commute overhead
   /// happens after leaving, so it doesn't extend your office stay.
-  DateTime get leaveTime {
+  DateTime get leaveTime => leaveTimeWithLunch(lunchMinutes);
+
+  /// Same as [leaveTime], but lets the caller override the lunch duration.
+  ///
+  /// Used while a lunch timer is running: an overrunning break must push the
+  /// projected leave time later, otherwise the wrap-up alert fires too early.
+  DateTime leaveTimeWithLunch(int lunchMinutesOverride) {
     final start = combineDateAndTime(date, startTime);
     return start.add(Duration(
       minutes: expectedMinutes +
-          lunchMinutes +
+          lunchMinutesOverride +
           morningOverheadMinutes -
           eveningProductiveCommuteMinutes -
           flexMinutes,
@@ -212,6 +218,7 @@ class TimeLog {
           flexMinutes,
     ));
   }
+
 
   /// **Afternoon Logger** — Calculate the net overtime (or undertime) in
   /// minutes by comparing the actual elapsed time against the expected

@@ -61,6 +61,8 @@ class _NotificationSettingsState extends State<NotificationSettings> {
               const SizedBox(height: 16),
               _thresholdSlider(theme),
               const SizedBox(height: 16),
+              _snoozeSlider(theme),
+              const SizedBox(height: 16),
               ToggleRow(
                 icon: Icons.spatial_audio_outlined,
                 label: 'Sound alert',
@@ -106,6 +108,36 @@ class _NotificationSettingsState extends State<NotificationSettings> {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _snoozeSlider(ThemeData theme) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('Snooze duration', style: theme.textTheme.titleSmall),
+        const SizedBox(height: 4),
+        Row(
+          children: [
+            Expanded(
+              child: Slider(
+                value: _notifications.snoozeMinutes.toDouble(),
+                min: 1,
+                max: 30,
+                divisions: 29,
+                label: '${_notifications.snoozeMinutes} min',
+                onChanged: (v) {
+                  final value = v.round();
+                  _notifications.setSnoozeMinutes(value);
+                  setState(() {});
+                },
+              ),
+            ),
+            Text('${_notifications.snoozeMinutes} min',
+                style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600)),
+          ],
+        ),
+      ],
     );
   }
 
