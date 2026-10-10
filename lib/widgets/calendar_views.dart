@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../l10n/app_strings.dart';
 import '../models/time_log.dart';
 import '../models/work_config.dart' show isoWeekNumber;
 import '../utils/format.dart';
@@ -29,7 +30,7 @@ Widget weekCalendar(BuildContext context, Map<String, TimeLog> logByDate, {
   return Column(
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
-      Text('Daily overview', style: theme.textTheme.titleMedium),
+      Text(context.t('Daily overview'), style: theme.textTheme.titleMedium),
       const SizedBox(height: 8),
       SizedBox(
         width: availWidth,
@@ -174,14 +175,14 @@ Widget monthCalendar(BuildContext context, Map<String, TimeLog> logByDate, {
   return Column(
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
-      Text('Daily overview', style: theme.textTheme.titleMedium),
+      Text(context.t('Daily overview'), style: theme.textTheme.titleMedium),
       const SizedBox(height: 8),
       // Week-number gutter + day-of-week header with gaps matching grid rows
       Row(
         children: [
           SizedBox(
             width: weekGutter,
-            child: Text('Wk', textAlign: TextAlign.center,
+            child: Text(context.t('Wk'), textAlign: TextAlign.center,
               style: theme.textTheme.bodySmall?.copyWith(
                 fontWeight: FontWeight.w600,
                 color: theme.colorScheme.onSurfaceVariant,
@@ -361,13 +362,11 @@ Widget yearCalendar(BuildContext context, Map<String, TimeLog> logByDate, {
   void Function(int year, int month)? onMonthTap,
 }) {
   final theme = Theme.of(context);
-  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-                  'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
   return Column(
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
-      Text('Monthly overview', style: theme.textTheme.titleMedium),
+      Text(context.t('Monthly overview'), style: theme.textTheme.titleMedium),
       const SizedBox(height: 8),
       // 3×4 grid
       GridView.builder(
@@ -398,11 +397,11 @@ Widget yearCalendar(BuildContext context, Map<String, TimeLog> logByDate, {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Text(months[i], style: theme.textTheme.titleSmall?.copyWith(
+                  Text(_monthAbbr(context, i + 1), style: theme.textTheme.titleSmall?.copyWith(
                     fontWeight: FontWeight.bold,
                   )),
                   const SizedBox(height: 4),
-                  Text('$daysLogged days', style: theme.textTheme.bodySmall),
+                  Text(context.t('{count} days', {'count': daysLogged}), style: theme.textTheme.bodySmall),
                   if (daysLogged > 0)
                     Text(
                       formatOvertimeStatus(totalOt),
@@ -430,3 +429,34 @@ Widget yearCalendar(BuildContext context, Map<String, TimeLog> logByDate, {
 
 
 
+
+/// Localized short month name (1 = January). Uses literal `t()` keys so the
+/// catalog guard can verify them.
+String _monthAbbr(BuildContext context, int month) {
+  switch (month) {
+    case 1:
+      return context.t('Jan');
+    case 2:
+      return context.t('Feb');
+    case 3:
+      return context.t('Mar');
+    case 4:
+      return context.t('Apr');
+    case 5:
+      return context.t('May');
+    case 6:
+      return context.t('Jun');
+    case 7:
+      return context.t('Jul');
+    case 8:
+      return context.t('Aug');
+    case 9:
+      return context.t('Sep');
+    case 10:
+      return context.t('Oct');
+    case 11:
+      return context.t('Nov');
+    default:
+      return context.t('Dec');
+  }
+}

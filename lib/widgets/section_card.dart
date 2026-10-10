@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../l10n/app_strings.dart';
+
 /// A titled list section with edit/delete actions and an add button.
 class SectionCard<T> extends StatelessWidget {
   final String title;
@@ -10,6 +12,9 @@ class SectionCard<T> extends StatelessWidget {
   final void Function(T) onDelete;
   final VoidCallback onAdd;
 
+  /// Label for the add button. Defaults to a generic "Add".
+  final String? addLabel;
+
   const SectionCard({
     super.key,
     required this.title,
@@ -19,6 +24,7 @@ class SectionCard<T> extends StatelessWidget {
     required this.onEdit,
     required this.onDelete,
     required this.onAdd,
+    this.addLabel,
   });
 
   @override
@@ -33,7 +39,7 @@ class SectionCard<T> extends StatelessWidget {
         if (items.isEmpty)
           Padding(
             padding: const EdgeInsets.only(bottom: 8),
-            child: Text('None configured', style: theme.textTheme.bodyMedium?.copyWith(color: theme.textTheme.bodySmall?.color)),
+            child: Text(context.t('None configured'), style: theme.textTheme.bodyMedium?.copyWith(color: theme.textTheme.bodySmall?.color)),
           )
         else
           ...items.map((item) => ListTile(
@@ -55,7 +61,7 @@ class SectionCard<T> extends StatelessWidget {
         FilledButton.icon(
           onPressed: onAdd,
           icon: const Icon(Icons.add),
-          label: Text('Add ${title.split(' ').first.toLowerCase()}'),
+          label: Text(addLabel ?? context.t('Add')),
         ),
       ],
     );

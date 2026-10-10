@@ -687,10 +687,11 @@ Text(context.t('Snooze {minutes}m', {'minutes': 10}))
   `flutter_localizations` delegates.
 
 ### Guard test
-`test/app_strings_test.dart` scans `lib/` for `context.t('…')` calls and fails
-if any has no Swedish entry, or if a catalog entry is unused. It also checks
-fallback + placeholder substitution. **Add the Swedish entry in the same
-commit as the call site**, or this test fails.
+`test/app_strings_test.dart` scans `lib/` for `context.t('…')` **and
+`strings.translate('…')`** calls and fails if any has no Swedish entry, or if a
+catalog entry is unused. It also checks fallback + placeholder substitution.
+**Add the Swedish entry in the same commit as the call site**, or this test
+fails.
 
 ### Adding a language
 1. Add a catalog (`app_strings_xx.dart`) and a case in `AppStrings.forLocale`.
@@ -699,18 +700,18 @@ commit as the call site**, or this test fails.
 3. Extend the `AppStringsDelegate`. The guard test can be pointed at the new
    catalog if desired.
 
-### Pending (still English)
-The infrastructure and the main surfaces are translated. These are **not yet
-migrated** — they still render English literals (the fallback keeps them
-readable):
-`about_screen`, `about_encryption_screen`, `changelog_screen` (English by
-design for the changelog content), `admin_screen`, `transit_screen`,
-`projection_screen`, `overview_tab`/`calendar_views`, `history_content`,
-`period_tab`, `setup_screen`, `pending_screen`, `migration_screen`,
-`recovery_onboarding_screen`, `add_day_dialog`, `edit_day_dialog`,
-`start_stop_day_dialogs`, `import_dialog`, `time_bank_chart`,
-`recovery_phrase_card`, `station_picker`, `log_card`, `external_link`, plus
-`alert_banner`/`update_banner` labels and notification alert messages.
+### Coverage
+All user-facing screens are localized (English + Swedish). The only strings
+intentionally left in English are:
+- The **changelog content** (`CHANGELOG.md`, rendered verbatim).
+- **CSV column headers** in the import/export hints (they are file-format
+  identifiers, not prose).
+- Brand/endonym literals (`ChronoWarden`, `GitHub`, `English`, `Svenska`).
+- Month abbreviations are localized via `_monthAbbr()` in `calendar_views.dart`.
+
+When adding UI, wrap new text in `context.t(...)`. For pure helpers that have
+no `BuildContext`, accept an `AppStrings` parameter and call
+`strings.translate(...)` (the guard test understands both).
 
 ---
 

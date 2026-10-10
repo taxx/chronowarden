@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../l10n/app_strings.dart';
+
 /// A paste button that works on Flutter web (iOS Safari).
 ///
 /// iOS Safari doesn't fire paste events to Flutter's canvas-rendered
@@ -21,7 +23,7 @@ class PasteButton extends StatelessWidget {
     return IconButton(
       icon: Icon(Icons.content_paste, size: size),
       onPressed: () => _paste(),
-      tooltip: 'Paste',
+      tooltip: context.t('Paste'),
       visualDensity: VisualDensity.compact,
       padding: EdgeInsets.zero,
     );

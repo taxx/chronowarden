@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../l10n/app_strings.dart';
 import '../models/travel_preset.dart';
 import '../services/preferences_service.dart';
 import '../utils/format.dart';
@@ -132,13 +133,13 @@ class _StartDayDialogState extends State<StartDayDialog> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return AlertDialog(
-      title: const Text('Start Day'),
+      title: Text(context.t('Start Day')),
       content: SingleChildScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Start time', style: theme.textTheme.titleSmall),
+            Text(context.t('Start time'), style: theme.textTheme.titleSmall),
             const SizedBox(height: 4),
             FilledButton.icon(
               onPressed: () async {
@@ -149,7 +150,7 @@ class _StartDayDialogState extends State<StartDayDialog> {
               label: Text('${_startTime.hour.toString().padLeft(2, '0')}:${_startTime.minute.toString().padLeft(2, '0')}'),
             ),
             const SizedBox(height: 16),
-            Text('Expected work', style: theme.textTheme.titleSmall),
+            Text(context.t('Expected work'), style: theme.textTheme.titleSmall),
             const SizedBox(height: 4),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -158,12 +159,12 @@ class _StartDayDialogState extends State<StartDayDialog> {
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Text(
-                '${formatMins(widget.expectedMinutes)} per day',
+                context.t('{time} per day', {'time': formatMins(widget.expectedMinutes)}),
                 style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
               ),
             ),
             const SizedBox(height: 16),
-            Text('Travel preset', style: theme.textTheme.titleSmall),
+            Text(context.t('Travel preset'), style: theme.textTheme.titleSmall),
             const SizedBox(height: 4),
             DropdownButtonFormField(
               initialValue: _selectedPreset,
@@ -180,7 +181,7 @@ class _StartDayDialogState extends State<StartDayDialog> {
               eveningProductive: _eveningProductive,
             ),
             const SizedBox(height: 16),
-            Text('Lunch break', style: theme.textTheme.titleSmall),
+            Text(context.t('Lunch break'), style: theme.textTheme.titleSmall),
             const SizedBox(height: 4),
             Row(
               children: [
@@ -191,15 +192,15 @@ class _StartDayDialogState extends State<StartDayDialog> {
                     max: PreferencesService.maxLunchMinutes.toDouble(),
                     divisions: PreferencesService()
                         .sliderDivisions(0, PreferencesService.maxLunchMinutes.toDouble()),
-                    label: '$_lunchMinutes min',
+                    label: context.t('{minutes} min', {'minutes': _lunchMinutes}),
                     onChanged: (v) => setState(() => _lunchMinutes = v.round()),
                   ),
                 ),
-                Text('$_lunchMinutes min', style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600)),
+                Text(context.t('{minutes} min', {'minutes': _lunchMinutes}), style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600)),
               ],
             ),
             const SizedBox(height: 16),
-            Text('Flex time (banked overtime)', style: theme.textTheme.titleSmall),
+            Text(context.t('Flex time (banked overtime)'), style: theme.textTheme.titleSmall),
             const SizedBox(height: 4),
             Row(
               children: [
@@ -209,24 +210,24 @@ class _StartDayDialogState extends State<StartDayDialog> {
                     min: 0,
                     max: 240,
                     divisions: PreferencesService().sliderDivisions(0, 240),
-                    label: '$_flexMinutes min',
+                    label: context.t('{minutes} min', {'minutes': _flexMinutes}),
                     onChanged: (v) => setState(() => _flexMinutes = v.round()),
                   ),
                 ),
-                Text('$_flexMinutes min', style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600)),
+                Text(context.t('{minutes} min', {'minutes': _flexMinutes}), style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600)),
               ],
             ),
             const SizedBox(height: 16),
-            Text('Note', style: theme.textTheme.titleSmall),
+            Text(context.t('Note'), style: theme.textTheme.titleSmall),
             const SizedBox(height: 4),
             TextField(
               controller: _noteController,
               maxLines: 2,
               minLines: 1,
               textCapitalization: TextCapitalization.sentences,
-              decoration: const InputDecoration(
-                hintText: 'Optional note...',
-                border: OutlineInputBorder(),
+              decoration: InputDecoration(
+                hintText: context.t('Optional note...'),
+                border: const OutlineInputBorder(),
               ),
             ),
             const SizedBox(height: 12),
@@ -239,7 +240,7 @@ class _StartDayDialogState extends State<StartDayDialog> {
               ),
               child: Column(
                 children: [
-                  Text('Projected leave time', style: theme.textTheme.titleMedium?.copyWith(color: theme.colorScheme.primary)),
+                  Text(context.t('Projected leave time'), style: theme.textTheme.titleMedium?.copyWith(color: theme.colorScheme.primary)),
                   const SizedBox(height: 4),
                   Text(
                     '${_leaveTime.hour.toString().padLeft(2, '0')}:${_leaveTime.minute.toString().padLeft(2, '0')}',
@@ -248,17 +249,17 @@ class _StartDayDialogState extends State<StartDayDialog> {
                   if (_lunchMinutes > 0 || _flexMinutes > 0) ...<Widget>[
                     const SizedBox(height: 4),
                     Text(
-                      'net work done at ${_netWorkTime.hour.toString().padLeft(2, '0')}:${_netWorkTime.minute.toString().padLeft(2, '0')}',
+                      context.t('net work done at {time}', {'time': '${_netWorkTime.hour.toString().padLeft(2, '0')}:${_netWorkTime.minute.toString().padLeft(2, '0')}'}),
                       style: theme.textTheme.bodySmall,
                     ),
                     if (_lunchMinutes > 0)
-                      Text('  minus $_lunchMinutes min lunch', style: theme.textTheme.bodySmall),
+                      Text(context.t('  minus {minutes} min lunch', {'minutes': _lunchMinutes}), style: theme.textTheme.bodySmall),
                     if (_flexMinutes > 0)
-                      Text('  minus $_flexMinutes min flex', style: theme.textTheme.bodySmall),
+                      Text(context.t('  minus {minutes} min flex', {'minutes': _flexMinutes}), style: theme.textTheme.bodySmall),
                   ],
                   const SizedBox(height: 8),
                   Text(
-                    'Expected end: ${_expectedEnd.hour.toString().padLeft(2, '0')}:${_expectedEnd.minute.toString().padLeft(2, '0')}',
+                    context.t('Expected end: {time}', {'time': '${_expectedEnd.hour.toString().padLeft(2, '0')}:${_expectedEnd.minute.toString().padLeft(2, '0')}'}),
                     style: theme.textTheme.bodySmall,
                   ),
                 ],
@@ -268,7 +269,7 @@ class _StartDayDialogState extends State<StartDayDialog> {
         ),
       ),
       actions: [
-        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+        TextButton(onPressed: () => Navigator.pop(context), child: Text(context.t('Cancel'))),
         FilledButton(
           onPressed: () => Navigator.pop(context, StartDayResult(
             _startTime,
@@ -284,7 +285,7 @@ class _StartDayDialogState extends State<StartDayDialog> {
                 ? null
                 : _noteController.text.trim(),
           )),
-          child: const Text('Start'),
+          child: Text(context.t('Start')),
         ),
       ],
     );
@@ -324,11 +325,11 @@ class _StopDayDialogState extends State<StopDayDialog> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return AlertDialog(
-      title: const Text('Stop Day'),
+      title: Text(context.t('Stop Day')),
       content: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Text('End time', style: theme.textTheme.titleSmall),
+          Text(context.t('End time'), style: theme.textTheme.titleSmall),
           const SizedBox(height: 8),
           FilledButton.icon(
             onPressed: () async {
@@ -339,7 +340,7 @@ class _StopDayDialogState extends State<StopDayDialog> {
             label: Text('${_time.hour.toString().padLeft(2, '0')}:${_time.minute.toString().padLeft(2, '0')}'),
           ),
           const SizedBox(height: 16),
-          Text('Lunch break', style: theme.textTheme.titleSmall),
+          Text(context.t('Lunch break'), style: theme.textTheme.titleSmall),
           const SizedBox(height: 4),
           Row(
             children: [
@@ -350,21 +351,21 @@ class _StopDayDialogState extends State<StopDayDialog> {
                   max: PreferencesService.maxLunchMinutes.toDouble(),
                   divisions: PreferencesService()
                       .sliderDivisions(0, PreferencesService.maxLunchMinutes.toDouble()),
-                  label: '$_lunchMinutes min',
+                  label: context.t('{minutes} min', {'minutes': _lunchMinutes}),
                   onChanged: (v) => setState(() => _lunchMinutes = v.round()),
                 ),
               ),
-              Text('$_lunchMinutes min', style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600)),
+              Text(context.t('{minutes} min', {'minutes': _lunchMinutes}), style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600)),
             ],
           ),
 
         ],
       ),
       actions: [
-        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+        TextButton(onPressed: () => Navigator.pop(context), child: Text(context.t('Cancel'))),
         FilledButton(
           onPressed: () => Navigator.pop(context, StopDayResult(_time, _lunchMinutes)),
-          child: const Text('Stop'),
+          child: Text(context.t('Stop')),
         ),
       ],
     );

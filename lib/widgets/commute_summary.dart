@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../l10n/app_strings.dart';
+
 /// "Commute breakdown" panel shown inside the start-day / add-day dialogs.
 ///
 /// Renders nothing when every commute value is zero (e.g. working from home).
@@ -38,23 +40,23 @@ class CommuteSummary extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Commute breakdown',
+            context.t('Commute breakdown'),
             style: theme.textTheme.labelSmall
                 ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
           ),
           const SizedBox(height: 4),
           Text(
-            'Morning: $morningOverhead min walk, '
-            '$morningProductive min train work',
+            context.t('Morning: {overhead} min walk, {productive} min train work',
+                {'overhead': morningOverhead, 'productive': morningProductive}),
             style: theme.textTheme.bodySmall,
           ),
           Text(
-            'Evening: $eveningOverhead min walk, '
-            '$eveningProductive min train work',
+            context.t('Evening: {overhead} min walk, {productive} min train work',
+                {'overhead': eveningOverhead, 'productive': eveningProductive}),
             style: theme.textTheme.bodySmall,
           ),
           Text(
-            'Total: $totalCommute min commute',
+            context.t('Total: {minutes} min commute', {'minutes': totalCommute}),
             style: theme.textTheme.bodySmall
                 ?.copyWith(fontWeight: FontWeight.w600),
           ),

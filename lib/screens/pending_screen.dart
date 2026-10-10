@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../l10n/app_strings.dart';
 import '../services/auth_service.dart';
 
 /// Shown when the user's account is pending admin approval.
@@ -36,7 +37,7 @@ class _PendingScreenState extends State<PendingScreen> {
             onPressed: _checking ? null : _checkStatus,
             child: _checking
                 ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
-                : const Text('Check status'),
+                : Text(context.t('Check status')),
           ),
         ],
       ),
@@ -49,20 +50,19 @@ class _PendingScreenState extends State<PendingScreen> {
               Icon(Icons.hourglass_bottom, size: 64, color: Colors.amber),
               const SizedBox(height: 16),
               Text(
-                'Account Pending Approval',
+                context.t('Account Pending Approval'),
                 style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 12),
               Text(
-                'Your account has been created but needs to be approved by an administrator.\n\n'
-                'Please contact your admin or check back later.',
+                context.t('Your account has been created but needs to be approved by an administrator.\n\nPlease contact your admin or check back later.'),
                 textAlign: TextAlign.center,
                 style: theme.textTheme.bodyLarge,
               ),
               if (profile?.email != null) ...[
                 const SizedBox(height: 12),
                 Text(
-                  'Signed in as: ${profile!.email}',
+                  context.t('Signed in as: {email}', {'email': profile!.email}),
                   style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
                 ),
               ],
@@ -70,7 +70,7 @@ class _PendingScreenState extends State<PendingScreen> {
               FilledButton.icon(
                 onPressed: _signOut,
                 icon: const Icon(Icons.logout),
-                label: const Text('Sign Out'),
+                label: Text(context.t('Sign Out')),
               ),
             ],
           ),

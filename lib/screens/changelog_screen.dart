@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../l10n/app_strings.dart';
 import '../models/changelog.dart';
 import '../services/changelog_service.dart';
 
@@ -26,7 +27,7 @@ class _ChangelogScreenState extends State<ChangelogScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Scaffold(
-      appBar: AppBar(title: const Text("What's New")),
+      appBar: AppBar(title: Text(context.t("What's New"))),
       body: SafeArea(
         child: FutureBuilder<List<ChangelogGroup>>(
           future: _future,
@@ -38,7 +39,7 @@ class _ChangelogScreenState extends State<ChangelogScreen> {
               return _message(
                 theme,
                 Icons.error_outline,
-                'Could not load the changelog.',
+                context.t('Could not load the changelog.'),
               );
             }
 
@@ -47,7 +48,7 @@ class _ChangelogScreenState extends State<ChangelogScreen> {
               return _message(
                 theme,
                 Icons.history_toggle_off,
-                'No changelog entries yet.',
+                context.t('No changelog entries yet.'),
               );
             }
 
@@ -84,8 +85,8 @@ class _ChangelogScreenState extends State<ChangelogScreen> {
                 const Spacer(),
                 Text(
                   group.entries.length == 1
-                      ? '1 change'
-                      : '${group.entries.length} changes',
+                      ? context.t('1 change')
+                      : context.t('{count} changes', {'count': group.entries.length}),
                   style: theme.textTheme.bodySmall?.copyWith(
                     color: theme.colorScheme.onSurfaceVariant,
                   ),

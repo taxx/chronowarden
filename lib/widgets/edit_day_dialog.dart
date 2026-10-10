@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../l10n/app_strings.dart';
 import '../models/time_log.dart';
 import '../services/preferences_service.dart';
 import '../utils/format.dart';
@@ -125,13 +126,13 @@ class _EditDayDialogState extends State<EditDayDialog> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return AlertDialog(
-      title: const Text('Edit Day'),
+      title: Text(context.t('Edit Day')),
       content: SingleChildScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Start time', style: theme.textTheme.titleSmall),
+            Text(context.t('Start time'), style: theme.textTheme.titleSmall),
             const SizedBox(height: 4),
             FilledButton.icon(
               onPressed: () async {
@@ -146,7 +147,7 @@ class _EditDayDialogState extends State<EditDayDialog> {
               ),
             ),
             const SizedBox(height: 16),
-            Text('End time', style: theme.textTheme.titleSmall),
+            Text(context.t('End time'), style: theme.textTheme.titleSmall),
             const SizedBox(height: 4),
             FilledButton.icon(
               onPressed: () async {
@@ -161,11 +162,11 @@ class _EditDayDialogState extends State<EditDayDialog> {
                 _endTime != null
                     ? '${_endTime!.hour.toString().padLeft(2, '0')}:'
                         '${_endTime!.minute.toString().padLeft(2, '0')}'
-                    : '— not set —',
+                    : context.t('— not set —'),
               ),
             ),
             const SizedBox(height: 16),
-            Text('Travel preset', style: theme.textTheme.titleSmall),
+            Text(context.t('Travel preset'), style: theme.textTheme.titleSmall),
             const SizedBox(height: 4),
             DropdownButtonFormField(
               initialValue: _selectedPreset,
@@ -173,7 +174,8 @@ class _EditDayDialogState extends State<EditDayDialog> {
                 return DropdownMenuItem(
                   value: p,
                   child: Text(
-                    '${p.name} (+${formatMins(p.defaultOverheadMinutes)})',
+                    context.t('{name} (+{time})',
+                        {'name': p.name, 'time': formatMins(p.defaultOverheadMinutes)}),
                   ),
                 );
               }).toList(),
@@ -189,7 +191,7 @@ class _EditDayDialogState extends State<EditDayDialog> {
               eveningProductive: _eveningProductive,
             ),
             const SizedBox(height: 16),
-            Text('Lunch break', style: theme.textTheme.titleSmall),
+            Text(context.t('Lunch break'), style: theme.textTheme.titleSmall),
             const SizedBox(height: 4),
             Row(
               children: [
@@ -200,12 +202,12 @@ class _EditDayDialogState extends State<EditDayDialog> {
                     max: PreferencesService.maxLunchMinutes.toDouble(),
                     divisions: PreferencesService()
                         .sliderDivisions(0, PreferencesService.maxLunchMinutes.toDouble()),
-                    label: '$_lunch min',
+                    label: context.t('{minutes} min', {'minutes': _lunch}),
                     onChanged: (v) => setState(() => _lunch = v.round()),
                   ),
                 ),
                 Text(
-                  '$_lunch min',
+                  context.t('{minutes} min', {'minutes': _lunch}),
                   style: theme.textTheme.bodyMedium
                       ?.copyWith(fontWeight: FontWeight.w600),
                 ),
@@ -213,12 +215,12 @@ class _EditDayDialogState extends State<EditDayDialog> {
             ),
             const SizedBox(height: 16),
             // ── Time breakdown ──
-            Text('Time breakdown', style: theme.textTheme.titleSmall),
+            Text(context.t('Time breakdown'), style: theme.textTheme.titleSmall),
             const SizedBox(height: 4),
-            StatRow(label: 'Actual work', value: formatMins(_netWorkMinutes), verticalPadding: 4),
-            StatRow(label: 'Expected work', value: formatMins(_expected), verticalPadding: 4),
+            StatRow(label: context.t('Actual work'), value: formatMins(_netWorkMinutes), verticalPadding: 4),
+            StatRow(label: context.t('Expected work'), value: formatMins(_expected), verticalPadding: 4),
             StatRow(
-              label: 'Over/under',
+              label: context.t('Over/under'),
               value: _overUnderMinutes > 0
                   ? '+${formatMins(_overUnderMinutes)}'
                   : formatMins(_overUnderMinutes),
@@ -231,21 +233,27 @@ class _EditDayDialogState extends State<EditDayDialog> {
               Padding(
                 padding: const EdgeInsets.only(top: 4),
                 child: Text(
-                  '$_actualMinutes min total · $_lunch min lunch · '
-                  '$_netWorkMinutes min net',
+                  context.t(
+                    '{actual} min total · {lunch} min lunch · {net} min net',
+                    {
+                      'actual': _actualMinutes,
+                      'lunch': _lunch,
+                      'net': _netWorkMinutes,
+                    },
+                  ),
                   style: theme.textTheme.bodySmall?.copyWith(
                     color: theme.colorScheme.onSurfaceVariant,
                   ),
                 ),
               ),
             const SizedBox(height: 8),
-            Text('Note', style: theme.textTheme.titleSmall),
+            Text(context.t('Note'), style: theme.textTheme.titleSmall),
             const SizedBox(height: 4),
             TextField(
               controller: TextEditingController(text: _note),
               maxLines: 2,
-              decoration: const InputDecoration(
-                hintText: 'Optional note...',
+              decoration: InputDecoration(
+                hintText: context.t('Optional note...'),
               ),
               onChanged: (v) => _note = v,
             ),
@@ -255,7 +263,7 @@ class _EditDayDialogState extends State<EditDayDialog> {
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context),
-          child: const Text('Cancel'),
+          child: Text(context.t('Cancel')),
         ),
         if (widget.log.id != null)
           TextButton(
@@ -275,7 +283,7 @@ class _EditDayDialogState extends State<EditDayDialog> {
               ),
             ),
             style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text('Delete'),
+            child: Text(context.t('Delete')),
           ),
         FilledButton(
           onPressed: () => Navigator.pop(
@@ -292,7 +300,7 @@ class _EditDayDialogState extends State<EditDayDialog> {
               note: _note.isEmpty ? null : _note,
             ),
           ),
-          child: const Text('Save'),
+          child: Text(context.t('Save')),
         ),
       ],
     );

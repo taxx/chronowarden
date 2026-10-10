@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../l10n/app_strings.dart';
 import '../services/auth_service.dart';
 import '../utils/paste_button.dart';
 
@@ -54,15 +55,15 @@ class _PassphraseScreenState extends State<PassphraseScreen> {
                 Icon(Icons.lock, size: 64, color: theme.colorScheme.primary),
                 const SizedBox(height: 8),
                 Text(
-                  'Unlock Your Data',
+                  context.t('Unlock Your Data'),
                   style: theme.textTheme.headlineMedium?.copyWith(
                     fontWeight: FontWeight.bold,
                   ),
                 ),
                 const SizedBox(height: 12),
                 Text(
-                  'Your data is encrypted. Enter your encryption passphrase '
-                  'to unlock it.',
+                  context.t('Your data is encrypted. Enter your encryption passphrase '
+                      'to unlock it.'),
                   textAlign: TextAlign.center,
                   style: theme.textTheme.bodyMedium?.copyWith(
                     color: theme.colorScheme.onSurfaceVariant,
@@ -74,7 +75,7 @@ class _PassphraseScreenState extends State<PassphraseScreen> {
                   obscureText: _obscure,
                   onSubmitted: (_) => _unlock(),
                   decoration: InputDecoration(
-                    labelText: 'Encryption passphrase',
+                    labelText: context.t('Encryption passphrase'),
                     border: const OutlineInputBorder(),
                     prefixIcon: const Icon(Icons.shield_outlined),
                     suffixIcon: IconButton(
@@ -105,14 +106,14 @@ class _PassphraseScreenState extends State<PassphraseScreen> {
                             ),
                           )
                         : const Icon(Icons.lock_open),
-                    label: const Text('Unlock'),
+                    label: Text(context.t('Unlock')),
                   ),
                 ),
 
                 // --- Recovery option ---
                 const SizedBox(height: 24),
                 Text(
-                  'Forgot your passphrase?',
+                  context.t('Forgot your passphrase?'),
                   style: theme.textTheme.bodySmall?.copyWith(
                     color: theme.colorScheme.onSurfaceVariant,
                   ),
@@ -121,7 +122,7 @@ class _PassphraseScreenState extends State<PassphraseScreen> {
                 OutlinedButton.icon(
                   onPressed: () => _showRecoveryDialog(context),
                   icon: const Icon(Icons.key, size: 18),
-                  label: const Text('Use recovery phrase'),
+                  label: Text(context.t('Use recovery phrase')),
                 ),
 
                 // --- Danger notice ---
@@ -134,9 +135,9 @@ class _PassphraseScreenState extends State<PassphraseScreen> {
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Text(
-                    'Your data is encrypted with AES-256-GCM. '
-                    'No one — not even the admin — can read it without '
-                    'your passphrase.',
+                    context.t('Your data is encrypted with AES-256-GCM. '
+                        'No one — not even the admin — can read it without '
+                        'your passphrase.'),
                     style: TextStyle(
                       fontSize: 12,
                       color: theme.colorScheme.onErrorContainer,
@@ -157,12 +158,12 @@ class _PassphraseScreenState extends State<PassphraseScreen> {
     await showDialog<bool>(
       context: ctx,
       builder: (_) => AlertDialog(
-        title: const Text('Recovery Phrase'),
+        title: Text(ctx.t('Recovery Phrase')),
         content: TextField(
           controller: ctrl,
           maxLines: 4,
           decoration: InputDecoration(
-            labelText: 'Enter your 24-word recovery phrase',
+            labelText: ctx.t('Enter your 24-word recovery phrase'),
             border: const OutlineInputBorder(),
             suffixIcon: PasteButton(controller: ctrl),
           ),
@@ -170,7 +171,7 @@ class _PassphraseScreenState extends State<PassphraseScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel'),
+            child: Text(ctx.t('Cancel')),
           ),
           FilledButton(
             onPressed: () async {
@@ -185,7 +186,7 @@ class _PassphraseScreenState extends State<PassphraseScreen> {
               if (!mounted) return;
               await _showSetNewPassphraseDialog(context, phrase);
             },
-            child: const Text('Recover'),
+            child: Text(ctx.t('Recover')),
           ),
         ],
       ),
@@ -205,13 +206,13 @@ class _PassphraseScreenState extends State<PassphraseScreen> {
       context: ctx,
       builder: (dialogCtx) => StatefulBuilder(
         builder: (dialogCtx, setDialogState) => AlertDialog(
-          title: const Text('Set New Passphrase'),
+          title: Text(dialogCtx.t('Set New Passphrase')),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(
-                'Your recovery phrase is valid. Now set a new encryption '
-                'passphrase to protect your data.',
+                dialogCtx.t('Your recovery phrase is valid. Now set a new encryption '
+                    'passphrase to protect your data.'),
                 style: Theme.of(ctx).textTheme.bodyMedium,
               ),
               const SizedBox(height: 16),
@@ -219,8 +220,8 @@ class _PassphraseScreenState extends State<PassphraseScreen> {
                 controller: newPassCtrl,
                 obscureText: obscureNew,
                 decoration: InputDecoration(
-                  labelText: 'New encryption passphrase',
-                  hintText: 'At least 8 characters',
+                  labelText: dialogCtx.t('New encryption passphrase'),
+                  hintText: dialogCtx.t('At least 8 characters'),
                   border: const OutlineInputBorder(),
                   prefixIcon: const Icon(Icons.shield_outlined),
                 ),
@@ -230,7 +231,7 @@ class _PassphraseScreenState extends State<PassphraseScreen> {
                 controller: confirmCtrl,
                 obscureText: obscureNew,
                 decoration: InputDecoration(
-                  labelText: 'Confirm new passphrase',
+                  labelText: dialogCtx.t('Confirm new passphrase'),
                   border: const OutlineInputBorder(),
                   prefixIcon: const Icon(Icons.shield_outlined),
                   suffixIcon: newPassCtrl.text == confirmCtrl.text &&
@@ -250,7 +251,7 @@ class _PassphraseScreenState extends State<PassphraseScreen> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(dialogCtx),
-              child: const Text('Cancel'),
+              child: Text(dialogCtx.t('Cancel')),
             ),
             FilledButton(
               onPressed: () async {
@@ -259,11 +260,11 @@ class _PassphraseScreenState extends State<PassphraseScreen> {
 
                 if (newPass.length < 8) {
                   setDialogState(() =>
-                      error = 'Passphrase must be at least 8 characters');
+                      error = dialogCtx.t('Passphrase must be at least 8 characters'));
                   return;
                 }
                 if (newPass != confirm) {
-                  setDialogState(() => error = 'Passphrases do not match');
+                  setDialogState(() => error = dialogCtx.t('Passphrases do not match'));
                   return;
                 }
 
@@ -277,7 +278,7 @@ class _PassphraseScreenState extends State<PassphraseScreen> {
                   setDialogState(() => error = e.toString());
                 }
               },
-              child: const Text('Set Passphrase'),
+              child: Text(dialogCtx.t('Set Passphrase')),
             ),
           ],
         ),

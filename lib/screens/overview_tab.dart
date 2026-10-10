@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../l10n/app_strings.dart';
 import '../models/period.dart';
 import '../widgets/period_tab.dart';
 
@@ -47,10 +48,10 @@ class _OverviewTabState extends State<OverviewTab> with SingleTickerProviderStat
       children: [
         TabBar(
           controller: _tabCtrl,
-          tabs: const [
-            Tab(text: 'Week'),
-            Tab(text: 'Month'),
-            Tab(text: 'Year'),
+          tabs: [
+            Tab(text: context.t('Week')),
+            Tab(text: context.t('Month')),
+            Tab(text: context.t('Year')),
           ],
         ),
         Expanded(

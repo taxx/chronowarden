@@ -61,13 +61,17 @@ Set<String> _extractTranslationKeys() {
 
 Set<String> _keysInSource(String source) {
   final keys = <String>{};
-  var i = 0;
-  while (true) {
-    final idx = source.indexOf('.t(', i);
-    if (idx < 0) break;
-    i = idx + 3;
-    final parsed = _parseFirstArgument(source, i);
-    if (parsed != null) keys.add(parsed);
+  // `context.t('…')` at call sites, plus `strings.translate('…')` in pure
+  // helpers that receive an AppStrings instead of a BuildContext.
+  for (final needle in const ['.t(', '.translate(']) {
+    var i = 0;
+    while (true) {
+      final idx = source.indexOf(needle, i);
+      if (idx < 0) break;
+      i = idx + needle.length;
+      final parsed = _parseFirstArgument(source, i);
+      if (parsed != null) keys.add(parsed);
+    }
   }
   return keys;
 }

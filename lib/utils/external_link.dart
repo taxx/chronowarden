@@ -1,12 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../l10n/app_strings.dart';
+
 /// Opens [url] in the browser (web) or the platform's external app.
 ///
 /// Shows a snackbar and returns `false` when no handler is available, so the
 /// URL is never silently swallowed.
 Future<bool> openExternalLink(BuildContext context, String url) async {
   final messenger = ScaffoldMessenger.maybeOf(context);
+  final failureMessage =
+      context.t('Could not open {url}', {'url': url});
   final uri = Uri.tryParse(url);
   if (uri != null) {
     try {
@@ -17,6 +21,8 @@ Future<bool> openExternalLink(BuildContext context, String url) async {
       // Fall through to the error snackbar below.
     }
   }
-  messenger?.showSnackBar(SnackBar(content: Text('Could not open $url')));
+  messenger?.showSnackBar(
+    SnackBar(content: Text(failureMessage)),
+  );
   return false;
 }

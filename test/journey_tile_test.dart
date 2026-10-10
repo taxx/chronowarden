@@ -1,3 +1,4 @@
+import 'package:chronowarden/l10n/app_strings.dart';
 import 'package:chronowarden/models/journey_info.dart';
 import 'package:chronowarden/widgets/journey_tile.dart';
 import 'package:flutter/material.dart';
@@ -47,6 +48,7 @@ void main() {
         isPinned: true,
         tripLabel: 'arrive 09:00',
         theme: theme,
+        strings: const AppStringsEn(),
       );
       expect(s.text, 'Departs in 3 min · arrive 09:00');
       expect(s.color, theme.colorScheme.onSurfaceVariant);
@@ -60,6 +62,7 @@ void main() {
         isPinned: true,
         tripLabel: 'arrive 09:00',
         theme: theme,
+        strings: const AppStringsEn(),
       );
       expect(s.text, 'Departs in 1 min · arrive 09:00');
     });
@@ -72,6 +75,7 @@ void main() {
         isPinned: true,
         tripLabel: 'arrive 09:00',
         theme: theme,
+        strings: const AppStringsEn(),
       );
       expect(s.text, 'Committed ride — departed');
       expect(s.color, theme.colorScheme.onSurfaceVariant);
@@ -85,6 +89,7 @@ void main() {
         isPinned: true,
         tripLabel: 'arrive 09:00',
         theme: theme,
+        strings: const AppStringsEn(),
       );
       expect(s.text, 'Leave at 08:25 · arrive 09:00 · leave in 5 min');
     });
@@ -97,6 +102,7 @@ void main() {
         isPinned: false,
         tripLabel: 'arrive 09:00',
         theme: theme,
+        strings: const AppStringsEn(),
       );
       expect(s.text, 'Missed — needed to leave by 08:25');
       expect(s.color, theme.colorScheme.error);
@@ -110,6 +116,7 @@ void main() {
         isPinned: false,
         tripLabel: 'arrive 09:00',
         theme: theme,
+        strings: const AppStringsEn(),
       );
       expect(s.text, 'Leave at 08:25 · arrive 09:00 · leave in 15 min');
     });

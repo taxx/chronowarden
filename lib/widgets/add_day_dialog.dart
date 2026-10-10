@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../l10n/app_strings.dart';
 import '../models/travel_preset.dart';
 import '../services/preferences_service.dart';
 import '../utils/format.dart';
@@ -102,13 +103,13 @@ class _AddDayDialogState extends State<AddDayDialog> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return AlertDialog(
-      title: const Text('Add a past day'),
+      title: Text(context.t('Add a past day')),
       content: SingleChildScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Date', style: theme.textTheme.titleSmall),
+            Text(context.t('Date'), style: theme.textTheme.titleSmall),
             const SizedBox(height: 4),
             FilledButton.icon(
               onPressed: () async {
@@ -117,7 +118,6 @@ class _AddDayDialogState extends State<AddDayDialog> {
                   initialDate: _date,
                   firstDate: DateTime(2020),
                   lastDate: DateTime.now(),
-                  locale: const Locale('en', 'GB'),
                 );
                 if (picked != null) setState(() => _date = picked);
               },
@@ -133,7 +133,7 @@ class _AddDayDialogState extends State<AddDayDialog> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('Start time', style: theme.textTheme.titleSmall),
+                      Text(context.t('Start time'), style: theme.textTheme.titleSmall),
                       const SizedBox(height: 4),
                       FilledButton.icon(
                         onPressed: () async {
@@ -151,7 +151,7 @@ class _AddDayDialogState extends State<AddDayDialog> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('End time', style: theme.textTheme.titleSmall),
+                      Text(context.t('End time'), style: theme.textTheme.titleSmall),
                       const SizedBox(height: 4),
                       FilledButton.icon(
                         onPressed: () async {
@@ -167,7 +167,7 @@ class _AddDayDialogState extends State<AddDayDialog> {
               ],
             ),
             const SizedBox(height: 16),
-            Text('Expected work', style: theme.textTheme.titleSmall),
+            Text(context.t('Expected work'), style: theme.textTheme.titleSmall),
             const SizedBox(height: 4),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -176,17 +176,17 @@ class _AddDayDialogState extends State<AddDayDialog> {
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Text(
-                '${formatMins(widget.expectedMinutes)} per day',
+                context.t('{time} per day', {'time': formatMins(widget.expectedMinutes)}),
                 style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
               ),
             ),
             const SizedBox(height: 16),
-            Text('Travel preset', style: theme.textTheme.titleSmall),
+            Text(context.t('Travel preset'), style: theme.textTheme.titleSmall),
             const SizedBox(height: 4),
             DropdownButtonFormField(
               initialValue: _selectedPreset,
               items: widget.travelPresets.map<DropdownMenuItem>((p) {
-                return DropdownMenuItem(value: p, child: Text('${p.name} (+${formatMins(p.defaultOverheadMinutes)})'));
+                return DropdownMenuItem(value: p, child: Text(context.t('{name} (+{time})', {'name': p.name, 'time': formatMins(p.defaultOverheadMinutes)})));
               }).toList(),
               onChanged: (v) { if (v != null) setState(() => _selectedPreset = v); },
             ),
@@ -198,7 +198,7 @@ class _AddDayDialogState extends State<AddDayDialog> {
               eveningProductive: _eveningProductive,
             ),
             const SizedBox(height: 16),
-            Text('Lunch break', style: theme.textTheme.titleSmall),
+            Text(context.t('Lunch break'), style: theme.textTheme.titleSmall),
             const SizedBox(height: 4),
             Row(
               children: [
@@ -209,19 +209,19 @@ class _AddDayDialogState extends State<AddDayDialog> {
                     max: PreferencesService.maxLunchMinutes.toDouble(),
                     divisions: PreferencesService()
                         .sliderDivisions(0, PreferencesService.maxLunchMinutes.toDouble()),
-                    label: '$_lunch min',
+                    label: context.t('{minutes} min', {'minutes': _lunch}),
                     onChanged: (v) => setState(() => _lunch = v.round()),
                   ),
                 ),
-                Text('$_lunch min', style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600)),
+                Text(context.t('{minutes} min', {'minutes': _lunch}), style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600)),
               ],
             ),
             const SizedBox(height: 8),
-            Text('Note', style: theme.textTheme.titleSmall),
+            Text(context.t('Note'), style: theme.textTheme.titleSmall),
             const SizedBox(height: 4),
             TextField(
               maxLines: 2,
-              decoration: const InputDecoration(hintText: 'Optional note...'),
+              decoration: InputDecoration(hintText: context.t('Optional note...')),
               onChanged: (v) => _note = v,
             ),
             const SizedBox(height: 12),
@@ -235,9 +235,11 @@ class _AddDayDialogState extends State<AddDayDialog> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text('Overtime', style: theme.textTheme.titleSmall),
+                  Text(context.t('Overtime'), style: theme.textTheme.titleSmall),
                   Text(
-                    _overtime == 0 ? '✓ exactly on target' : '${_overtime > 0 ? '+' : ''}$_overtime min',
+                    _overtime == 0
+                        ? context.t('✓ exactly on target')
+                        : '${_overtime > 0 ? '+' : ''}$_overtime min',
                     style: theme.textTheme.titleMedium?.copyWith(
                       fontWeight: FontWeight.bold,
                       color: _overtime > 0 ? theme.colorScheme.error : Colors.green.shade700,
@@ -250,7 +252,7 @@ class _AddDayDialogState extends State<AddDayDialog> {
         ),
       ),
       actions: [
-        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+        TextButton(onPressed: () => Navigator.pop(context), child: Text(context.t('Cancel'))),
         FilledButton(
           onPressed: () => Navigator.pop(context, AddDayResult(
             date: _date,
@@ -266,7 +268,7 @@ class _AddDayDialogState extends State<AddDayDialog> {
             note: _note.isEmpty ? null : _note,
             presetId: _selectedPreset.id,
           )),
-          child: const Text('Add'),
+          child: Text(context.t('Add')),
         ),
       ],
     );

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../l10n/app_strings.dart';
 import '../models/user_profile.dart';
 import '../models/invite.dart';
 import '../services/auth_service.dart';
@@ -62,18 +63,21 @@ class _AdminScreenState extends State<AdminScreen> with SingleTickerProviderStat
   Future<void> _reject(String id) async {
     await _profileSvc.rejectUser(id);
     await _load();
-    if (mounted) _snack('User rejected');
+    if (mounted) _snack(context.t('User rejected'));
   }
 
   Future<void> _deleteUser(String id, String email) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text('Delete user'),
-        content: Text('Permanently delete "$email" and all their data? This cannot be undone.'),
+        title: Text(context.t('Delete user')),
+        content: Text(context.t(
+          'Permanently delete "{email}" and all their data? This cannot be undone.',
+          {'email': email},
+        )),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
-          FilledButton(onPressed: () => Navigator.pop(context, true), style: FilledButton.styleFrom(backgroundColor: Colors.red), child: const Text('Delete')),
+          TextButton(onPressed: () => Navigator.pop(context, false), child: Text(context.t('Cancel'))),
+          FilledButton(onPressed: () => Navigator.pop(context, true), style: FilledButton.styleFrom(backgroundColor: Colors.red), child: Text(context.t('Delete'))),
         ],
       ),
     );
@@ -81,7 +85,7 @@ class _AdminScreenState extends State<AdminScreen> with SingleTickerProviderStat
       try {
         await _profileSvc.deleteUser(id);
         await _load();
-        if (mounted) _snack('User deleted');
+        if (mounted) _snack(context.t('User deleted'));
       } catch (e) {
         if (mounted) {
           final msg = e.toString();
@@ -90,7 +94,7 @@ class _AdminScreenState extends State<AdminScreen> with SingleTickerProviderStat
                   content: Text(msg),
                   duration: const Duration(seconds: 8),
                   action: SnackBarAction(
-                    label: 'Dismiss',
+                    label: context.t('Dismiss'),
                     onPressed: () => ScaffoldMessenger.of(context).hideCurrentSnackBar(),
                   ),
                 )
@@ -106,18 +110,18 @@ class _AdminScreenState extends State<AdminScreen> with SingleTickerProviderStat
     final result = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text('Create Invite'),
+        title: Text(context.t('Create Invite')),
         content: TextField(
           controller: emailCtrl,
           keyboardType: TextInputType.emailAddress,
-          decoration: const InputDecoration(
-            labelText: 'Email (optional — for reference)',
-            border: OutlineInputBorder(),
+          decoration: InputDecoration(
+            labelText: context.t('Email (optional — for reference)'),
+            border: const OutlineInputBorder(),
           ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
-          FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Create')),
+          TextButton(onPressed: () => Navigator.pop(context, false), child: Text(context.t('Cancel'))),
+          FilledButton(onPressed: () => Navigator.pop(context, true), child: Text(context.t('Create'))),
         ],
       ),
     );
@@ -129,12 +133,12 @@ class _AdminScreenState extends State<AdminScreen> with SingleTickerProviderStat
           await showDialog(
             context: context,
             builder: (_) => AlertDialog(
-              title: const Text('Invite Token Created'),
+              title: Text(context.t('Invite Token Created')),
               content: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('Share this token with the new user:'),
+                  Text(context.t('Share this token with the new user:')),
                   const SizedBox(height: 12),
                   Container(
                     width: double.infinity,
@@ -160,18 +164,18 @@ class _AdminScreenState extends State<AdminScreen> with SingleTickerProviderStat
                   onPressed: () {
                     Clipboard.setData(ClipboardData(text: token));
                     Navigator.pop(context);
-                    _snack('Token copied to clipboard');
+                    _snack(context.t('Token copied to clipboard'));
                   },
-                  child: const Text('Copy'),
+                  child: Text(context.t('Copy')),
                 ),
-                FilledButton(onPressed: () => Navigator.pop(context), child: const Text('Done')),
+                FilledButton(onPressed: () => Navigator.pop(context), child: Text(context.t('Done'))),
               ],
             ),
           );
         }
       } catch (e) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(context.t('Error: {error}', {'error': e}))));
         }
       }
     }
@@ -198,9 +202,9 @@ class _AdminScreenState extends State<AdminScreen> with SingleTickerProviderStat
       children: [
         TabBar(
           controller: _tabCtrl,
-          tabs: const [
-            Tab(text: 'Users'),
-            Tab(text: 'Invites'),
+          tabs: [
+            Tab(text: context.t('Users')),
+            Tab(text: context.t('Invites')),
           ],
         ),
         if (_error != null)
@@ -223,7 +227,7 @@ class _AdminScreenState extends State<AdminScreen> with SingleTickerProviderStat
 
   Widget _buildUsersTab(ThemeData theme) {
     if (_users.isEmpty) {
-      return const Center(child: Text('No users yet'));
+      return Center(child: Text(context.t('No users yet')));
     }
 
     final isAdmin = _auth.profile;
@@ -261,7 +265,7 @@ class _AdminScreenState extends State<AdminScreen> with SingleTickerProviderStat
                     _statusChip(theme, user.status),
                     if (user.isAdmin) ...[
                       const SizedBox(width: 6),
-                      _statusChip(theme, 'admin', color: Colors.deepPurple),
+                      _statusChip(theme, context.t('admin'), color: Colors.deepPurple),
                     ],
                   ],
                 ),
@@ -274,19 +278,19 @@ class _AdminScreenState extends State<AdminScreen> with SingleTickerProviderStat
                   IconButton(
                     icon: const Icon(Icons.check_circle_outline, color: Colors.green),
                     onPressed: () => _approve(user.id),
-                    tooltip: 'Approve',
+                    tooltip: context.t('Approve'),
                   ),
                   IconButton(
                     icon: const Icon(Icons.cancel_outlined, color: Colors.red),
                     onPressed: () => _reject(user.id),
-                    tooltip: 'Reject',
+                    tooltip: context.t('Reject'),
                   ),
                 ],
                 if (!isLastAdmin)
                   IconButton(
                     icon: Icon(Icons.delete_outline, color: Colors.red.shade700),
                     onPressed: () => _deleteUser(user.id, user.email),
-                    tooltip: 'Delete',
+                    tooltip: context.t('Delete'),
                   ),
               ],
             ),
@@ -304,11 +308,11 @@ class _AdminScreenState extends State<AdminScreen> with SingleTickerProviderStat
           child: FilledButton.icon(
             onPressed: _createInvite,
             icon: const Icon(Icons.add),
-            label: const Text('Create Invite'),
+            label: Text(context.t('Create Invite')),
           ),
         ),
         if (_invites.isEmpty)
-          const Expanded(child: Center(child: Text('No invites yet'))),
+          Expanded(child: Center(child: Text(context.t('No invites yet')))),
         if (_invites.isNotEmpty)
           Expanded(
             child: ListView.builder(
@@ -334,7 +338,7 @@ class _AdminScreenState extends State<AdminScreen> with SingleTickerProviderStat
                       children: [
                         if (inv.isActive)
                           Text(
-                            inv.isExpired ? 'Expired' : (inv.used ? 'Used' : 'Active'),
+                            inv.isExpired ? context.t('Expired') : (inv.used ? context.t('Used') : context.t('Active')),
                             style: TextStyle(
                               fontSize: 12,
                               color: inv.isExpired ? Colors.red : (inv.used ? theme.colorScheme.onSurfaceVariant : Colors.green),
@@ -343,7 +347,7 @@ class _AdminScreenState extends State<AdminScreen> with SingleTickerProviderStat
                         IconButton(
                           icon: Icon(Icons.delete_outline, color: Colors.red.shade700, size: 20),
                           onPressed: () => _deleteInvite(inv.id!),
-                          tooltip: 'Delete',
+                          tooltip: context.t('Delete'),
                         ),
                       ],
                     ),
@@ -372,7 +376,7 @@ class _AdminScreenState extends State<AdminScreen> with SingleTickerProviderStat
         border: Border.all(color: c.withValues(alpha: 0.4), width: 0.5),
       ),
       child: Text(
-        status,
+        context.t(status),
         style: TextStyle(fontSize: 11, color: c, fontWeight: FontWeight.w600),
       ),
     );

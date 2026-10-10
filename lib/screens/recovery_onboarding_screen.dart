@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../l10n/app_strings.dart';
 import '../services/auth_service.dart';
 import '../widgets/recovery_phrase_card.dart';
 
@@ -26,27 +27,29 @@ class RecoveryOnboardingScreen extends StatelessWidget {
                   Icon(Icons.key, color: Colors.amber, size: 48),
                   const SizedBox(height: 16),
                   Text(
-                    'Your Recovery Phrase',
+                    context.t('Your Recovery Phrase'),
                     style: theme.textTheme.titleLarge?.copyWith(
                       fontWeight: FontWeight.bold,
                     ),
                   ),
                   const SizedBox(height: 12),
                   Text(
-                    'This is the only way to recover your encrypted data if '
-                    'you forget your encryption passphrase. Write it down '
-                    'and keep it in a safe place.',
+                    context.t('This is the only way to recover your encrypted data if '
+                        'you forget your encryption passphrase. Write it down '
+                        'and keep it in a safe place.'),
                     textAlign: TextAlign.center,
                     style: theme.textTheme.bodyMedium,
                   ),
                   const SizedBox(height: 24),
                   RecoveryPhraseCard(phrase: phrase),
                   const SizedBox(height: 24),
-                  const RecoveryWarningCard(
-                    message: 'If you lose both your passphrase AND this '
-                        'recovery phrase, your data is gone forever. '
-                        'No one — not even the app administrator — '
-                        'can recover it.',
+                  RecoveryWarningCard(
+                    message: context.t(
+                      'If you lose both your passphrase AND this '
+                      'recovery phrase, your data is gone forever. '
+                      'No one — not even the app administrator — '
+                      'can recover it.',
+                    ),
                   ),
                   const SizedBox(height: 32),
                   FilledButton.icon(
@@ -56,7 +59,7 @@ class RecoveryOnboardingScreen extends StatelessWidget {
                           (route) => route.isFirst);
                     },
                     icon: const Icon(Icons.arrow_forward),
-                    label: const Text('Continue to App'),
+                    label: Text(context.t('Continue to App')),
                   ),
                 ],
               ),

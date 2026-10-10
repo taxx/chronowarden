@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../l10n/app_strings.dart';
+
 /// Banner shown when a newer build has been deployed.
 ///
 /// Offers a one-tap reload (the only reliable way to pick up new web assets)
@@ -44,11 +46,11 @@ class UpdateBanner extends StatelessWidget {
               style: TextButton.styleFrom(
                 foregroundColor: theme.colorScheme.onPrimaryContainer,
               ),
-              child: const Text('Reload'),
+              child: Text(context.t('Reload')),
             ),
             IconButton(
               icon: const Icon(Icons.close, size: 18),
-              tooltip: 'Dismiss',
+              tooltip: context.t('Dismiss'),
               onPressed: onDismiss,
               color: theme.colorScheme.onPrimaryContainer,
               padding: EdgeInsets.zero,

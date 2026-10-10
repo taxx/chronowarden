@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../app_state.dart';
+import '../l10n/app_strings.dart';
 import '../models/time_log.dart';
 import '../utils/format.dart';
 import '../widgets/projection_chart.dart';
@@ -46,25 +47,25 @@ class _ProjectionScreenState extends State<ProjectionScreen> {
     final theme = Theme.of(context);
     if (_loading) {
       return Scaffold(
-        appBar: AppBar(title: const Text('Projection')),
+        appBar: AppBar(title: Text(context.t('Projection'))),
         body: const Center(child: CircularProgressIndicator()),
       );
     }
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Time Bank Projection')),
+      appBar: AppBar(title: Text(context.t('Time Bank Projection'))),
       body: ListenableBuilder(
         listenable: _state,
         builder: (context, _) {
           _currentBalance = _state.timeBankMinutes;
           _allLogs = _state.allLogs;
-          return _buildContent(theme);
+          return _buildContent(context, theme);
         },
       ),
     );
   }
 
-  Widget _buildContent(ThemeData theme) {
+  Widget _buildContent(BuildContext context, ThemeData theme) {
     final projection = _computeProjection(_dailyFlex, _useTrend);
     final balanceStr = formatDurationMinutes(_currentBalance);
     final avgGrowth = _computeAvgGrowth();
@@ -74,7 +75,7 @@ class _ProjectionScreenState extends State<ProjectionScreen> {
     final weeksToZero = _currentBalance <= 0 || effectiveFlex <= 0
         ? 0
         : (_currentBalance / (effectiveFlex * 5)).ceil();
-    final zeroDate = _computeZeroDate(weeksToZero);
+    final zeroDate = _computeZeroDate(context, weeksToZero);
 
     return ListView(
       padding: const EdgeInsets.all(16),
@@ -86,7 +87,7 @@ class _ProjectionScreenState extends State<ProjectionScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Current time bank', style: theme.textTheme.titleMedium),
+                Text(context.t('Current time bank'), style: theme.textTheme.titleMedium),
                 const SizedBox(height: 8),
                 Text(
                   balanceStr,
@@ -112,9 +113,9 @@ class _ProjectionScreenState extends State<ProjectionScreen> {
               children: [
                 Row(
                   children: [
-                    Expanded(child: Text('Daily flex target', style: theme.textTheme.titleMedium)),
+                    Expanded(child: Text(context.t('Daily flex target'), style: theme.textTheme.titleMedium)),
                     const SizedBox(width: 8),
-                    Text('Use trend', style: theme.textTheme.bodySmall),
+                    Text(context.t('Use trend'), style: theme.textTheme.bodySmall),
                     Switch(
                       value: _useTrend,
                       onChanged: (v) => setState(() => _useTrend = v),
@@ -124,8 +125,11 @@ class _ProjectionScreenState extends State<ProjectionScreen> {
                 const SizedBox(height: 4),
                 Text(
                   _useTrend
-                      ? 'Minutes to take from the bank each workday.\nTrend adjusts for your avg growth (${formatDurationMinutes(avgGrowth)}/week).'
-                      : 'Minutes to take from the bank each workday.',
+                      ? context.t(
+                          'Minutes to take from the bank each workday.\nTrend adjusts for your avg growth ({growth}/week).',
+                          {'growth': formatDurationMinutes(avgGrowth)},
+                        )
+                      : context.t('Minutes to take from the bank each workday.'),
                   style: theme.textTheme.bodySmall?.copyWith(
                     color: theme.colorScheme.onSurfaceVariant,
                   ),
@@ -139,12 +143,12 @@ class _ProjectionScreenState extends State<ProjectionScreen> {
                         min: 0,
                         max: 120,
                         divisions: 24,
-                        label: '$_dailyFlex min',
+                        label: context.t('{minutes} min', {'minutes': _dailyFlex}),
                         onChanged: (v) => setState(() => _dailyFlex = v.round()),
                       ),
                     ),
                     Text(
-                      '$_dailyFlex min',
+                      context.t('{minutes} min', {'minutes': _dailyFlex}),
                       style: theme.textTheme.bodyMedium?.copyWith(
                         fontWeight: FontWeight.w600,
                       ),
@@ -164,21 +168,39 @@ class _ProjectionScreenState extends State<ProjectionScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Projection', style: theme.textTheme.titleMedium),
+                Text(context.t('Projection'), style: theme.textTheme.titleMedium),
                 const SizedBox(height: 8),
                 if (_useTrend) ...[  
-                  StatRow(label: 'Avg growth rate', value: '${formatDurationMinutes(avgGrowth)}/week'),
-                  StatRow(label: 'Net weekly change', value: formatDurationMinutes(-effectiveWeekly)),
+                  StatRow(label: context.t('Avg growth rate'), value: '${formatDurationMinutes(avgGrowth)}/week'),
+                  StatRow(label: context.t('Net weekly change'), value: formatDurationMinutes(-effectiveWeekly)),
                 ],
-                StatRow(label: 'Weekly reduction', value: formatDurationMinutes(-effectiveWeekly)),
-                StatRow(label: 'Weeks to zero', value: '$weeksToZero weeks'),
-                StatRow(label: 'Estimated zero date', value: zeroDate),
+                StatRow(label: context.t('Weekly reduction'), value: formatDurationMinutes(-effectiveWeekly)),
+                StatRow(label: context.t('Weeks to zero'), value: context.t('{count} weeks', {'count': weeksToZero})),
+                StatRow(label: context.t('Estimated zero date'), value: zeroDate),
                 if (effectiveFlex > 0) ...[  
                   const SizedBox(height: 8),
                   Text(
                     _useTrend
-                        ? 'Taking $_dailyFlex min flex per workday (net ${formatDurationMinutes(-effectiveWeekly)}/week after avg growth of ${formatDurationMinutes(avgGrowth)}/week), your bank of $balanceStr will reach zero in ~$weeksToZero weeks ($zeroDate).'
-                        : 'Taking $_dailyFlex min per workday, your bank of $balanceStr will reach zero in ~$weeksToZero weeks ($zeroDate).',
+                        ? context.t(
+                            'Taking {flex} min flex per workday (net {net}/week after avg growth of {growth}/week), your bank of {balance} will reach zero in ~{weeks} weeks ({date}).',
+                            {
+                              'flex': _dailyFlex,
+                              'net': formatDurationMinutes(-effectiveWeekly),
+                              'growth': formatDurationMinutes(avgGrowth),
+                              'balance': balanceStr,
+                              'weeks': weeksToZero,
+                              'date': zeroDate,
+                            },
+                          )
+                        : context.t(
+                            'Taking {flex} min per workday, your bank of {balance} will reach zero in ~{weeks} weeks ({date}).',
+                            {
+                              'flex': _dailyFlex,
+                              'balance': balanceStr,
+                              'weeks': weeksToZero,
+                              'date': zeroDate,
+                            },
+                          ),
                     style: theme.textTheme.bodySmall?.copyWith(
                       color: theme.colorScheme.onSurfaceVariant,
                     ),
@@ -186,7 +208,7 @@ class _ProjectionScreenState extends State<ProjectionScreen> {
                 ] else ...[
                   const SizedBox(height: 8),
                   Text(
-                    'Set a daily flex target above to see when your bank reaches zero.',
+                    context.t('Set a daily flex target above to see when your bank reaches zero.'),
                     style: theme.textTheme.bodySmall?.copyWith(
                       color: theme.colorScheme.onSurfaceVariant,
                     ),
@@ -205,10 +227,13 @@ class _ProjectionScreenState extends State<ProjectionScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Balance over time', style: theme.textTheme.titleMedium),
+                Text(context.t('Balance over time'), style: theme.textTheme.titleMedium),
                 const SizedBox(height: 2),
                 Text(
-                  'Actual bank history (green) vs projected with $_dailyFlex min/day flex (blue)',
+                  context.t(
+                    'Actual bank history (green) vs projected with {minutes} min/day flex (blue)',
+                    {'minutes': _dailyFlex},
+                  ),
                   style: theme.textTheme.bodySmall?.copyWith(
                     color: theme.colorScheme.onSurfaceVariant,
                   ),
@@ -344,14 +369,11 @@ class _ProjectionScreenState extends State<ProjectionScreen> {
     );
   }
 
-  String _computeZeroDate(int weeks) {
-    if (weeks <= 0) return 'Already at zero!';
+  String _computeZeroDate(BuildContext context, int weeks) {
+    if (weeks <= 0) return context.t('Already at zero!');
     final date = DateTime.now().add(Duration(days: weeks * 7));
-    final months = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
-    ];
-    return '${date.day} ${months[date.month - 1]} ${date.year}';
+    final monthYear = MaterialLocalizations.of(context).formatMonthYear(date);
+    return '${date.day} $monthYear';
   }
 }
 

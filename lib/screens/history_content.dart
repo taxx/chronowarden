@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../app_state.dart';
+import '../l10n/app_strings.dart';
 import '../models/time_log.dart';
 import '../services/preferences_service.dart';
 import '../utils/format.dart';
@@ -67,7 +68,7 @@ class _HistoryContentState extends State<HistoryContent> {
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    Text('Time Bank', style: theme.textTheme.titleSmall),
+                                    Text(context.t('Time Bank'), style: theme.textTheme.titleSmall),
                                     Text(
                                       formatSignedMinutes(balance),
                                       style: theme.textTheme.headlineSmall?.copyWith(
@@ -85,7 +86,7 @@ class _HistoryContentState extends State<HistoryContent> {
                     ),
                   ),
                   if (logs.isEmpty)
-                    const SliverFillRemaining(child: Center(child: Text('No logs yet')))
+                    SliverFillRemaining(child: Center(child: Text(context.t('No logs yet'))))
                   else
                     SliverList(
                       delegate: SliverChildBuilderDelegate(
@@ -124,13 +125,13 @@ class _HistoryContentState extends State<HistoryContent> {
                   FloatingActionButton.extended(
                     onPressed: () => _showAddDayDialog(context),
                     icon: const Icon(Icons.add),
-                    label: const Text('Add Day'),
+                    label: Text(context.t('Add Day')),
                   ),
                   const SizedBox(height: 12),
                   FloatingActionButton.extended(
                     onPressed: () => _showImportDialog(context),
                     icon: const Icon(Icons.file_upload_outlined),
-                    label: const Text('Import'),
+                    label: Text(context.t('Import')),
                     backgroundColor: Colors.indigo,
                     foregroundColor: Colors.white,
                   ),
@@ -149,14 +150,17 @@ class _HistoryContentState extends State<HistoryContent> {
     return showDialog<bool>(
       context: ctx,
       builder: (_) => AlertDialog(
-        title: const Text('Delete day'),
-        content: Text('Permanently delete the entry for $date? This cannot be undone.'),
+        title: Text(ctx.t('Delete day')),
+        content: Text(ctx.t(
+          'Permanently delete the entry for {date}? This cannot be undone.',
+          {'date': date},
+        )),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(ctx.t('Cancel'))),
           FilledButton(
             onPressed: () => Navigator.pop(ctx, true),
             style: FilledButton.styleFrom(backgroundColor: Colors.red),
-            child: const Text('Delete'),
+            child: Text(ctx.t('Delete')),
           ),
         ],
       ),
@@ -169,7 +173,7 @@ class _HistoryContentState extends State<HistoryContent> {
     final state = _state;
     if (state.travelPresets.isEmpty) {
       ScaffoldMessenger.of(ctx).showSnackBar(
-        const SnackBar(content: Text('Add at least one travel preset in Settings.')),
+        SnackBar(content: Text(ctx.t('Add at least one travel preset in Settings.'))),
       );
       return;
     }
@@ -221,12 +225,18 @@ class _HistoryContentState extends State<HistoryContent> {
 
       if (!ctx.mounted) return;
 
+      final skipped = importResult.skipped > 0
+          ? ctx.t(', {count} skipped (duplicates)', {'count': importResult.skipped})
+          : '';
+      final errors = importResult.hasErrors
+          ? ctx.t(', {count} error(s)', {'count': importResult.errors.length})
+          : '';
       ScaffoldMessenger.of(ctx).showSnackBar(
         SnackBar(
           content: Text(
-            'Imported ${importResult.imported.length} day(s)'
-            '${importResult.skipped > 0 ? ', ${importResult.skipped} skipped (duplicates)' : ''}'
-            '${importResult.hasErrors ? ', ${importResult.errors.length} error(s)' : ''}',
+            ctx.t('Imported {count} day(s)', {'count': importResult.imported.length}) +
+                skipped +
+                errors,
           ),
           duration: const Duration(seconds: 4),
         ),
@@ -236,7 +246,7 @@ class _HistoryContentState extends State<HistoryContent> {
         showDialog(
           context: ctx,
           builder: (_) => AlertDialog(
-            title: const Text('Import Errors'),
+            title: Text(ctx.t('Import Errors')),
             content: SizedBox(
               width: double.infinity,
               child: Column(
@@ -249,7 +259,7 @@ class _HistoryContentState extends State<HistoryContent> {
               ),
             ),
             actions: [
-              FilledButton(onPressed: () => Navigator.pop(ctx), child: const Text('OK')),
+              FilledButton(onPressed: () => Navigator.pop(ctx), child: Text(ctx.t('OK'))),
             ],
           ),
         );
@@ -261,7 +271,7 @@ class _HistoryContentState extends State<HistoryContent> {
     final state = _state;
     if (state.travelPresets.isEmpty) {
       ScaffoldMessenger.of(ctx).showSnackBar(
-        const SnackBar(content: Text('Settings not loaded yet. Try again.')),
+        SnackBar(content: Text(ctx.t('Settings not loaded yet. Try again.'))),
       );
       return;
     }

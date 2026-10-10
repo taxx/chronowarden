@@ -205,10 +205,12 @@ class _NoConfigScreen extends StatelessWidget {
         child: Padding(
           padding: const EdgeInsets.all(24),
           child: Text(
-            'Supabase credentials not found.\n\n'
-            'Copy secrets.json.template → secrets.json, fill in your '
-            'SUPABASE_URL and SUPABASE_ANON_KEY, then run:\n\n'
-            'flutter run --dart-define-from-file=secrets.json',
+            context.t(
+              'Supabase credentials not found.\n\n'
+              'Copy secrets.json.template → secrets.json, fill in your '
+              'SUPABASE_URL and SUPABASE_ANON_KEY, then run:\n\n'
+              'flutter run --dart-define-from-file=secrets.json',
+            ),
             textAlign: TextAlign.center,
             style: Theme.of(context).textTheme.bodyLarge,
           ),

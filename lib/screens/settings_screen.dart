@@ -57,8 +57,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
         WorkConfigSection(onEdit: () => _showWorkConfigDialog(context)),
         const SizedBox(height: 24),
         SectionCard<TravelPreset>(
-          title: 'Travel Presets',
-          subtitle: 'Commute scenarios with overhead buffer',
+          title: context.t('Travel Presets'),
+          subtitle: context.t('Commute scenarios with overhead buffer'),
+          addLabel: context.t('Add Travel Preset'),
           items: _state.travelPresets,
           itemBuilder: (p) => Text(context.t(
             '{name}: {amOverhead}/{pmOverhead} min overhead, {amProductive}/{pmProductive} min train work',

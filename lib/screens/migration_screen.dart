@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../l10n/app_strings.dart';
 import '../services/auth_service.dart';
 import '../services/migration_service.dart';
 import '../widgets/recovery_phrase_card.dart';
@@ -40,11 +41,11 @@ class _MigrationScreenState extends State<MigrationScreen> {
 
   Future<void> _startMigration() async {
     if (!_passwordsMatch) {
-      setState(() => _error = 'Passphrases do not match');
+      setState(() => _error = context.t('Passphrases do not match'));
       return;
     }
     if (!_strongEnough) {
-      setState(() => _error = 'Passphrase must be at least 8 characters');
+      setState(() => _error = context.t('Passphrase must be at least 8 characters'));
       return;
     }
 
@@ -113,7 +114,7 @@ class _MigrationScreenState extends State<MigrationScreen> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                'Important Security Update',
+                                context.t('Important Security Update'),
                                 style: theme.textTheme.titleMedium?.copyWith(
                                   fontWeight: FontWeight.bold,
                                   color: theme.colorScheme.onTertiaryContainer,
@@ -121,9 +122,11 @@ class _MigrationScreenState extends State<MigrationScreen> {
                               ),
                               const SizedBox(height: 8),
                               Text(
-                                'Your data is currently stored without encryption. '
-                                'To protect your privacy, we need to encrypt all your '
-                                'existing records. This is a one-time process.',
+                                context.t(
+                                  'Your data is currently stored without encryption. '
+                                  'To protect your privacy, we need to encrypt all your '
+                                  'existing records. This is a one-time process.',
+                                ),
                                 style: theme.textTheme.bodySmall?.copyWith(
                                   color: theme.colorScheme.onTertiaryContainer,
                                 ),
@@ -138,13 +141,13 @@ class _MigrationScreenState extends State<MigrationScreen> {
 
                   // --- Explanation ---
                   Text(
-                    'Set Your Encryption Passphrase',
+                    context.t('Set Your Encryption Passphrase'),
                     style: theme.textTheme.titleLarge?.copyWith(
                       fontWeight: FontWeight.bold,
                     ),
                   ),
                   const SizedBox(height: 12),
-                  _explanationText(theme),
+                  _explanationText(context, theme),
                   const SizedBox(height: 24),
 
                   // --- Passphrase fields ---
@@ -152,8 +155,8 @@ class _MigrationScreenState extends State<MigrationScreen> {
                     controller: _passCtrl,
                     obscureText: true,
                     decoration: InputDecoration(
-                      labelText: 'Encryption passphrase',
-                      hintText: 'At least 8 characters',
+                      labelText: context.t('Encryption passphrase'),
+                      hintText: context.t('At least 8 characters'),
                       border: const OutlineInputBorder(),
                       prefixIcon: const Icon(Icons.lock_outline),
                       suffixIcon: _passCtrl.text.length >= 8
@@ -168,7 +171,7 @@ class _MigrationScreenState extends State<MigrationScreen> {
                     controller: _confirmCtrl,
                     obscureText: true,
                     decoration: InputDecoration(
-                      labelText: 'Confirm passphrase',
+                      labelText: context.t('Confirm passphrase'),
                       border: const OutlineInputBorder(),
                       prefixIcon: const Icon(Icons.lock_outline),
                       suffixIcon: _passwordsMatch && _passCtrl.text.isNotEmpty
@@ -191,7 +194,8 @@ class _MigrationScreenState extends State<MigrationScreen> {
                     LinearProgressIndicator(value: _progress),
                     const SizedBox(height: 8),
                     Text(
-                      'Encrypting your data (${(_progress * 100).toInt()}%)...',
+                      context.t('Encrypting your data ({percent}%)...',
+                          {'percent': (_progress * 100).toInt()}),
                       style: theme.textTheme.bodySmall,
                     ),
                     const SizedBox(height: 24),
@@ -211,8 +215,8 @@ class _MigrationScreenState extends State<MigrationScreen> {
                           )
                         : const Icon(Icons.shield),
                     label: Text(_loading
-                        ? 'Encrypting...'
-                        : 'Start Encryption'),
+                        ? context.t('Encrypting...')
+                        : context.t('Start Encryption')),
                   ),
                 ],
               ),
@@ -237,15 +241,17 @@ class _MigrationScreenState extends State<MigrationScreen> {
                       color: Colors.green, size: 64),
                   const SizedBox(height: 16),
                   Text(
-                    'Encryption Complete!',
+                    context.t('Encryption Complete!'),
                     style: theme.textTheme.titleLarge?.copyWith(
                       fontWeight: FontWeight.bold,
                     ),
                   ),
                   const SizedBox(height: 12),
                   Text(
-                    'Your data is now encrypted and cannot be read by anyone '
-                    'except you.',
+                    context.t(
+                      'Your data is now encrypted and cannot be read by anyone '
+                      'except you.',
+                    ),
                     textAlign: TextAlign.center,
                     style: theme.textTheme.bodyMedium,
                   ),
@@ -254,18 +260,22 @@ class _MigrationScreenState extends State<MigrationScreen> {
                   // --- Recovery phrase ---
                   RecoveryPhraseCard(
                     phrase: _recoveryPhrase!,
-                    description: 'Write this down and keep it in a safe place. '
-                        'If you forget your passphrase, this is the only '
-                        'way to recover your data.',
+                    description: context.t(
+                      'Write this down and keep it in a safe place. '
+                      'If you forget your passphrase, this is the only '
+                      'way to recover your data.',
+                    ),
                   ),
 
                   // --- Warning ---
                   const SizedBox(height: 24),
-                  const RecoveryWarningCard(
-                    message: 'If you lose both your passphrase AND this '
-                        'recovery phrase, your data is gone forever. '
-                        'No one — not even the app administrator — '
-                        'can recover it.',
+                  RecoveryWarningCard(
+                    message: context.t(
+                      'If you lose both your passphrase AND this '
+                      'recovery phrase, your data is gone forever. '
+                      'No one — not even the app administrator — '
+                      'can recover it.',
+                    ),
                   ),
                   const SizedBox(height: 32),
 
@@ -280,7 +290,7 @@ class _MigrationScreenState extends State<MigrationScreen> {
                       // Just a visual cue — parent already rebuilt.
                     },
                     icon: const Icon(Icons.arrow_forward),
-                    label: const Text('Continue to App'),
+                    label: Text(context.t('Continue to App')),
                   ),
                 ],
               ),
@@ -291,32 +301,32 @@ class _MigrationScreenState extends State<MigrationScreen> {
     );
   }
 
-  Widget _explanationText(ThemeData theme) {
+  Widget _explanationText(BuildContext context, ThemeData theme) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _explainRow('🔐',
-            'Your passphrase creates a Master Key that protects your Data '
-            'Encryption Key. Your data is encrypted with AES-256-GCM.'),
+        _explainRow(context, '🔐',
+            context.t('Your passphrase creates a Master Key that protects your Data '
+                'Encryption Key. Your data is encrypted with AES-256-GCM.')),
         const SizedBox(height: 8),
-        _explainRow('🔑',
-            'A random Data Encryption Key (DEK) is generated and stored '
-            'encrypted on the server. The DEK never leaves your device '
-            'in plaintext.'),
+        _explainRow(context, '🔑',
+            context.t('A random Data Encryption Key (DEK) is generated and stored '
+                'encrypted on the server. The DEK never leaves your device '
+                'in plaintext.')),
         const SizedBox(height: 8),
-        _explainRow('🔄',
-            'On other devices, enter the same passphrase to unlock the '
-            'same DEK — your data is accessible everywhere.'),
+        _explainRow(context, '🔄',
+            context.t('On other devices, enter the same passphrase to unlock the '
+                'same DEK — your data is accessible everywhere.')),
         const SizedBox(height: 8),
-        _explainRow('⚠️',
-            'No one — not even the app administrator — can read your '
-            'encrypted data. If you forget your passphrase, your data '
-            'is unrecoverable unless you have the recovery phrase.'),
+        _explainRow(context, '⚠️',
+            context.t('No one — not even the app administrator — can read your '
+                'encrypted data. If you forget your passphrase, your data '
+                'is unrecoverable unless you have the recovery phrase.')),
       ],
     );
   }
 
-  Widget _explainRow(String icon, String text) {
+  Widget _explainRow(BuildContext context, String icon, String text) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [

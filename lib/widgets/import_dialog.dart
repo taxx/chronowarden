@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../l10n/app_strings.dart';
+
 // ---------------------------------------------------------------------------
 // CSV import dialog
 // ---------------------------------------------------------------------------
@@ -43,7 +45,7 @@ date,start_time,end_time,expected_minutes,overhead_minutes,lunch_minutes,note
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return AlertDialog(
-      title: const Text('Import Days from CSV'),
+      title: Text(context.t('Import Days from CSV')),
       content: SingleChildScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -60,7 +62,7 @@ date,start_time,end_time,expected_minutes,overhead_minutes,lunch_minutes,note
                     color: theme.colorScheme.primary,
                   ),
                   const SizedBox(width: 4),
-                  Text('CSV Format Guide', style: theme.textTheme.labelLarge?.copyWith(
+                  Text(context.t('CSV Format Guide'), style: theme.textTheme.labelLarge?.copyWith(
                     color: theme.colorScheme.primary,
                   )),
                 ],
@@ -86,7 +88,7 @@ date,start_time,end_time,expected_minutes,overhead_minutes,lunch_minutes,note
                 ),
               ),
             const SizedBox(height: 16),
-            Text('Paste your CSV data below', style: theme.textTheme.titleSmall),
+            Text(context.t('Paste your CSV data below'), style: theme.textTheme.titleSmall),
             const SizedBox(height: 4),
             TextField(
               controller: widget.controller,
@@ -105,19 +107,19 @@ date,start_time,end_time,expected_minutes,overhead_minutes,lunch_minutes,note
         ),
       ),
       actions: [
-        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+        TextButton(onPressed: () => Navigator.pop(context), child: Text(context.t('Cancel'))),
         FilledButton(
           onPressed: () {
             final text = widget.controller.text.trim();
             if (text.isEmpty) {
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Paste some CSV data first')),
+                SnackBar(content: Text(context.t('Paste some CSV data first'))),
               );
               return;
             }
             Navigator.pop(context, true);
           },
-          child: const Text('Import'),
+          child: Text(context.t('Import')),
         ),
       ],
     );

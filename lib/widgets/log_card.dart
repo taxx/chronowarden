@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../l10n/app_strings.dart';
 import '../models/time_log.dart';
 import '../utils/format.dart';
 
@@ -66,7 +67,19 @@ class LogCard extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                '${log.startTime}${log.endTime != null ? ' → ${log.endTime}' : ' → …'}  ·  ${formatMins(log.expectedMinutes)} work + ${formatMins(log.overheadMinutes)} overhead${log.lunchMinutes > 0 ? ' · ${formatMins(log.lunchMinutes)} lunch' : ''}',
+                context.t(
+                      '{start}{end}  ·  {expected} work + {overhead} overhead',
+                      {
+                        'start': log.startTime,
+                        'end': log.endTime != null ? ' → ${log.endTime}' : ' → …',
+                        'expected': formatMins(log.expectedMinutes),
+                        'overhead': formatMins(log.overheadMinutes),
+                      },
+                    ) +
+                    (log.lunchMinutes > 0
+                        ? context.t(' · {time} lunch',
+                            {'time': formatMins(log.lunchMinutes)})
+                        : ''),
                 style: theme.textTheme.bodySmall,
               ),
               if (hasNote)
@@ -80,7 +93,7 @@ class LogCard extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(
-                isCompleted ? (overtime == 0 ? '✓' : formatMins(overtime)) : 'active',
+                isCompleted ? (overtime == 0 ? '✓' : formatMins(overtime)) : context.t('active'),
                 style: theme.textTheme.titleMedium?.copyWith(
                   fontWeight: FontWeight.bold,
                   color: isCompleted

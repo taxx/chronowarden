@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../l10n/app_strings.dart';
 import '../models/journey_info.dart';
 
 /// Delay color for a journey's real-time departure delay.
@@ -30,6 +31,7 @@ Color journeyDelayColor(JourneyInfo journey) {
   required bool isPinned,
   required String tripLabel,
   required ThemeData theme,
+  required AppStrings strings,
 }) {
   final depLocal = journey.departureTime.toLocal();
   final leaveTime = depLocal.subtract(Duration(minutes: walkBuffer));
@@ -41,10 +43,11 @@ Color journeyDelayColor(JourneyInfo journey) {
   String untilStr;
   if (minutesUntilLeave <= 0) {
     untilStr = '';
-  } else if (minutesUntilLeave == 1) {
-    untilStr = ' · leave in 1 min';
   } else {
-    untilStr = ' · leave in $minutesUntilLeave min';
+    untilStr = strings.translate(
+      ' · leave in {minutes} min',
+      {'minutes': minutesUntilLeave},
+    );
   }
 
   final leaveStr = '${leaveTime.hour.toString().padLeft(2, '0')}:'
@@ -53,22 +56,26 @@ Color journeyDelayColor(JourneyInfo journey) {
   String text;
   if (isPinned) {
     if (isCatchable) {
-      text = 'Leave at $leaveStr · $tripLabel$untilStr';
+      text = strings.translate('Leave at {time} · {trip}{until}',
+          {'time': leaveStr, 'trip': tripLabel, 'until': untilStr});
     } else {
       final minutesUntilDeparture =
           now.isBefore(depLocal) ? depLocal.difference(now).inMinutes : 0;
       if (minutesUntilDeparture > 0) {
         final depCountdown =
             minutesUntilDeparture == 1 ? '1 min' : '$minutesUntilDeparture min';
-        text = 'Departs in $depCountdown · $tripLabel';
+        text = strings.translate('Departs in {countdown} · {trip}',
+            {'countdown': depCountdown, 'trip': tripLabel});
       } else {
-        text = 'Committed ride — departed';
+        text = strings.translate('Committed ride — departed');
       }
     }
   } else if (isCatchable) {
-    text = 'Leave at $leaveStr · $tripLabel$untilStr';
+    text = strings.translate('Leave at {time} · {trip}{until}',
+        {'time': leaveStr, 'trip': tripLabel, 'until': untilStr});
   } else {
-    text = 'Missed — needed to leave by $leaveStr';
+    text = strings.translate('Missed — needed to leave by {time}',
+        {'time': leaveStr});
   }
 
   final color = isPinned || isCatchable
@@ -95,7 +102,7 @@ class PinButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final label = isPinned ? 'Locked' : 'Pin';
+    final label = isPinned ? context.t('Locked') : context.t('Pin');
     final icon = isPinned ? Icons.lock : Icons.push_pin_outlined;
     final color = isPinned
         ? theme.colorScheme.tertiary
@@ -109,7 +116,7 @@ class PinButton extends StatelessWidget {
     final fontSize = compact ? 10.0 : 11.0;
 
     return Tooltip(
-      message: isPinned ? 'Unpin this journey' : 'Commit to this journey',
+      message: isPinned ? context.t('Unpin this journey') : context.t('Commit to this journey'),
       child: InkWell(
         onTap: onTogglePin,
         borderRadius: BorderRadius.circular(radius),
@@ -178,8 +185,9 @@ class TransitJourneyRow extends StatelessWidget {
       now: now,
       walkBuffer: walkBuffer,
       isPinned: isPinned,
-      tripLabel: '${journey.durationMinutes}min trip',
+      tripLabel: context.t('{minutes}min trip', {'minutes': journey.durationMinutes}),
       theme: theme,
+      strings: context.strings,
     );
 
     return Container(

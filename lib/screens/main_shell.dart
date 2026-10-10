@@ -62,6 +62,26 @@ class _MainShellState extends State<MainShell> {
     );
   }
 
+  /// Build the localized message for a leave-time alert.
+  String _alertMessage(BuildContext context, LeaveAlert alert) {
+    switch (alert.kind) {
+      case LeaveAlertKind.wrapUp:
+        final mins = alert.remainingMinutes.round();
+        final h = mins ~/ 60;
+        final m = mins % 60;
+        final timeStr = h > 0 ? '${h}h ${m}m' : '$m min';
+        return context.t(
+          '⏰ {time} left — wrap up and head out!',
+          {'time': timeStr},
+        );
+      case LeaveAlertKind.overtime:
+        return context.t(
+          '🚨 {minutes} min past your time — finish up and stop the day!',
+          {'minutes': alert.remainingMinutes.abs().round()},
+        );
+    }
+  }
+
   Future<void> _handleLogout() async {
     final confirm = await showDialog<bool>(
       context: context,
@@ -201,7 +221,7 @@ class _MainShellState extends State<MainShell> {
                 Padding(
                   padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
                   child: AlertBanner(
-                    message: _notifications.currentAlert!.message,
+                    message: _alertMessage(context, _notifications.currentAlert!),
                     isUrgent: _notifications.currentAlert!.isUrgent,
                     snoozeLabel: context.t(
                       'Snooze {minutes}m',

@@ -2,6 +2,7 @@ import 'dart:math';
 
 import 'package:flutter/material.dart';
 
+import '../l10n/app_strings.dart';
 import '../models/period.dart';
 import '../models/time_log.dart';
 import '../services/preferences_service.dart';
@@ -67,9 +68,9 @@ class _TimeBankChartState extends State<TimeBankChart> {
               children: [
                 Icon(Icons.trending_up, size: 20, color: theme.colorScheme.primary),
                 const SizedBox(width: 8),
-                Text('Time Bank', style: theme.textTheme.titleMedium),
+                Text(context.t('Time Bank'), style: theme.textTheme.titleMedium),
                 const Spacer(),
-                Text('Trend', style: theme.textTheme.labelSmall?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+                Text(context.t('Trend'), style: theme.textTheme.labelSmall?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
                 const SizedBox(width: 4),
                 Switch(
                   value: _showTrend,
@@ -80,7 +81,7 @@ class _TimeBankChartState extends State<TimeBankChart> {
             ),
             const SizedBox(height: 2),
             Text(
-              'Daily overtime relative to your time bank — green bars mean you earned time back.',
+              context.t('Daily overtime relative to your time bank — green bars mean you earned time back.'),
               style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
             ),
             const SizedBox(height: 8),
@@ -103,14 +104,14 @@ class _TimeBankChartState extends State<TimeBankChart> {
               )),
             ),
             const SizedBox(height: 8),
-            _balanceLabel(theme, data),
+            _balanceLabel(context, theme, data),
           ],
         ),
       ),
     );
   }
 
-  Widget _balanceLabel(ThemeData theme, _ChartData data) {
+  Widget _balanceLabel(BuildContext context, ThemeData theme, _ChartData data) {
     if (data.deltas.isEmpty) return const SizedBox.shrink();
 
     final baseline = data.baseline;
@@ -129,7 +130,7 @@ class _TimeBankChartState extends State<TimeBankChart> {
       children: [
         Row(
           children: [
-            Text('Started with ', style: theme.textTheme.bodyMedium),
+            Text(context.t('Started with '), style: theme.textTheme.bodyMedium),
             Text(
               baselineStr,
               style: theme.textTheme.titleMedium?.copyWith(
@@ -137,13 +138,13 @@ class _TimeBankChartState extends State<TimeBankChart> {
                 color: theme.colorScheme.primary,
               ),
             ),
-            Text(' in the bank', style: theme.textTheme.bodyMedium),
+            Text(context.t(' in the bank'), style: theme.textTheme.bodyMedium),
           ],
         ),
         const SizedBox(height: 4),
         Row(
           children: [
-            Text('Period total: ', style: theme.textTheme.bodySmall),
+            Text(context.t('Period total: '), style: theme.textTheme.bodySmall),
             Text(
               '$changeSign$changeStr',
               style: theme.textTheme.bodySmall?.copyWith(
@@ -161,7 +162,7 @@ class _TimeBankChartState extends State<TimeBankChart> {
         const SizedBox(height: 4),
         Row(
           children: [
-            Text('Ends with ', style: theme.textTheme.bodySmall),
+            Text(context.t('Ends with '), style: theme.textTheme.bodySmall),
             Text(
               endStr,
               style: theme.textTheme.bodySmall?.copyWith(

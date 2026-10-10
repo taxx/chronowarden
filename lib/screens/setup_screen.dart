@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../l10n/app_strings.dart';
 import '../services/auth_service.dart';
 import '../services/supabase_service.dart';
 import 'login_screen.dart';
@@ -60,7 +61,7 @@ class _SetupScreenState extends State<SetupScreen> {
     if (ok) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('✓ Tables verified')),
+        SnackBar(content: Text(context.t('✓ Tables verified'))),
       );
       // Navigate to the next step.
       final hasProfiles = await AuthService().checkDatabaseState();
@@ -86,7 +87,7 @@ class _SetupScreenState extends State<SetupScreen> {
     if (!mounted) return;
     setState(() => _copyingSchema = true);
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('✓ SQL copied to clipboard')),
+      SnackBar(content: Text(context.t('✓ SQL copied to clipboard'))),
     );
     await Future.delayed(const Duration(seconds: 1));
     if (mounted) setState(() => _copyingSchema = false);
@@ -97,7 +98,7 @@ class _SetupScreenState extends State<SetupScreen> {
     final theme = Theme.of(context);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Database Setup')),
+      appBar: AppBar(title: Text(context.t('Database Setup'))),
       body: CustomScrollView(
         slivers: [
           SliverToBoxAdapter(
@@ -107,18 +108,20 @@ class _SetupScreenState extends State<SetupScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'First-time setup',
+                    context.t('First-time setup'),
                     style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 12),
                   Text(
-                    'ChronoWarden needs several tables in your Supabase project.\n\n'
-                    '1. Open your Supabase dashboard → SQL Editor\n'
-                    '2. Copy the SQL below and paste it into the editor\n'
-                    '3. Click RUN\n'
-                    '4. Tap "Verify & Continue"\n\n'
-                    'This creates the profiles, invites, and data tables\n'
-                    'along with RLS policies and a signup trigger.',
+                    context.t(
+                      'ChronoWarden needs several tables in your Supabase project.\n\n'
+                      '1. Open your Supabase dashboard → SQL Editor\n'
+                      '2. Copy the SQL below and paste it into the editor\n'
+                      '3. Click RUN\n'
+                      '4. Tap "Verify & Continue"\n\n'
+                      'This creates the profiles, invites, and data tables\n'
+                      'along with RLS policies and a signup trigger.',
+                    ),
                     style: theme.textTheme.bodyLarge,
                   ),
                   if (_error != null) ...[
@@ -142,14 +145,14 @@ class _SetupScreenState extends State<SetupScreen> {
                     icon: _loading
                         ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
                         : const Icon(Icons.check_circle),
-                    label: const Text('Verify & Continue'),
+                    label: Text(context.t('Verify & Continue')),
                   ),
                 ],
               ),
             ),
           ),
           _SqlCard(
-            title: 'Complete Schema SQL',
+            title: context.t('Complete Schema SQL'),
             sql: _schemaSql,
             copying: _copyingSchema,
             onCopy: _copySchema,
@@ -192,7 +195,7 @@ class _SqlCard extends StatelessWidget {
                 OutlinedButton.icon(
                   onPressed: copying ? null : onCopy,
                   icon: Icon(copying ? Icons.check : Icons.content_copy, size: 18),
-                  label: Text(copying ? 'Copied!' : 'Copy', style: const TextStyle(fontSize: 13)),
+                  label: Text(copying ? context.t('Copied!') : context.t('Copy'), style: const TextStyle(fontSize: 13)),
                 ),
               ],
             ),

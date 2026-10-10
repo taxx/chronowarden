@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../l10n/app_strings.dart';
+
 // ---------------------------------------------------------------------------
 // In-app alert banner
 // ---------------------------------------------------------------------------
@@ -60,12 +62,12 @@ class AlertBanner extends StatelessWidget {
               TextButton(
                 onPressed: onSnooze,
                 style: TextButton.styleFrom(foregroundColor: fg),
-                child: Text(snoozeLabel ?? 'Snooze'),
+                child: Text(snoozeLabel ?? context.t('Snooze')),
               ),
             ],
             IconButton(
               icon: const Icon(Icons.close, size: 18),
-              tooltip: 'Dismiss for today',
+              tooltip: context.t('Dismiss for today'),
               onPressed: onDismiss,
               color: fg,
               padding: EdgeInsets.zero,

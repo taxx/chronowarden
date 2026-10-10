@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../l10n/app_strings.dart';
+
 /// Theme-aware panel that displays a 24-word recovery phrase.
 ///
 /// Both the panel background and its foreground colour come from the active
@@ -89,11 +91,11 @@ class RecoveryPhraseCard extends StatelessWidget {
             onPressed: () {
               Clipboard.setData(ClipboardData(text: phrase));
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Recovery phrase copied')),
+                SnackBar(content: Text(context.t('Recovery phrase copied'))),
               );
             },
             icon: const Icon(Icons.copy, size: 18),
-            label: const Text('Copy'),
+            label: Text(context.t('Copy')),
           ),
         ],
       ),

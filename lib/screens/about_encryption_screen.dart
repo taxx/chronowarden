@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../app_info.dart';
+import '../l10n/app_strings.dart';
 import '../widgets/external_link.dart';
 
 /// Detailed explanation of the app's encryption model.
@@ -13,7 +14,7 @@ class AboutEncryptionScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Encryption & Privacy'),
+        title: Text(context.t('Encryption & Privacy')),
       ),
       body: SafeArea(
         child: const EncryptionInfoContent(),
@@ -40,7 +41,7 @@ class EncryptionInfoContent extends StatelessWidget {
           children: [
                 // --- Overview ---
                 Text(
-                  'How ChronoWarden Protects Your Data',
+                  context.t('How ChronoWarden Protects Your Data'),
                   style: theme.textTheme.titleLarge?.copyWith(
                     fontWeight: FontWeight.bold,
                   ),
@@ -48,76 +49,86 @@ class EncryptionInfoContent extends StatelessWidget {
                 const SizedBox(height: 16),
                 _section(
                   theme,
-                  'Zero-Knowledge Architecture',
-                  'ChronoWarden uses a zero-knowledge encryption model. '
-                  'Your data is encrypted on your device before it ever '
-                  'reaches the server. The server stores only ciphertext — '
-                  'it cannot read your actual data. Even the app administrator '
-                  'cannot decrypt your information.',
+                  context.t('Zero-Knowledge Architecture'),
+                  context.t(
+                    'ChronoWarden uses a zero-knowledge encryption model. '
+                    'Your data is encrypted on your device before it ever '
+                    'reaches the server. The server stores only ciphertext — '
+                    'it cannot read your actual data. Even the app administrator '
+                    'cannot decrypt your information.',
+                  ),
                 ),
                 const SizedBox(height: 24),
 
                 // --- Key hierarchy diagram ---
                 Text(
-                  'Key Hierarchy',
+                  context.t('Key Hierarchy'),
                   style: theme.textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.bold,
                   ),
                 ),
                 const SizedBox(height: 12),
-                _keyHierarchyDiagram(theme),
+                _keyHierarchyDiagram(context, theme),
                 const SizedBox(height: 24),
 
                 // --- Layer explanations ---
                 _layerCard(
                   theme,
-                  'Layer 1: Your Encryption Passphrase',
+                  context.t('Layer 1: Your Encryption Passphrase'),
                   Icons.lock,
                   Colors.blue,
-                  'You choose a passphrase (at least 8 characters). '
-                  'This passphrase is never stored — it exists only in '
-                  'your memory. During login, it is used momentarily to '
-                  'derive a Master Key, then discarded.',
+                  context.t(
+                    'You choose a passphrase (at least 8 characters). '
+                    'This passphrase is never stored — it exists only in '
+                    'your memory. During login, it is used momentarily to '
+                    'derive a Master Key, then discarded.',
+                  ),
                 ),
                 const SizedBox(height: 12),
                 _layerCard(
                   theme,
-                  'Layer 2: Master Key (Key Encryption Key)',
+                  context.t('Layer 2: Master Key (Key Encryption Key)'),
                   Icons.key,
                   Colors.indigo,
-                  'Derived from your passphrase using PBKDF2-HMAC-SHA256 '
-                  'with 310,000 iterations (OWASP 2025 standard). '
-                  'This key exists only in device memory during your session. '
-                  'It is used to unlock your Data Encryption Key.',
+                  context.t(
+                    'Derived from your passphrase using PBKDF2-HMAC-SHA256 '
+                    'with 310,000 iterations (OWASP 2025 standard). '
+                    'This key exists only in device memory during your session. '
+                    'It is used to unlock your Data Encryption Key.',
+                  ),
                 ),
                 const SizedBox(height: 12),
                 _layerCard(
                   theme,
-                  'Layer 3: Data Encryption Key (DEK)',
+                  context.t('Layer 3: Data Encryption Key (DEK)'),
                   Icons.verified_outlined,
                   Colors.teal,
-                  'A random 256-bit AES key generated when you first set '
-                  'up encryption. The DEK is encrypted ("wrapped") by your '
-                  'Master Key and stored on the server. It never appears '
-                  'in plaintext on the server. On login, your device unwraps '
-                  'it using your Master Key.',
+                  context.t(
+                    'A random 256-bit AES key generated when you first set '
+                    'up encryption. The DEK is encrypted ("wrapped") by your '
+                    'Master Key and stored on the server. It never appears '
+                    'in plaintext on the server. On login, your device unwraps '
+                    'it using your Master Key.',
+                  ),
                 ),
                 const SizedBox(height: 12),
                 _layerCard(
                   theme,
-                  'Layer 4: Encrypted Data',
+                  context.t('Layer 4: Encrypted Data'),
                   Icons.data_object,
                   Colors.green,
-                  'All your time logs, travel presets, and settings are '
-                  'encrypted with AES-256-GCM using the DEK. Each encrypted '
-                  'blob includes a unique nonce and authentication tag to '
-                  'prevent tampering.',
+                  context.t(
+                    'All your time logs, travel presets, and settings are '
+                    'encrypted with AES-256-GCM using the DEK. Each encrypted '
+                    'blob includes a unique nonce and authentication tag to '
+                    'prevent tampering.',
+                  ),
                 ),
                 const SizedBox(height: 24),
 
                 // --- Multi-device ---
                 Text(
-                  'Using Multiple Devices',
+                  context.t('Using Multiple Devices'),
                   style: theme.textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.bold,
                   ),
@@ -125,26 +136,30 @@ class EncryptionInfoContent extends StatelessWidget {
                 const SizedBox(height: 12),
                 _section(
                   theme,
-                  'Cross-Device Access',
-                  'Your DEK is stored encrypted on the server. Any device '
-                  'can unwrap it if you provide your encryption passphrase. '
-                  'This means you can use the app on multiple devices '
-                  'without needing to transfer keys manually.',
+                  context.t('Cross-Device Access'),
+                  context.t(
+                    'Your DEK is stored encrypted on the server. Any device '
+                    'can unwrap it if you provide your encryption passphrase. '
+                    'This means you can use the app on multiple devices '
+                    'without needing to transfer keys manually.',
+                  ),
                 ),
                 const SizedBox(height: 12),
                 _section(
                   theme,
-                  'Session Persistence',
-                  'For convenience, the unwrapped DEK is cached in browser '
-                  'localStorage. This means refreshing the page (F5) and '
-                  'reopening the browser tab do not require re-entering your '
-                  'passphrase. The cache is cleared when you sign out.',
+                  context.t('Session Persistence'),
+                  context.t(
+                    'For convenience, the unwrapped DEK is cached in browser '
+                    'localStorage. This means refreshing the page (F5) and '
+                    'reopening the browser tab do not require re-entering your '
+                    'passphrase. The cache is cleared when you sign out.',
+                  ),
                 ),
                 const SizedBox(height: 24),
 
                 // --- Recovery ---
                 Text(
-                  'Recovery Options',
+                  context.t('Recovery Options'),
                   style: theme.textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.bold,
                   ),
@@ -152,42 +167,44 @@ class EncryptionInfoContent extends StatelessWidget {
                 const SizedBox(height: 12),
                 _section(
                   theme,
-                  'Recovery Phrase',
-                  'When you first set up encryption, a 24-word recovery '
-                  'phrase is generated. This phrase encodes your DEK '
-                  'directly (not wrapped by your Master Key). If you '
-                  'forget your passphrase, you can enter this recovery '
-                  'phrase to regain access to your data.',
+                  context.t('Recovery Phrase'),
+                  context.t(
+                    'When you first set up encryption, a 24-word recovery '
+                    'phrase is generated. This phrase encodes your DEK '
+                    'directly (not wrapped by your Master Key). If you '
+                    'forget your passphrase, you can enter this recovery '
+                    'phrase to regain access to your data.',
+                  ),
                 ),
                 const SizedBox(height: 12),
-                _dangerBox(theme),
+                _dangerBox(context, theme),
                 const SizedBox(height: 24),
 
                 // --- Technical details ---
                 Text(
-                  'Technical Details',
+                  context.t('Technical Details'),
                   style: theme.textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.bold,
                   ),
                 ),
                 const SizedBox(height: 12),
-                _techDetail(theme, 'Encryption algorithm',
-                    'AES-256-GCM (authenticated encryption)'),
-                _techDetail(theme, 'Key derivation',
-                    'PBKDF2-HMAC-SHA256, 310,000 iterations'),
-                _techDetail(theme, 'Key wrapping',
-                    'AES-256-GCM (same algorithm, different key)'),
-                _techDetail(theme, 'Recovery encoding',
-                    'BIP39-style 24-word mnemonic phrase'),
-                _techDetail(theme, 'Session cache',
-                    'Browser localStorage (cleared on sign out)'),
-                _techDetail(theme, 'Server storage',
-                    'Ciphertext only — server cannot read plaintext'),
+                _techDetail(theme, context.t('Encryption algorithm'),
+                    context.t('AES-256-GCM (authenticated encryption)')),
+                _techDetail(theme, context.t('Key derivation'),
+                    context.t('PBKDF2-HMAC-SHA256, 310,000 iterations')),
+                _techDetail(theme, context.t('Key wrapping'),
+                    context.t('AES-256-GCM (same algorithm, different key)')),
+                _techDetail(theme, context.t('Recovery encoding'),
+                    context.t('BIP39-style 24-word mnemonic phrase')),
+                _techDetail(theme, context.t('Session cache'),
+                    context.t('Browser localStorage (cleared on sign out)')),
+                _techDetail(theme, context.t('Server storage'),
+                    context.t('Ciphertext only — server cannot read plaintext')),
                 const SizedBox(height: 24),
 
                 // --- Open source ---
                 Text(
-                  'Open Source',
+                  context.t('Open Source'),
                   style: theme.textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.bold,
                   ),
@@ -195,21 +212,21 @@ class EncryptionInfoContent extends StatelessWidget {
                 const SizedBox(height: 12),
                 _section(
                   theme,
-                  'Free & Auditable',
-                  '${AppInfo.name} is released under the '
-                  '${AppInfo.licenseName}. Anyone can read the code, verify '
-                  'that the encryption above works as described, self-host '
-                  'it, or contribute improvements.',
+                  context.t('Free & Auditable'),
+                  context.t(
+                    '{app} is released under the {license}. Anyone can read the code, verify that the encryption above works as described, self-host it, or contribute improvements.',
+                    {'app': AppInfo.name, 'license': AppInfo.licenseName},
+                  ),
                 ),
                 const SizedBox(height: 12),
                 ExternalLinkButton(
-                  label: 'View source on GitHub',
+                  label: context.t('View source on GitHub'),
                   url: AppInfo.repoUrl,
                   icon: Icons.code,
                 ),
                 const SizedBox(height: 8),
                 ExternalLinkButton(
-                  label: 'Report an issue',
+                  label: context.t('Report an issue'),
                   url: AppInfo.issuesUrl,
                   icon: Icons.bug_report_outlined,
                 ),
@@ -235,7 +252,7 @@ class EncryptionInfoContent extends StatelessWidget {
     );
   }
 
-  Widget _keyHierarchyDiagram(ThemeData theme) {
+  Widget _keyHierarchyDiagram(BuildContext context, ThemeData theme) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(20),
@@ -245,13 +262,13 @@ class EncryptionInfoContent extends StatelessWidget {
       ),
       child: Column(
         children: [
-          _diagramRow('🔐', 'Your Passphrase', 'Never stored'),
+          _diagramRow('🔐', context.t('Your Passphrase'), context.t('Never stored')),
           _arrowDown(),
-          _diagramRow('🔑', 'Master Key (KEK)', 'In memory only'),
+          _diagramRow('🔑', context.t('Master Key (KEK)'), context.t('In memory only')),
           _arrowDown(),
-          _diagramRow('🗝️', 'Data Encryption Key (DEK)', 'Wrapped on server'),
+          _diagramRow('🗝️', context.t('Data Encryption Key (DEK)'), context.t('Wrapped on server')),
           _arrowDown(),
-          _diagramRow('📦', 'Encrypted Data', 'AES-256-GCM ciphertext'),
+          _diagramRow('📦', context.t('Encrypted Data'), context.t('AES-256-GCM ciphertext')),
         ],
       ),
     );
@@ -321,7 +338,7 @@ class EncryptionInfoContent extends StatelessWidget {
     );
   }
 
-  Widget _dangerBox(ThemeData theme) {
+  Widget _dangerBox(BuildContext context, ThemeData theme) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(16),
@@ -341,7 +358,7 @@ class EncryptionInfoContent extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  '⚠️ Critical Warning',
+                  context.t('⚠️ Critical Warning'),
                   style: theme.textTheme.titleSmall?.copyWith(
                     fontWeight: FontWeight.bold,
                     color: theme.colorScheme.onErrorContainer,
@@ -349,11 +366,13 @@ class EncryptionInfoContent extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  'If you lose both your encryption passphrase AND your '
-                  '24-word recovery phrase, your data is gone forever. '
-                  'No one — not even the app administrator — can recover it. '
-                  'There is no backdoor, no password reset, no support '
-                  'ticket that can restore your data.',
+                  context.t(
+                    'If you lose both your encryption passphrase AND your '
+                    '24-word recovery phrase, your data is gone forever. '
+                    'No one — not even the app administrator — can recover it. '
+                    'There is no backdoor, no password reset, no support '
+                    'ticket that can restore your data.',
+                  ),
                   style: theme.textTheme.bodySmall?.copyWith(
                     color: theme.colorScheme.onErrorContainer,
                     fontWeight: FontWeight.w500,

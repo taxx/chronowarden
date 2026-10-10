@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../l10n/app_strings.dart';
 import '../models/station_info.dart';
 
 /// Autocomplete text field for SL station search.
@@ -121,7 +122,7 @@ class _StationPickerState extends State<StationPicker> {
                 : IconButton(
                     icon: const Icon(Icons.search, size: 18),
                     onPressed: () => _performSearch(_controller.text),
-                    tooltip: 'Search stations',
+                    tooltip: context.t('Search stations'),
                   ),
           ),
           onChanged: _onSearchChanged,
@@ -136,7 +137,8 @@ class _StationPickerState extends State<StationPicker> {
           Padding(
             padding: const EdgeInsets.only(top: 4),
             child: Text(
-              'No stations matching "${_controller.text}"',
+              context.t('No stations matching "{query}"',
+                  {'query': _controller.text}),
               style: theme.textTheme.bodySmall?.copyWith(
                 color: theme.colorScheme.onSurfaceVariant,
                 fontStyle: FontStyle.italic,

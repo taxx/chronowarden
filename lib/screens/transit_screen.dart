@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../app_state.dart';
+import '../l10n/app_strings.dart';
 import '../models/journey_info.dart';
 import '../models/transit_config.dart';
 import '../services/pinned_journey_store.dart';
@@ -150,10 +151,10 @@ class _TransitScreenState extends State<TransitScreen>
             Icon(Icons.directions_train, size: 64,
                 color: theme.colorScheme.onSurfaceVariant),
             const SizedBox(height: 16),
-            Text('Transit integration is disabled.',
+            Text(context.t('Transit integration is disabled.'),
                 style: theme.textTheme.titleMedium),
             const SizedBox(height: 8),
-            Text('Enable it in Settings to see journey options.',
+            Text(context.t('Enable it in Settings to see journey options.'),
                 style: theme.textTheme.bodyMedium?.copyWith(
                   color: theme.colorScheme.onSurfaceVariant,
                 )),
@@ -170,10 +171,10 @@ class _TransitScreenState extends State<TransitScreen>
             Icon(Icons.settings, size: 64,
                 color: theme.colorScheme.onSurfaceVariant),
             const SizedBox(height: 16),
-            Text('Configure your stations in Settings.',
+            Text(context.t('Configure your stations in Settings.'),
                 style: theme.textTheme.titleMedium),
             const SizedBox(height: 8),
-            Text('Both work and home stations must be set.',
+            Text(context.t('Both work and home stations must be set.'),
                 style: theme.textTheme.bodyMedium?.copyWith(
                   color: theme.colorScheme.onSurfaceVariant,
                 )),
@@ -211,15 +212,15 @@ class _TransitScreenState extends State<TransitScreen>
                           color: theme.colorScheme.primary),
                       const SizedBox(width: 12),
                       Expanded(
-                        child: Text('Journey Options',
+                        child: Text(context.t('Journey Options'),
                             style: theme.textTheme.titleMedium),
                       ),
                     ],
                   ),
                   const SizedBox(height: 8),
-                  StatRow(label: 'Direction', value: directionLabel, expanded: true),
-                  StatRow(label: 'Walk home↔station', value: '${_cfg!.walkHomeMinutes} min', expanded: true),
-                  StatRow(label: 'Walk station↔work', value: '${_cfg!.walkWorkMinutes} min', expanded: true),
+                  StatRow(label: context.t('Direction'), value: directionLabel, expanded: true),
+                  StatRow(label: context.t('Walk home↔station'), value: context.t('{minutes} min', {'minutes': _cfg!.walkHomeMinutes}), expanded: true),
+                  StatRow(label: context.t('Walk station↔work'), value: context.t('{minutes} min', {'minutes': _cfg!.walkWorkMinutes}), expanded: true),
                 ],
               ),
             ),
@@ -230,8 +231,8 @@ class _TransitScreenState extends State<TransitScreen>
           if (pinned != null || others.isNotEmpty) ...[ 
             Text(
               _isMorning
-                  ? 'Traveling to ${_cfg!.workStopName}'
-                  : 'Traveling to ${_cfg!.homeStopName}',
+                  ? context.t('Traveling to {station}', {'station': _cfg!.workStopName})
+                  : context.t('Traveling to {station}', {'station': _cfg!.homeStopName}),
               style: theme.textTheme.titleMedium,
             ),
             const SizedBox(height: 8),
@@ -263,11 +264,11 @@ class _TransitScreenState extends State<TransitScreen>
                   Icon(Icons.search_off, size: 48,
                       color: theme.colorScheme.onSurfaceVariant),
                   const SizedBox(height: 16),
-                  Text('No journeys found',
+                  Text(context.t('No journeys found'),
                       style: theme.textTheme.titleMedium),
                   const SizedBox(height: 8),
                   Text(
-                    'Check your station settings or try again later.',
+                    context.t('Check your station settings or try again later.'),
                     style: theme.textTheme.bodySmall?.copyWith(
                       color: theme.colorScheme.onSurfaceVariant,
                     ),
@@ -283,14 +284,14 @@ class _TransitScreenState extends State<TransitScreen>
             child: OutlinedButton.icon(
               onPressed: _refresh,
               icon: const Icon(Icons.refresh, size: 18),
-              label: const Text('Refresh'),
+              label: Text(context.t('Refresh')),
             ),
           ),
           // -- Attribution --
           const SizedBox(height: 24),
           Center(
             child: Text(
-              'Departure data provided by Trafiklab.se (CC-BY 4.0)',
+              context.t('Departure data provided by Trafiklab.se (CC-BY 4.0)'),
               style: theme.textTheme.bodySmall?.copyWith(
                 color: theme.colorScheme.onSurfaceVariant,
                 fontStyle: FontStyle.italic,
@@ -303,7 +304,7 @@ class _TransitScreenState extends State<TransitScreen>
             const SizedBox(height: 8),
             Center(
               child: Text(
-                'Updated ${_fmtTime(_lastUpdatedAt!)}',
+                context.t('Updated {time}', {'time': _fmtTime(_lastUpdatedAt!)}),
                 style: theme.textTheme.bodySmall?.copyWith(
                   color: theme.colorScheme.onSurfaceVariant,
                   fontStyle: FontStyle.italic,

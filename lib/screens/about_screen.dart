@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
 import '../app_info.dart';
+import '../l10n/app_strings.dart';
 import '../widgets/external_link.dart';
 import 'about_encryption_screen.dart';
 import 'changelog_screen.dart';
@@ -19,7 +20,7 @@ class AboutScreen extends StatelessWidget {
     final theme = Theme.of(context);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('About ChronoWarden')),
+      appBar: AppBar(title: Text(context.t('About ChronoWarden'))),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24),
@@ -51,7 +52,7 @@ class AboutScreen extends StatelessWidget {
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          'Version ${AppInfo.version}',
+                          context.t('Version {version}', {'version': AppInfo.version}),
                           style: theme.textTheme.bodySmall?.copyWith(
                             color: theme.colorScheme.onSurfaceVariant,
                           ),
@@ -62,12 +63,13 @@ class AboutScreen extends StatelessWidget {
                   const SizedBox(height: 32),
 
                   // --- What's new ----------------------------------------
-                  _sectionTitle(theme, "What's New"),
+                  _sectionTitle(theme, context.t("What's New")),
                   _paragraph(
                     theme,
-                    'Every change to ${AppInfo.name} is tracked in the git '
-                    'history — the changelog below is generated straight from '
-                    'those commits.',
+                    context.t(
+                      'Every change to {app} is tracked in the git history — the changelog below is generated straight from those commits.',
+                      {'app': AppInfo.name},
+                    ),
                   ),
                   const SizedBox(height: 12),
                   SizedBox(
@@ -80,85 +82,83 @@ class AboutScreen extends StatelessWidget {
                         ),
                       ),
                       icon: const Icon(Icons.new_releases_outlined, size: 18),
-                      label: const Text('View changelog'),
+                      label: Text(context.t('View changelog')),
                     ),
                   ),
                   const SizedBox(height: 32),
 
                   // --- Open source ----------------------------------------
-                  _sectionTitle(theme, 'Open Source'),
+                  _sectionTitle(theme, context.t('Open Source')),
                   _paragraph(
                     theme,
-                    'ChronoWarden is free and open-source software, released '
-                    'under the ${AppInfo.licenseName}. You are free to use, '
-                    'study, modify, and redistribute it — including for your '
-                    'own self-hosted instance.',
+                    context.t(
+                      '{app} is free and open-source software, released under the {license}. You are free to use, study, modify, and redistribute it — including for your own self-hosted instance.',
+                      {'app': AppInfo.name, 'license': AppInfo.licenseName},
+                    ),
                   ),
                   const SizedBox(height: 12),
                   ExternalLinkButton(
-                    label: 'View source on GitHub',
+                    label: context.t('View source on GitHub'),
                     url: AppInfo.repoUrl,
                     icon: Icons.code,
                   ),
                   const SizedBox(height: 8),
                   ExternalLinkButton(
-                    label: 'Read the ${AppInfo.licenseName}',
+                    label: context.t('Read the {license}', {'license': AppInfo.licenseName}),
                     url: AppInfo.licenseUrl,
                     icon: Icons.gavel_outlined,
                   ),
                   const SizedBox(height: 8),
                   ExternalLinkButton(
-                    label: 'Report an issue or request a feature',
+                    label: context.t('Report an issue or request a feature'),
                     url: AppInfo.issuesUrl,
                     icon: Icons.bug_report_outlined,
                   ),
                   const SizedBox(height: 32),
 
                   // --- Self-hosting --------------------------------------
-                  _sectionTitle(theme, 'Host It Yourself'),
+                  _sectionTitle(theme, context.t('Host It Yourself')),
                   _paragraph(
                     theme,
-                    'ChronoWarden is designed to be self-hosted. The whole '
-                    'stack — Flutter web app, nginx container, Supabase '
-                    'schema, and the SL transit proxy — lives in the '
-                    'repository. Bring your own Supabase project and secrets, '
-                    'then build with Docker Compose.',
+                    context.t(
+                      '{app} is designed to be self-hosted. The whole stack — Flutter web app, nginx container, Supabase schema, and the SL transit proxy — lives in the repository. Bring your own Supabase project and secrets, then build with Docker Compose.',
+                      {'app': AppInfo.name},
+                    ),
                   ),
                   const SizedBox(height: 12),
                   ExternalLinkButton(
-                    label: 'Self-hosting guide (README)',
+                    label: context.t('Self-hosting guide (README)'),
                     url: AppInfo.readmeUrl,
                     icon: Icons.menu_book_outlined,
                   ),
                   const SizedBox(height: 32),
 
                   // --- Hosted instance -----------------------------------
-                  _sectionTitle(theme, 'The Hosted Instance'),
+                  _sectionTitle(theme, context.t('The Hosted Instance')),
                   _paragraph(
                     theme,
-                    '${AppInfo.name} also runs as a convenience instance at '
-                    '${AppInfo.hostedUrl}. It is maintained on a best-effort '
-                    'basis: there are no guarantees of availability, '
-                    'uptime, or data retention.',
+                    context.t(
+                      '{app} also runs as a convenience instance at {url}. It is maintained on a best-effort basis: there are no guarantees of availability, uptime, or data retention.',
+                      {'app': AppInfo.name, 'url': AppInfo.hostedUrl},
+                    ),
                   ),
                   _callout(
                     theme,
                     Icons.warning_amber_rounded,
-                    'Your data is encrypted with your own passphrase, so the '
-                    'host cannot read it. But if you lose your passphrase and '
-                    'recovery phrase, nobody can restore your data — and a '
-                    'self-hosted instance (or your own backups) is the safest '
-                    'long-term home for it.',
+                    context.t(
+                      'Your data is encrypted with your own passphrase, so the host cannot read it. But if you lose your passphrase and recovery phrase, nobody can restore your data — and a self-hosted instance (or your own backups) is the safest long-term home for it.',
+                    ),
                   ),
                   const SizedBox(height: 32),
 
                   // --- Privacy -------------------------------------------
-                  _sectionTitle(theme, 'Privacy & Encryption'),
+                  _sectionTitle(theme, context.t('Privacy & Encryption')),
                   _paragraph(
                     theme,
-                    'ChronoWarden uses zero-knowledge envelope encryption. '
-                    'Your time logs, presets, and settings are encrypted on '
-                    'your device before they reach any server.',
+                    context.t(
+                      '{app} uses zero-knowledge envelope encryption. Your time logs, presets, and settings are encrypted on your device before they reach any server.',
+                      {'app': AppInfo.name},
+                    ),
                   ),
                   const SizedBox(height: 12),
                   SizedBox(
@@ -171,14 +171,14 @@ class AboutScreen extends StatelessWidget {
                         ),
                       ),
                       icon: const Icon(Icons.shield_outlined, size: 18),
-                      label: const Text('How encryption works'),
+                      label: Text(context.t('How encryption works')),
                     ),
                   ),
                   const SizedBox(height: 40),
 
                   Center(
                     child: Text(
-                      'Made with Flutter & Supabase ❤️',
+                      context.t('Made with Flutter & Supabase ❤️'),
                       style: theme.textTheme.bodySmall?.copyWith(
                         color: theme.colorScheme.onSurfaceVariant,
                       ),

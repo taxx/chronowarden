@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../l10n/app_strings.dart';
 import '../models/journey_info.dart';
 import '../models/transit_config.dart';
 import 'journey_tile.dart';
@@ -38,7 +39,7 @@ class JourneyCard extends StatelessWidget {
     // Line badge
     final line = journey.mainLine;
     // Destination
-    final dest = journey.mainDestination ?? 'Unknown';
+    final dest = journey.mainDestination ?? context.t('Unknown');
 
     // Occupancy badge
     final occ = journey.occupancy;
@@ -125,7 +126,8 @@ class JourneyCard extends StatelessWidget {
               children: [
                 Expanded(
                   child: Text(
-                    '→ $dest · ${journey.durationMinutes} min',
+                    context.t('→ {dest} · {minutes} min',
+                        {'dest': dest, 'minutes': journey.durationMinutes}),
                     style: theme.textTheme.bodyMedium?.copyWith(
                       color: theme.colorScheme.onSurfaceVariant,
                     ),
@@ -133,7 +135,7 @@ class JourneyCard extends StatelessWidget {
                 ),
                 if (platform != null)
                   Text(
-                    'Platform $platform',
+                    context.t('Platform {platform}', {'platform': platform}),
                     style: theme.textTheme.bodySmall?.copyWith(
                       color: theme.colorScheme.onSurfaceVariant,
                     ),
@@ -180,20 +182,20 @@ class OccupancyBadge extends StatelessWidget {
     final (icon, label, color) = switch (occupancy) {
       'MANY_SEATS' => (
         Icons.chair,
-        'Many seats available',
+        context.t('Many seats available'),
         Colors.green,
       ),
       'FEW_SEATS' => (
         Icons.chair,
-        'Few seats available',
+        context.t('Few seats available'),
         Colors.orange.shade700,
       ),
       'STANDING_ONLY' => (
         Icons.directions_bus,
-        'Standing room only',
+        context.t('Standing room only'),
         Colors.red,
       ),
-      _ => (Icons.chair, 'Seats available', Colors.green),
+      _ => (Icons.chair, context.t('Seats available'), Colors.green),
     };
 
     return Container(
@@ -257,8 +259,9 @@ class LeaveTimeInfo extends StatelessWidget {
       now: now,
       walkBuffer: walkBuffer,
       isPinned: isPinned,
-      tripLabel: 'arrive $arrStr',
+      tripLabel: context.t('arrive {time}', {'time': arrStr}),
       theme: theme,
+      strings: context.strings,
     );
 
     // Non-pinned missed journeys are italicized (card-specific styling).

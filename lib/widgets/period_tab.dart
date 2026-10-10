@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../app_state.dart';
+import '../l10n/app_strings.dart';
 import '../models/period.dart';
 import '../models/time_log.dart';
 import '../models/work_config.dart' show isoWeekNumber;
@@ -84,7 +85,7 @@ class _PeriodTabState extends State<PeriodTab> {
         final logs = _state.allLogs;
 
         final filtered = _filterLogs(logs);
-        final label = _periodLabel();
+        final label = _periodLabel(context);
 
         return Column(
           children: [
@@ -97,13 +98,13 @@ class _PeriodTabState extends State<PeriodTab> {
                   IconButton(
                     icon: const Icon(Icons.arrow_back),
                     onPressed: () => _updateOffset(_offset - 1),
-                    tooltip: 'Previous',
+                    tooltip: context.t('Previous'),
                   ),
                   Text(label, style: theme.textTheme.titleMedium),
                   IconButton(
                     icon: const Icon(Icons.arrow_forward),
                     onPressed: () => _updateOffset(_offset + 1),
-                    tooltip: 'Next',
+                    tooltip: context.t('Next'),
                   ),
                 ],
               ),
@@ -112,7 +113,7 @@ class _PeriodTabState extends State<PeriodTab> {
               Align(
                 child: TextButton(
                   onPressed: () => _updateOffset(0),
-                  child: const Text('Back to current'),
+                  child: Text(context.t('Back to current')),
                 ),
               ),
             // Content
@@ -120,7 +121,7 @@ class _PeriodTabState extends State<PeriodTab> {
               child: filtered.isEmpty
                   ? Center(
                       child: Text(
-                        'No logs in this period',
+                        context.t('No logs in this period'),
                         style: theme.textTheme.bodyLarge?.copyWith(
                           color: theme.colorScheme.onSurfaceVariant,
                         ),
@@ -134,28 +135,28 @@ class _PeriodTabState extends State<PeriodTab> {
     );
   }
 
-  String _periodLabel() {
+  String _periodLabel(BuildContext context) {
     final now = _offsetDate();
     switch (widget.period) {
       case Period.week:
         final weekStart = _weekStart(now);
         final weekEnd = weekStart.add(const Duration(days: 6));
-        return 'Wk ${isoWeekNumber(weekStart)} · ${weekStart.day}/${weekStart.month} — ${weekEnd.day}/${weekEnd.month}';
+        return context.t('Wk {week} · {start} — {end}', {
+          'week': isoWeekNumber(weekStart),
+          'start': '${weekStart.day}/${weekStart.month}',
+          'end': '${weekEnd.day}/${weekEnd.month}',
+        });
       case Period.month:
         final firstWeek = isoWeekNumber(DateTime(now.year, now.month, 1));
         final lastWeek = isoWeekNumber(DateTime(now.year, now.month + 1, 0));
-        return '${_monthYearLabel(now)} · Wk $firstWeek–$lastWeek';
+        return context.t('{month} · Wk {first}–{last}', {
+          'month': MaterialLocalizations.of(context).formatMonthYear(now),
+          'first': firstWeek,
+          'last': lastWeek,
+        });
       case Period.year:
         return '${now.year}';
     }
-  }
-
-  String _monthYearLabel(DateTime date) {
-    const months = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
-    ];
-    return '${months[date.month - 1]} ${date.year}';
   }
 
   /// The reference date shifted by [_offset] periods.
@@ -230,13 +231,13 @@ class _PeriodTabState extends State<PeriodTab> {
       child: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          summaryCard(theme, 'Days logged', '${filtered.length}'),
-          summaryCard(theme, 'Total hours worked', formatDurationMinutes(totalActual)),
-          summaryCard(theme, 'Expected work', formatDurationMinutes(totalExpected)),
-          summaryCard(theme, 'Overhead buffer', formatDurationMinutes(totalOverhead)),
+          summaryCard(theme, context.t('Days logged'), '${filtered.length}'),
+          summaryCard(theme, context.t('Total hours worked'), formatDurationMinutes(totalActual)),
+          summaryCard(theme, context.t('Expected work'), formatDurationMinutes(totalExpected)),
+          summaryCard(theme, context.t('Overhead buffer'), formatDurationMinutes(totalOverhead)),
           summaryCard(
             theme,
-            'Net overtime',
+            context.t('Net overtime'),
             formatDurationMinutes(totalOvertime),
             isOvertime: true,
             valueMinutes: totalOvertime,
@@ -260,7 +261,7 @@ class _PeriodTabState extends State<PeriodTab> {
     final state = _state;
     if (state.travelPresets.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Settings not loaded yet. Try again.')),
+        SnackBar(content: Text(context.t('Settings not loaded yet. Try again.'))),
       );
       return;
     }
@@ -305,7 +306,7 @@ class _PeriodTabState extends State<PeriodTab> {
     final state = _state;
     if (state.travelPresets.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Add at least one travel preset in Settings.')),
+        SnackBar(content: Text(context.t('Add at least one travel preset in Settings.'))),
       );
       return;
     }
@@ -347,7 +348,7 @@ class _PeriodTabState extends State<PeriodTab> {
       }).catchError((e) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Failed to save day: $e')),
+            SnackBar(content: Text(context.t('Failed to save day: {error}', {'error': e}))),
           );
         }
       });
