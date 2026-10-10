@@ -20,6 +20,20 @@ import '../widgets/journey_tile.dart';
 import '../widgets/start_stop_day_dialogs.dart';
 import '../widgets/stat_row.dart';
 
+/// Whether the pre-start My Day transit card ("morning planning") should be
+/// shown on [now]'s weekday.
+///
+/// Weekends are hidden unless the user works them, which they signal by
+/// enabling the "show weekends" calendar setting. An active day bypasses this
+/// check entirely (see `_buildTransitCard`).
+bool shouldShowTransitPlanning({
+  required DateTime now,
+  required bool showWeekends,
+}) {
+  if (now.weekday <= DateTime.friday) return true;
+  return showWeekends;
+}
+
 /// The "My Day" content widget — shows today's time tracking.
 /// This is a standalone widget (no Scaffold) meant for use inside MainShell.
 class MyDayTab extends StatefulWidget {
@@ -148,6 +162,18 @@ class _MyDayTabState extends State<MyDayTab> with SingleTickerProviderStateMixin
     final hasActiveDay = todayLog != null && todayLog.endTime == null;
 
     if (dayEnded) {
+      _transitCardShown = false;
+      return const SizedBox.shrink();
+    }
+
+    // On weekends, the pre-start "morning planning" card only makes sense if
+    // the user works weekends (signalled by the "show weekends" calendar
+    // setting). An active day always shows, whatever the weekday.
+    if (!hasActiveDay &&
+        !shouldShowTransitPlanning(
+          now: DateTime.now(),
+          showWeekends: PreferencesService().showWeekends.value,
+        )) {
       _transitCardShown = false;
       return const SizedBox.shrink();
     }

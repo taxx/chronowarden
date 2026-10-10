@@ -14,6 +14,7 @@ import 'services/auth_service.dart';
 import 'services/locale_service.dart';
 import 'services/notification_service.dart';
 import 'services/pinned_journey_store.dart';
+import 'services/preferences_service.dart';
 import 'services/theme_service.dart';
 import 'app_state.dart';
 
@@ -32,6 +33,7 @@ void main() async {
   await LocaleService().init();
   await AuthService().init();
   await PinnedJourneyStore().init();
+  await PreferencesService().init();
 
   // Re-read the cross-device language once the DEK is available.
   if (AuthService().dek != null) {

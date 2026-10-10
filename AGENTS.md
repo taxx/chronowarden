@@ -393,6 +393,15 @@ applicable travel preset uses transit:
 - **No day yet** — the last-used preset is used (the Start Day dialog default,
   `PreferencesService.lastTravelPresetId`).
 - **Unknown selection** — the card is shown, so transit users are never cut off.
+- **Weekends** — the pre-start ("morning planning") card is hidden on
+  Saturday/Sunday unless the user has enabled the **show weekends** calendar
+  setting, which signals they work weekends. An **active day always shows** the
+  card regardless of weekday. See `shouldShowTransitPlanning()` in
+  `lib/screens/my_day_tab.dart` (unit-tested in
+  `test/my_day_transit_test.dart`).
+
+`PreferencesService.init()` is called in `main()` so the show-weekends value is
+loaded before the first frame (it also drives history/overview filtering).
 
 This is why a "No commute (work from home)" preset hides the card even when
 the transit integration is enabled and stops are configured. (An earlier fix,
