@@ -168,6 +168,14 @@ class AppState extends ChangeNotifier {
             preset.eveningProductiveCommuteMinutes);
   }
 
+  /// The travel preset whose commute profile matches [log], if any.
+  ///
+  /// Day logs don't store a preset id; matching the commute values lets an
+  /// active day map back to its preset across devices (the log is synced, the
+  /// last-used preset id is per-device).
+  TravelPreset? presetMatchingLog(TimeLog log) =>
+      findPresetForLog(_presetsList, log);
+
   // -- loading -------------------------------------------------------
   Future<bool> refresh() async {
     try {

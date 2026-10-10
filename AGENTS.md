@@ -382,6 +382,23 @@ Fields:
 The Transit navigation destination only appears in the bottom nav bar
 when `enabled` is true in settings. Disabled users never see it.
 
+### My Day transit card visibility
+The My Day transit card is **context-sensitive** — it appears only when the
+applicable travel preset uses transit:
+
+- **Active/completed day** — the log is matched to a preset by its four
+  per-direction commute values (`TravelPreset.matchesLog` /
+  `findPresetForLog`). Day logs don't store a preset id, so matching the
+  profile is what makes the decision follow the *synced* log across devices.
+- **No day yet** — the last-used preset is used (the Start Day dialog default,
+  `PreferencesService.lastTravelPresetId`).
+- **Unknown selection** — the card is shown, so transit users are never cut off.
+
+This is why a "No commute (work from home)" preset hides the card even when
+the transit integration is enabled and stops are configured. (An earlier fix,
+commit `3edc3f0`, dropped this check for the globally enabled flag; it was
+restored with profile matching instead of a per-device preset id.)
+
 ### Key files
 | File | Purpose |
 |------|---------|

@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../app_state.dart';
 import '../models/journey_info.dart';
 import '../models/time_log.dart';
+import '../models/travel_preset.dart';
 import '../models/transit_config.dart';
 import '../services/notification_service.dart';
 import '../services/pinned_journey_store.dart';
@@ -36,12 +37,18 @@ class _MyDayTabState extends State<MyDayTab> with SingleTickerProviderStateMixin
   TransitConfig? _transitCfg;
   // ignore: unused_field
   bool _transitCardShown = false;
+  String? _selectedPresetId;
 
   @override
   void initState() {
     super.initState();
     _notifications.init(); // fire-and-forget; _enabled stays false until ready
     _notifications.addListener(_onNotificationsChanged);
+    // Last-used travel preset — determines transit-card visibility when no
+    // day is active yet (it is the Start Day dialog default).
+    PreferencesService().getLastTravelPresetId().then((id) {
+      if (mounted) setState(() => _selectedPresetId = id);
+    });
     _ticker = Timer.periodic(const Duration(seconds: 1), (_) {
       if (mounted) {
         _checkNotification();
@@ -100,6 +107,29 @@ class _MyDayTabState extends State<MyDayTab> with SingleTickerProviderStateMixin
     );
   }
 
+  /// The preset that currently applies, for transit visibility.
+  ///
+  /// An active/completed day is matched by commute profile so the decision
+  /// follows the synced log rather than this device's last-used preset. When
+  /// no day exists yet, the last-used preset (the Start Day default) is used.
+  TravelPreset? _selectedPreset() {
+    final log = _state.todayLog;
+    if (log != null) {
+      final match = _state.presetMatchingLog(log);
+      if (match != null) return match;
+    }
+    final id = _selectedPresetId;
+    if (id == null) return null;
+    for (final p in _state.travelPresets) {
+      if (p.id == id) return p;
+    }
+    return null;
+  }
+
+  /// Whether the current commute involves public transit. When the selection
+  /// is unknown we keep the card visible so transit users aren't cut off.
+  bool _commuteUsesTransit() => _selectedPreset()?.usesTransit ?? true;
+
   Widget _buildTransitCard(ThemeData theme) {
     _transitCfg = _transit.config;
 
@@ -117,6 +147,14 @@ class _MyDayTabState extends State<MyDayTab> with SingleTickerProviderStateMixin
     final hasActiveDay = todayLog != null && todayLog.endTime == null;
 
     if (dayEnded) {
+      _transitCardShown = false;
+      return const SizedBox.shrink();
+    }
+
+    // Respect the applicable travel preset: a non-transit commute (e.g.
+    // "No commute, work from home") hides the card even when the global
+    // transit integration is enabled and stops are configured.
+    if (!_commuteUsesTransit()) {
       _transitCardShown = false;
       return const SizedBox.shrink();
     }
@@ -579,6 +617,7 @@ class _MyDayTabState extends State<MyDayTab> with SingleTickerProviderStateMixin
       );
       // Save last-used selections
       await prefs.setLastTravelPresetId(result.presetId);
+      if (mounted) setState(() => _selectedPresetId = result.presetId);
     }
   }
 
@@ -847,6 +886,7 @@ class _MyDayTabState extends State<MyDayTab> with SingleTickerProviderStateMixin
       // Save last-used selections from edit
       final prefs = PreferencesService();
       await prefs.setLastTravelPresetId(result.presetId);
+      if (mounted) setState(() => _selectedPresetId = result.presetId);
     }
   }
 
@@ -919,6 +959,7 @@ class _MyDayTabState extends State<MyDayTab> with SingleTickerProviderStateMixin
       );
       // Persist the preset now in effect (used as dialog default elsewhere).
       await PreferencesService().setLastTravelPresetId(selected.id);
+      if (mounted) setState(() => _selectedPresetId = selected.id);
     }
   }
 }

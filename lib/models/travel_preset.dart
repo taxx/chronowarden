@@ -1,3 +1,5 @@
+import 'time_log.dart';
+
 /// How this travel preset handles the commute to/from work.
 enum CommuteMode {
   /// No public transit commute (e.g., working from home, walking distance).
@@ -47,6 +49,17 @@ class TravelPreset {
 
   /// Whether this preset uses transit — controls transit UI visibility.
   bool get usesTransit => commuteMode == CommuteMode.transit;
+
+  /// Whether this preset's commute profile matches the per-direction values
+  /// stored on [log].
+  ///
+  /// Day logs don't persist a preset id, so matching the four commute values
+  /// is how an active day is mapped back to the preset it was started from.
+  bool matchesLog(TimeLog log) =>
+      morningOverheadMinutes == log.morningOverheadMinutes &&
+      morningProductiveCommuteMinutes == log.morningProductiveCommuteMinutes &&
+      eveningOverheadMinutes == log.eveningOverheadMinutes &&
+      eveningProductiveCommuteMinutes == log.eveningProductiveCommuteMinutes;
 
   /// Total overhead across both directions.
   int get defaultOverheadMinutes =>
@@ -157,4 +170,15 @@ class TravelPreset {
         return CommuteMode.none;
     }
   }
+}
+
+/// The first preset in [presets] whose commute profile matches [log], or null.
+///
+/// Used to recover which preset an active/completed day belongs to, since day
+/// logs don't store a preset id.
+TravelPreset? findPresetForLog(List<TravelPreset> presets, TimeLog log) {
+  for (final preset in presets) {
+    if (preset.matchesLog(log)) return preset;
+  }
+  return null;
 }
