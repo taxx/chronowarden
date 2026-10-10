@@ -586,6 +586,21 @@ The Markdown format is intentionally tiny (headings `## YYYY-MM-DD` and
 bullets `- text (\`hash\`)`) so no Markdown package is needed; see
 `parseChangelog()`.
 
+### Static asset caching (nginx)
+`CHANGELOG.md` is a normal Flutter asset, so the browser can serve it from
+cache after an update. The nginx config in `Dockerfile` must therefore send
+`Cache-Control: no-cache, no-store, must-revalidate` for **every text asset
+that changes between builds** — not just the obvious ones:
+
+```
+location ~ \.(js|dart|html|json|md|sql|txt|xml)$ { add_header Cache-Control ... }
+```
+
+Missing `md` here was a real bug: after pressing **Reload** the app fetched
+the new bundle but reused a cached `assets/CHANGELOG.md`, so "What's New"
+lagged behind by one deploy. Add new extensions to this list when you ship
+new build-generated text assets.
+
 ### Key files
 | File | Purpose |
 |------|---------|
