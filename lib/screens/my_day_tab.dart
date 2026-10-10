@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../app_state.dart';
+import '../l10n/app_strings.dart';
 import '../models/journey_info.dart';
 import '../models/time_log.dart';
 import '../models/travel_preset.dart';
@@ -234,8 +235,11 @@ class _MyDayTabState extends State<MyDayTab> with SingleTickerProviderStateMixin
                     color: theme.colorScheme.primary),
                 const SizedBox(width: 8),
                 Expanded(
-                  child: Text('Transit — $directionLabel',
-                      style: theme.textTheme.titleSmall),
+                  child: Text(
+                    context.t('Transit — {direction}',
+                        {'direction': directionLabel}),
+                    style: theme.textTheme.titleSmall,
+                  ),
                 ),
               ],
             ),
@@ -260,7 +264,7 @@ class _MyDayTabState extends State<MyDayTab> with SingleTickerProviderStateMixin
             const SizedBox(height: 8),
             Center(
               child: Text(
-                'Departure data provided by Trafiklab.se (CC-BY 4.0)',
+                context.t('Departure data provided by Trafiklab.se (CC-BY 4.0)'),
                 style: theme.textTheme.bodySmall?.copyWith(
                   color: theme.colorScheme.onSurfaceVariant,
                   fontStyle: FontStyle.italic,
@@ -293,7 +297,7 @@ class _MyDayTabState extends State<MyDayTab> with SingleTickerProviderStateMixin
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Time Bank', style: theme.textTheme.titleSmall),
+                  Text(context.t('Time Bank'), style: theme.textTheme.titleSmall),
                   Text(
                     formatSignedMinutes(minutes),
                     style: theme.textTheme.headlineSmall?.copyWith(
@@ -325,10 +329,10 @@ class _MyDayTabState extends State<MyDayTab> with SingleTickerProviderStateMixin
           children: [
             Icon(Icons.logout, size: 48, color: theme.colorScheme.primary),
             const SizedBox(height: 12),
-            Text('Today has not started', style: theme.textTheme.titleLarge),
+            Text(context.t('Today has not started'), style: theme.textTheme.titleLarge),
             const SizedBox(height: 8),
             Text(
-              'Tap the button below to start tracking your day.',
+              context.t('Tap the button below to start tracking your day.'),
               style: theme.textTheme.bodyMedium,
               textAlign: TextAlign.center,
             ),
@@ -338,7 +342,7 @@ class _MyDayTabState extends State<MyDayTab> with SingleTickerProviderStateMixin
               child: FilledButton.icon(
                 onPressed: () => _showStartDayDialog(context),
                 icon: const Icon(Icons.play_arrow),
-                label: const Text('Start Day'),
+                label: Text(context.t('Start Day')),
               ),
             ),
           ],
@@ -366,7 +370,9 @@ class _MyDayTabState extends State<MyDayTab> with SingleTickerProviderStateMixin
         child: Column(
           children: [
             Text(
-              isPast ? "You're free to go!" : 'Day is active',
+              isPast
+                  ? context.t("You're free to go!")
+                  : context.t('Day is active'),
               style: theme.textTheme.titleLarge?.copyWith(
                 color: isPast ? Colors.green : null,
               ),
@@ -380,7 +386,8 @@ class _MyDayTabState extends State<MyDayTab> with SingleTickerProviderStateMixin
             ),
             const SizedBox(height: 4),
             Text(
-              'Started at ${log.startTime.substring(0, 5)}',
+              context.t('Started at {time}',
+                  {'time': log.startTime.substring(0, 5)}),
               style: theme.textTheme.bodySmall?.copyWith(
                 color: theme.colorScheme.onSurfaceVariant,
               ),
@@ -390,7 +397,7 @@ class _MyDayTabState extends State<MyDayTab> with SingleTickerProviderStateMixin
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text('Leave time', style: theme.textTheme.titleSmall),
+                  Text(context.t('Leave time'), style: theme.textTheme.titleSmall),
                   Text(
                     '${leaveTime.hour.toString().padLeft(2, '0')}:${leaveTime.minute.toString().padLeft(2, '0')}',
                     style: theme.textTheme.headlineSmall?.copyWith(
@@ -400,33 +407,37 @@ class _MyDayTabState extends State<MyDayTab> with SingleTickerProviderStateMixin
                   ),
                 ]),
                 Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
-                  Text('Remaining', style: theme.textTheme.titleSmall),
+                  Text(context.t('Remaining'), style: theme.textTheme.titleSmall),
                   Text(
                     isPast ? '—' : _formatDuration(remaining),
                     style: theme.textTheme.titleMedium,
                   ),
                   if (lunch > 0 && !isPast)
                     Text(
-                      'net: ${isNetPast ? '✓ done' : _formatDuration(netRemaining)}',
+                      context.t('net: {value}', {
+                        'value': isNetPast
+                            ? context.t('✓ done')
+                            : _formatDuration(netRemaining),
+                      }),
                       style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.secondary),
                     ),
                 ]),
               ],
             ),
             const SizedBox(height: 24),
-            StatRow(label: 'Expected', value: formatMins(log.expectedMinutes), verticalPadding: 4),
+            StatRow(label: context.t('Expected'), value: formatMins(log.expectedMinutes), verticalPadding: 4),
             if (log.morningOverheadMinutes + log.eveningOverheadMinutes > 0)
-              StatRow(label: 'Commute overhead', value: '${log.morningOverheadMinutes}/${log.eveningOverheadMinutes} min (am/pm)', verticalPadding: 4),
+              StatRow(label: context.t('Commute overhead'), value: '${log.morningOverheadMinutes}/${log.eveningOverheadMinutes} min (am/pm)', verticalPadding: 4),
             if (log.morningProductiveCommuteMinutes + log.eveningProductiveCommuteMinutes > 0)
-              StatRow(label: 'Productive commute', value: '${log.morningProductiveCommuteMinutes}/${log.eveningProductiveCommuteMinutes} min (am/pm)', verticalPadding: 4),
-            StatRow(label: 'Total', value: formatMins(log.expectedMinutes + log.overheadMinutes + log.productiveCommuteMinutes), verticalPadding: 4),
+              StatRow(label: context.t('Productive commute'), value: '${log.morningProductiveCommuteMinutes}/${log.eveningProductiveCommuteMinutes} min (am/pm)', verticalPadding: 4),
+            StatRow(label: context.t('Total'), value: formatMins(log.expectedMinutes + log.overheadMinutes + log.productiveCommuteMinutes), verticalPadding: 4),
 
             const SizedBox(height: 8),
             // Banked time to withdraw (flex) — live projection only
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text('Banked time to withdraw',
+                Text(context.t('Banked time to withdraw'),
                     style: theme.textTheme.titleSmall),
                 Text(
                   formatMins(log.flexMinutes),
@@ -438,7 +449,7 @@ class _MyDayTabState extends State<MyDayTab> with SingleTickerProviderStateMixin
                 TextButton(
                   onPressed: () =>
                       _showEditFlexDialog(context, log.flexMinutes),
-                  child: const Text('Adjust'),
+                  child: Text(context.t('Adjust')),
                 ),
               ],
             ),
@@ -448,11 +459,13 @@ class _MyDayTabState extends State<MyDayTab> with SingleTickerProviderStateMixin
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text('Note', style: theme.textTheme.titleSmall),
+                Text(context.t('Note'), style: theme.textTheme.titleSmall),
                 TextButton(
                   onPressed: () => _showEditNoteDialog(context, log.note),
                   child: Text(
-                    (log.note?.isNotEmpty == true) ? 'Edit' : 'Add',
+                    (log.note?.isNotEmpty == true)
+                        ? context.t('Edit')
+                        : context.t('Add'),
                   ),
                 ),
               ],
@@ -486,7 +499,7 @@ class _MyDayTabState extends State<MyDayTab> with SingleTickerProviderStateMixin
               child: OutlinedButton.icon(
                 onPressed: () => _showChangePresetDialog(context),
                 icon: const Icon(Icons.directions),
-                label: const Text('Change commute pattern'),
+                label: Text(context.t('Change commute pattern')),
               ),
             ),
             const SizedBox(height: 8),
@@ -495,7 +508,7 @@ class _MyDayTabState extends State<MyDayTab> with SingleTickerProviderStateMixin
               child: FilledButton.icon(
                 onPressed: () => _showStopDayDialog(context),
                 icon: const Icon(Icons.stop),
-                label: const Text('Stop Day'),
+                label: Text(context.t('Stop Day')),
                 style: FilledButton.styleFrom(
                   backgroundColor: Colors.red,
                   foregroundColor: Colors.white,
@@ -522,21 +535,26 @@ class _MyDayTabState extends State<MyDayTab> with SingleTickerProviderStateMixin
                   : theme.colorScheme.onTertiaryContainer,
             ),
             const SizedBox(height: 12),
-            Text('Day completed', style: theme.textTheme.titleLarge),
+            Text(context.t('Day completed'), style: theme.textTheme.titleLarge),
             const SizedBox(height: 16),
-            StatRow(label: 'Started', value: log.startTime, verticalPadding: 4),
-            StatRow(label: 'Ended', value: log.endTime ?? '—', verticalPadding: 4),
+            StatRow(label: context.t('Started'), value: log.startTime, verticalPadding: 4),
+            StatRow(label: context.t('Ended'), value: log.endTime ?? '—', verticalPadding: 4),
             StatRow(
-              label: log.overtimeMinutes < 0 ? 'Undertime' : 'Overtime',
+              label: log.overtimeMinutes < 0
+                  ? context.t('Undertime')
+                  : context.t('Overtime'),
               value: formatSignedMinutes(log.overtimeMinutes),
               verticalPadding: 4,
             ),
             if (log.lunchMinutes > 0)
-              StatRow(label: 'Lunch', value: '${log.lunchMinutes} min', verticalPadding: 4),
+              StatRow(label: context.t('Lunch'), value: '${log.lunchMinutes} min', verticalPadding: 4),
             if (log.note?.isNotEmpty == true)
               Padding(
                 padding: const EdgeInsets.only(top: 8),
-                child: Text('Note: ${log.note}', style: theme.textTheme.bodyMedium),
+                child: Text(
+                  context.t('Note: {note}', {'note': log.note}),
+                  style: theme.textTheme.bodyMedium,
+                ),
               ),
             const SizedBox(height: 16),
             Row(
@@ -545,12 +563,12 @@ class _MyDayTabState extends State<MyDayTab> with SingleTickerProviderStateMixin
                 OutlinedButton.icon(
                   onPressed: () => _showEditDayDialog(context, log),
                   icon: const Icon(Icons.edit),
-                  label: const Text('Edit'),
+                  label: Text(context.t('Edit')),
                 ),
                 OutlinedButton.icon(
                   onPressed: () => _confirmDelete(context, log.id!, log.date),
                   icon: const Icon(Icons.delete),
-                  label: const Text('Delete'),
+                  label: Text(context.t('Delete')),
                   style: OutlinedButton.styleFrom(
                     side: const BorderSide(color: Colors.red),
                     foregroundColor: Colors.red,
@@ -578,7 +596,7 @@ class _MyDayTabState extends State<MyDayTab> with SingleTickerProviderStateMixin
     final state = _state;
     if (state.travelPresets.isEmpty) {
       ScaffoldMessenger.of(ctx).showSnackBar(
-        const SnackBar(content: Text('Add at least one travel preset in Settings.')),
+        SnackBar(content: Text(ctx.t('Add at least one travel preset in Settings.'))),
       );
       return;
     }
@@ -641,7 +659,7 @@ class _MyDayTabState extends State<MyDayTab> with SingleTickerProviderStateMixin
       context: ctx,
       builder: (_) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
-          title: const Text('Adjust lunch'),
+          title: Text(context.t('Adjust lunch')),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -651,24 +669,25 @@ class _MyDayTabState extends State<MyDayTab> with SingleTickerProviderStateMixin
                 max: PreferencesService.maxLunchMinutes.toDouble(),
                 divisions: PreferencesService()
                     .sliderDivisions(0, PreferencesService.maxLunchMinutes.toDouble()),
-                label: '$lunch min',
+                label: context.t('{minutes} min', {'minutes': lunch}),
                 onChanged: (v) {
                   lunch = v.round();
                   setDialogState(() {});
                 },
               ),
               const SizedBox(height: 4),
-              Text('$lunch min', style: Theme.of(ctx).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
+              Text(context.t('{minutes} min', {'minutes': lunch}),
+                  style: Theme.of(ctx).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
             ],
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+            TextButton(onPressed: () => Navigator.pop(ctx), child: Text(context.t('Cancel'))),
             FilledButton(
               onPressed: () {
                 Navigator.pop(ctx);
                 _state.updateLunchMinutes(lunch);
               },
-              child: const Text('Save'),
+              child: Text(context.t('Save')),
             ),
           ],
         ),
@@ -684,14 +703,16 @@ class _MyDayTabState extends State<MyDayTab> with SingleTickerProviderStateMixin
       context: ctx,
       builder: (_) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
-          title: const Text('Banked time to withdraw'),
+          title: Text(context.t('Banked time to withdraw')),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Time taken from your bank as personal time. This moves your '
-                'projected leave time earlier.',
+                context.t(
+                  'Time taken from your bank as personal time. This moves your '
+                  'projected leave time earlier.',
+                ),
                 style: Theme.of(ctx).textTheme.bodySmall,
               ),
               const SizedBox(height: 8),
@@ -703,7 +724,7 @@ class _MyDayTabState extends State<MyDayTab> with SingleTickerProviderStateMixin
                       min: 0,
                       max: 240,
                       divisions: PreferencesService().sliderDivisions(0, 240),
-                      label: '$flex min',
+                      label: context.t('{minutes} min', {'minutes': flex}),
                       onChanged: (v) {
                         flex = v.round();
                         setDialogState(() {});
@@ -711,7 +732,7 @@ class _MyDayTabState extends State<MyDayTab> with SingleTickerProviderStateMixin
                     ),
                   ),
                   Text(
-                    '$flex min',
+                    context.t('{minutes} min', {'minutes': flex}),
                     style: Theme.of(ctx)
                         .textTheme
                         .bodyMedium
@@ -724,14 +745,14 @@ class _MyDayTabState extends State<MyDayTab> with SingleTickerProviderStateMixin
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx),
-              child: const Text('Cancel'),
+              child: Text(context.t('Cancel')),
             ),
             FilledButton(
               onPressed: () {
                 Navigator.pop(ctx);
                 _state.updateFlexMinutes(flex);
               },
-              child: const Text('Save'),
+              child: Text(context.t('Save')),
             ),
           ],
         ),
@@ -745,29 +766,29 @@ class _MyDayTabState extends State<MyDayTab> with SingleTickerProviderStateMixin
     await showDialog<void>(
       context: ctx,
       builder: (_) => AlertDialog(
-        title: const Text('Note'),
+        title: Text(ctx.t('Note')),
         content: TextField(
           controller: controller,
           autofocus: true,
           maxLines: 3,
           minLines: 1,
           textCapitalization: TextCapitalization.sentences,
-          decoration: const InputDecoration(
-            hintText: 'Optional note...',
-            border: OutlineInputBorder(),
+          decoration: InputDecoration(
+            hintText: ctx.t('Optional note...'),
+            border: const OutlineInputBorder(),
           ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel'),
+            child: Text(ctx.t('Cancel')),
           ),
           FilledButton(
             onPressed: () {
               Navigator.pop(ctx);
               _state.updateNote(controller.text);
             },
-            child: const Text('Save'),
+            child: Text(ctx.t('Save')),
           ),
         ],
       ),
@@ -790,20 +811,20 @@ class _MyDayTabState extends State<MyDayTab> with SingleTickerProviderStateMixin
       context: ctx,
       builder: (_) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
-          title: const Text('Lunch stopped'),
+          title: Text(context.t('Lunch stopped')),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Started: ${start.hour.toString().padLeft(2, '0')}:${start.minute.toString().padLeft(2, '0')}',
+              Text(context.t('Started: {time}', {'time': '${start.hour.toString().padLeft(2, '0')}:${start.minute.toString().padLeft(2, '0')}'}),
                    style: Theme.of(ctx).textTheme.bodyMedium),
-              Text('Ended:   ${end.hour.toString().padLeft(2, '0')}:${end.minute.toString().padLeft(2, '0')}',
+              Text(context.t('Ended: {time}', {'time': '${end.hour.toString().padLeft(2, '0')}:${end.minute.toString().padLeft(2, '0')}'}),
                    style: Theme.of(ctx).textTheme.bodyMedium),
               const SizedBox(height: 8),
-              Text('Duration: $calculatedMinutes min',
+              Text(context.t('Duration: {minutes} min', {'minutes': calculatedMinutes}),
                    style: Theme.of(ctx).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
               const SizedBox(height: 16),
-              Text('Adjust if needed:', style: Theme.of(ctx).textTheme.titleSmall),
+              Text(context.t('Adjust if needed:'), style: Theme.of(ctx).textTheme.titleSmall),
               const SizedBox(height: 4),
               Row(
                 children: [
@@ -814,14 +835,14 @@ class _MyDayTabState extends State<MyDayTab> with SingleTickerProviderStateMixin
                       max: PreferencesService.maxLunchMinutes.toDouble(),
                       divisions: PreferencesService()
                           .sliderDivisions(0, PreferencesService.maxLunchMinutes.toDouble()),
-                      label: '$lunch min',
+                      label: context.t('{minutes} min', {'minutes': lunch}),
                       onChanged: (v) {
                         lunch = v.round();
                         setDialogState(() {});
                       },
                     ),
                   ),
-                  Text('$lunch min', style: Theme.of(ctx).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600)),
+                  Text(context.t('{minutes} min', {'minutes': lunch}), style: Theme.of(ctx).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600)),
                 ],
               ),
             ],
@@ -831,14 +852,14 @@ class _MyDayTabState extends State<MyDayTab> with SingleTickerProviderStateMixin
               onPressed: () {
                 Navigator.pop(ctx);
               },
-              child: const Text('Cancel'),
+              child: Text(context.t('Cancel')),
             ),
             FilledButton(
               onPressed: () {
                 Navigator.pop(ctx);
                 _state.stopLunch(lunch);
               },
-              child: const Text('Save'),
+              child: Text(context.t('Save')),
             ),
           ],
         ),
@@ -850,7 +871,7 @@ class _MyDayTabState extends State<MyDayTab> with SingleTickerProviderStateMixin
     final state = _state;
     if (state.travelPresets.isEmpty) {
       ScaffoldMessenger.of(ctx).showSnackBar(
-        const SnackBar(content: Text('Settings not loaded yet. Try again.')),
+        SnackBar(content: Text(ctx.t('Settings not loaded yet. Try again.'))),
       );
       return;
     }
@@ -894,14 +915,17 @@ class _MyDayTabState extends State<MyDayTab> with SingleTickerProviderStateMixin
     final confirmed = await showDialog<bool>(
       context: ctx,
       builder: (_) => AlertDialog(
-        title: const Text('Delete day'),
-        content: Text('Permanently delete the entry for $date? This cannot be undone.'),
+        title: Text(ctx.t('Delete day')),
+        content: Text(ctx.t(
+          'Permanently delete the entry for {date}? This cannot be undone.',
+          {'date': date},
+        )),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(ctx.t('Cancel'))),
           FilledButton(
             onPressed: () => Navigator.pop(ctx, true),
             style: FilledButton.styleFrom(backgroundColor: Colors.red),
-            child: const Text('Delete'),
+            child: Text(ctx.t('Delete')),
           ),
         ],
       ),
@@ -916,7 +940,7 @@ class _MyDayTabState extends State<MyDayTab> with SingleTickerProviderStateMixin
     final state = _state;
     if (state.travelPresets.isEmpty) {
       ScaffoldMessenger.of(ctx).showSnackBar(
-        const SnackBar(content: Text('No travel presets available. Add one in Settings.')),
+        SnackBar(content: Text(ctx.t('No travel presets available. Add one in Settings.'))),
       );
       return;
     }
@@ -926,12 +950,19 @@ class _MyDayTabState extends State<MyDayTab> with SingleTickerProviderStateMixin
       context: ctx,
       builder: (_) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
-          title: const Text('Change commute pattern'),
+          title: Text(context.t('Change commute pattern')),
           content: DropdownButtonFormField(
             items: state.travelPresets.map<DropdownMenuItem>((p) {
               return DropdownMenuItem(
                 value: p,
-                child: Text('${p.name} — ${p.morningOverheadMinutes}/${p.eveningOverheadMinutes} min walk, ${p.morningProductiveCommuteMinutes}/${p.eveningProductiveCommuteMinutes} min train'),
+                child: Text(context.t(
+                  '{name} — {am} min walk, {pm} min train',
+                  {
+                    'name': p.name,
+                    'am': '${p.morningOverheadMinutes}/${p.eveningOverheadMinutes}',
+                    'pm': '${p.morningProductiveCommuteMinutes}/${p.eveningProductiveCommuteMinutes}',
+                  },
+                )),
               );
             }).toList(),
             onChanged: (v) {
@@ -940,10 +971,10 @@ class _MyDayTabState extends State<MyDayTab> with SingleTickerProviderStateMixin
             },
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+            TextButton(onPressed: () => Navigator.pop(ctx), child: Text(context.t('Cancel'))),
             FilledButton(
               onPressed: () => Navigator.pop(ctx, pickedPreset),
-              child: const Text('Apply'),
+              child: Text(context.t('Apply')),
             ),
           ],
         ),

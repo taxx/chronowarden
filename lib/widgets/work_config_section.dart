@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../app_state.dart';
+import '../l10n/app_strings.dart';
 import '../utils/format.dart';
 import 'stat_row.dart';
 
@@ -34,27 +35,30 @@ class WorkConfigSection extends StatelessWidget {
               children: [
                 Icon(Icons.work_outlined, color: theme.colorScheme.primary),
                 const SizedBox(width: 12),
-                Expanded(child: Text('Work Hours', style: theme.textTheme.titleLarge)),
+                Expanded(child: Text(context.t('Work Hours'), style: theme.textTheme.titleLarge)),
               ],
             ),
             const SizedBox(height: 4),
             Text(
-              'Configure your expected work time per day.',
+              context.t('Configure your expected work time per day.'),
               style: theme.textTheme.bodySmall,
             ),
             const SizedBox(height: 16),
-            StatRow(label: 'Default', value: '${formatMins(dflt)} per day'),
+            StatRow(
+              label: context.t('Default'),
+              value: context.t('{time} per day', {'time': formatMins(dflt)}),
+            ),
             if (hasReduced) ...[
               StatRow(
-                label: 'Reduced period',
-                value: '${formatMins(reducedMinutes!)} per day',
+                label: context.t('Reduced period'),
+                value: context.t('{time} per day', {'time': formatMins(reducedMinutes!)}),
               ),
               StatRow(
-                label: 'ISO weeks',
+                label: context.t('ISO weeks'),
                 value: '$reducedStartWeek – $reducedEndWeek',
               ),
             ] else ...[
-              StatRow(label: 'Reduced period', value: 'Not configured'),
+              StatRow(label: context.t('Reduced period'), value: context.t('Not configured')),
             ],
             const SizedBox(height: 16),
             SizedBox(
@@ -62,7 +66,7 @@ class WorkConfigSection extends StatelessWidget {
               child: OutlinedButton.icon(
                 onPressed: onEdit,
                 icon: const Icon(Icons.edit, size: 18),
-                label: const Text('Edit configuration'),
+                label: Text(context.t('Edit configuration')),
               ),
             ),
           ],

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../app_info.dart';
+import '../l10n/app_strings.dart';
 import '../services/auth_service.dart';
 import '../services/supabase_service.dart';
 import '../utils/paste_button.dart';
@@ -99,10 +100,10 @@ class _LoginScreenState extends State<LoginScreen> {
                 TextField(
                   controller: _emailCtrl,
                   keyboardType: TextInputType.emailAddress,
-                  decoration: const InputDecoration(
-                    labelText: 'Email',
-                    border: OutlineInputBorder(),
-                    prefixIcon: Icon(Icons.email_outlined),
+                  decoration: InputDecoration(
+                    labelText: context.t('Email'),
+                    border: const OutlineInputBorder(),
+                    prefixIcon: const Icon(Icons.email_outlined),
                   ),
                 ),
                 const SizedBox(height: 12),
@@ -112,7 +113,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   controller: _passCtrl,
                   obscureText: _obscurePass,
                   decoration: InputDecoration(
-                    labelText: 'Password',
+                    labelText: context.t('Password'),
                     border: const OutlineInputBorder(),
                     prefixIcon: const Icon(Icons.lock_outline),
                     suffixIcon: IconButton(
@@ -132,8 +133,8 @@ class _LoginScreenState extends State<LoginScreen> {
                     controller: _encCtrl,
                     obscureText: _obscureEnc,
                     decoration: InputDecoration(
-                      labelText: 'Encryption passphrase',
-                      hintText: 'Enter to unlock your encrypted data',
+                      labelText: context.t('Encryption passphrase'),
+                      hintText: context.t('Enter to unlock your encrypted data'),
                       border: const OutlineInputBorder(),
                       prefixIcon: const Icon(Icons.shield_outlined),
                       suffixIcon: Row(
@@ -164,7 +165,7 @@ class _LoginScreenState extends State<LoginScreen> {
                               color: theme.colorScheme.onSurfaceVariant),
                           const SizedBox(width: 6),
                           Text(
-                            'I have an encryption passphrase',
+                            context.t('I have an encryption passphrase'),
                             style: theme.textTheme.bodySmall?.copyWith(
                               color: theme.colorScheme.onSurfaceVariant,
                             ),
@@ -197,7 +198,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             ),
                           )
                         : const Icon(Icons.login),
-                    label: const Text('Sign In'),
+                    label: Text(context.t('Sign In')),
                   ),
                 ),
                 const SizedBox(height: 8),
@@ -205,7 +206,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 // --- Forgot password ---
                 TextButton(
                   onPressed: () => _showForgotPasswordDialog(context),
-                  child: const Text('Forgot password?'),
+                  child: Text(context.t('Forgot password?')),
                 ),
 
                 const SizedBox(height: 16),
@@ -216,14 +217,14 @@ class _LoginScreenState extends State<LoginScreen> {
                     context,
                     MaterialPageRoute(builder: (_) => const SignupScreen()),
                   ),
-                  child: const Text("Don't have an account? Sign up"),
+                  child: Text(context.t("Don't have an account? Sign up")),
                 ),
 
                 // --- Info about encryption ---
                 const SizedBox(height: 16),
                 Text(
-                  '🔐 Your data is encrypted end-to-end. '
-                  'Even the admin cannot read it.',
+                  context.t('🔐 Your data is encrypted end-to-end. '
+                      'Even the admin cannot read it.'),
                   style: theme.textTheme.bodySmall?.copyWith(
                     color: theme.colorScheme.onSurfaceVariant,
                   ),
@@ -232,7 +233,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 TextButton(
                   onPressed: () => _showEncryptionInfoDialog(context),
                   child: Text(
-                    'How we store & protect your data',
+                    context.t('How we store & protect your data'),
                     style: theme.textTheme.bodySmall?.copyWith(
                       color: theme.colorScheme.primary,
                       fontWeight: FontWeight.w600,
@@ -245,7 +246,8 @@ class _LoginScreenState extends State<LoginScreen> {
                 Divider(color: theme.colorScheme.outlineVariant),
                 const SizedBox(height: 4),
                 Text(
-                  '${AppInfo.name} is open source (${AppInfo.licenseName}).',
+                  context.t('{app} is open source ({license}).',
+                      {'app': AppInfo.name, 'license': AppInfo.licenseName}),
                   style: theme.textTheme.bodySmall?.copyWith(
                     color: theme.colorScheme.onSurfaceVariant,
                   ),
@@ -260,7 +262,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       icon: Icons.code,
                     ),
                     ExternalLinkText(
-                      label: 'Report an issue',
+                      label: context.t('Report an issue'),
                       url: AppInfo.issuesUrl,
                       icon: Icons.bug_report_outlined,
                     ),
@@ -297,7 +299,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     const SizedBox(width: 12),
                     Expanded(
                       child: Text(
-                        'How we store & protect your data',
+                        context.t('How we store & protect your data'),
                         style: Theme.of(dialogContext).textTheme.titleLarge
                             ?.copyWith(fontWeight: FontWeight.bold),
                       ),
@@ -321,7 +323,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 padding: const EdgeInsets.only(bottom: 16),
                 child: FilledButton(
                   onPressed: () => Navigator.pop(dialogContext),
-                  child: const Text('Got it'),
+                  child: Text(context.t('Got it')),
                 ),
               ),
             ],
@@ -340,20 +342,20 @@ class _LoginScreenState extends State<LoginScreen> {
     await showDialog<bool>(
       context: ctx,
       builder: (_) => AlertDialog(
-        title: const Text('Reset Password'),
+        title: Text(ctx.t('Reset Password')),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text(
-              'Enter your email address. We\'ll send a password reset link.',
+            Text(
+              ctx.t("Enter your email address. We'll send a password reset link."),
             ),
             const SizedBox(height: 16),
             TextField(
               controller: emailCtrl,
-              decoration: const InputDecoration(
-                labelText: 'Email',
-                border: OutlineInputBorder(),
-                prefixIcon: Icon(Icons.email_outlined),
+              decoration: InputDecoration(
+                labelText: ctx.t('Email'),
+                border: const OutlineInputBorder(),
+                prefixIcon: const Icon(Icons.email_outlined),
               ),
             ),
           ],
@@ -361,7 +363,7 @@ class _LoginScreenState extends State<LoginScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel'),
+            child: Text(ctx.t('Cancel')),
           ),
           FilledButton(
             onPressed: () async {
@@ -373,20 +375,20 @@ class _LoginScreenState extends State<LoginScreen> {
                 if (ctx.mounted) {
                   Navigator.pop(ctx);
                   ScaffoldMessenger.of(ctx).showSnackBar(
-                    const SnackBar(
-                      content: Text('Check your email for the reset link.'),
+                    SnackBar(
+                      content: Text(ctx.t('Check your email for the reset link.')),
                     ),
                   );
                 }
               } catch (e) {
                 if (ctx.mounted) {
                   ScaffoldMessenger.of(ctx).showSnackBar(
-                    SnackBar(content: Text('Error: $e')),
+                    SnackBar(content: Text(ctx.t('Error: {error}', {'error': e}))),
                   );
                 }
               }
             },
-            child: const Text('Send Reset Link'),
+            child: Text(ctx.t('Send Reset Link')),
           ),
         ],
       ),

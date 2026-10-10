@@ -658,6 +658,62 @@ becomes visible again (`onPageVisible`).
 
 ---
 
+## Localization (i18n)
+
+The app supports **English (source) and Swedish**. The language is chosen in
+**Settings → Language** and is persisted both locally and in the encrypted
+`user_settings` row, so it follows the user across devices.
+
+### How it works
+English is the single source of truth. Call sites pass the English string and
+the active locale looks it up in its catalog, falling back to English:
+
+```dart
+Text(context.t('Leave time'))
+Text(context.t('Snooze {minutes}m', {'minutes': 10}))
+```
+
+- `lib/l10n/app_strings.dart` — `AppStrings` + `AppStringsDelegate` +
+  the `context.t(...)` / `context.strings` extension. Falls back to English
+  when no delegate is installed, so bare widget tests keep working.
+- `lib/l10n/app_strings_sv.dart` — the Swedish catalog, keyed by the English
+  text (`{placeholders}` for interpolation).
+- `lib/services/locale_service.dart` — `LocaleService` (ChangeNotifier):
+  caches the choice in `SharedPreferences`, mirrors it to `user_settings`
+  (`UserSettingsService.getLanguage/setLanguage`), and syncs on startup and
+  after passphrase unlock.
+- `lib/widgets/language_setting.dart` — the Settings dropdown (English/Svenska).
+- `lib/main.dart` — sets `MaterialApp.locale`, `supportedLocales`, and the
+  `flutter_localizations` delegates.
+
+### Guard test
+`test/app_strings_test.dart` scans `lib/` for `context.t('…')` calls and fails
+if any has no Swedish entry, or if a catalog entry is unused. It also checks
+fallback + placeholder substitution. **Add the Swedish entry in the same
+commit as the call site**, or this test fails.
+
+### Adding a language
+1. Add a catalog (`app_strings_xx.dart`) and a case in `AppStrings.forLocale`.
+2. Add the code to `LocaleService.supportedLanguages` and `MaterialApp`
+   `supportedLocales`.
+3. Extend the `AppStringsDelegate`. The guard test can be pointed at the new
+   catalog if desired.
+
+### Pending (still English)
+The infrastructure and the main surfaces are translated. These are **not yet
+migrated** — they still render English literals (the fallback keeps them
+readable):
+`about_screen`, `about_encryption_screen`, `changelog_screen` (English by
+design for the changelog content), `admin_screen`, `transit_screen`,
+`projection_screen`, `overview_tab`/`calendar_views`, `history_content`,
+`period_tab`, `setup_screen`, `pending_screen`, `migration_screen`,
+`recovery_onboarding_screen`, `add_day_dialog`, `edit_day_dialog`,
+`start_stop_day_dialogs`, `import_dialog`, `time_bank_chart`,
+`recovery_phrase_card`, `station_picker`, `log_card`, `external_link`, plus
+`alert_banner`/`update_banner` labels and notification alert messages.
+
+---
+
 ## iOS Safari Paste Compatibility
 
 Flutter web on iOS Safari doesn't fire paste events to canvas-rendered

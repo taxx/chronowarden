@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../l10n/app_strings.dart';
 import '../services/preferences_service.dart';
 import '../services/user_settings_service.dart';
 
@@ -42,7 +43,7 @@ class _WeekendToggleState extends State<WeekendToggle> {
               children: [
                 Icon(Icons.calendar_month, color: theme.colorScheme.primary),
                 const SizedBox(width: 12),
-                Expanded(child: Text('Weekend days', style: theme.textTheme.titleLarge)),
+                Expanded(child: Text(context.t('Weekend days'), style: theme.textTheme.titleLarge)),
                 Switch(
                   value: _show!,
                   onChanged: (value) async {
@@ -54,7 +55,9 @@ class _WeekendToggleState extends State<WeekendToggle> {
             ),
             const SizedBox(height: 4),
             Text(
-              _show! ? 'Weekend days are shown in history and overview.' : 'Weekend days are hidden from history and overview.',
+              _show!
+                  ? context.t('Weekend days are shown in history and overview.')
+                  : context.t('Weekend days are hidden from history and overview.'),
               style: theme.textTheme.bodySmall,
             ),
           ],
@@ -110,29 +113,31 @@ class _DefaultFlexSettingState extends State<DefaultFlexSetting> {
               children: [
                 Icon(Icons.schedule, color: theme.colorScheme.primary),
                 const SizedBox(width: 12),
-                Expanded(child: Text('Default flex time', style: theme.textTheme.titleLarge)),
+                Expanded(child: Text(context.t('Default flex time'), style: theme.textTheme.titleLarge)),
               ],
             ),
             const SizedBox(height: 4),
             Text(
-              'Banked overtime you take as personal time each day.\nLeave time and overtime calculations adjust automatically.',
+              context.t(
+                'Banked overtime you take as personal time each day.\nLeave time and overtime calculations adjust automatically.',
+              ),
               style: theme.textTheme.bodySmall,
             ),
             const SizedBox(height: 8),
             Row(
               children: [
-                const Text('Minutes: '),
+                Text(context.t('Minutes: ')),
                 Expanded(
                   child: Slider(
                     value: _flexMinutes.toDouble(),
                     min: 0,
                     max: 120,
                     divisions: 24,
-                    label: '$_flexMinutes min',
+                    label: context.t('{minutes} min', {'minutes': _flexMinutes}),
                     onChanged: (v) => setState(() => _flexMinutes = v.round()),
                   ),
                 ),
-                Text('$_flexMinutes min', style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600)),
+                Text(context.t('{minutes} min', {'minutes': _flexMinutes}), style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600)),
               ],
             ),
             const SizedBox(height: 8),
@@ -145,10 +150,10 @@ class _DefaultFlexSettingState extends State<DefaultFlexSetting> {
                         await _settings.setDefaultFlexMinutes(_flexMinutes);
                         if (!context.mounted) return;
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Default flex time saved')),
+                          SnackBar(content: Text(context.t('Default flex time saved'))),
                         );
                       },
-                child: const Text('Save'),
+                child: Text(context.t('Save')),
               ),
             ),
           ],
@@ -205,32 +210,32 @@ class _SliderIntervalSettingState extends State<SliderIntervalSetting> {
                 Icon(Icons.tune, color: theme.colorScheme.primary),
                 const SizedBox(width: 12),
                 Expanded(
-                  child: Text('Slider step size',
+                  child: Text(context.t('Slider step size'),
                       style: theme.textTheme.titleLarge),
                 ),
               ],
             ),
             const SizedBox(height: 4),
             Text(
-              'Interval between slider ticks for lunch and flex time.',
+              context.t('Interval between slider ticks for lunch and flex time.'),
               style: theme.textTheme.bodySmall,
             ),
             const SizedBox(height: 8),
             Row(
               children: [
-                const Text('Minutes: '),
+                Text(context.t('Minutes: ')),
                 Expanded(
                   child: Slider(
                     value: _interval.toDouble(),
                     min: 1,
                     max: 30,
                     divisions: 29,
-                    label: '$_interval min',
+                    label: context.t('{minutes} min', {'minutes': _interval}),
                     onChanged: (v) =>
                         setState(() => _interval = v.round()),
                   ),
                 ),
-                Text('$_interval min',
+                Text(context.t('{minutes} min', {'minutes': _interval}),
                     style: theme.textTheme.bodyMedium?.copyWith(
                         fontWeight: FontWeight.w600)),
               ],
@@ -245,12 +250,12 @@ class _SliderIntervalSettingState extends State<SliderIntervalSetting> {
                         await _prefs.setSliderInterval(_interval);
                         if (!context.mounted) return;
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Slider interval saved'),
+                          SnackBar(
+                            content: Text(context.t('Slider interval saved')),
                           ),
                         );
                       },
-                child: const Text('Save'),
+                child: Text(context.t('Save')),
               ),
             ),
           ],

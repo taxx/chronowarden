@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../l10n/app_strings.dart';
 import '../services/notification_service.dart';
 import 'toggle_row.dart';
 
@@ -42,7 +43,7 @@ class _NotificationSettingsState extends State<NotificationSettings> {
               children: [
                 Icon(Icons.notifications_outlined, color: theme.colorScheme.primary),
                 const SizedBox(width: 12),
-                Expanded(child: Text('Notifications', style: theme.textTheme.titleLarge)),
+                Expanded(child: Text(context.t('Notifications'), style: theme.textTheme.titleLarge)),
                 Switch(
                   value: _notifications.enabled,
                   onChanged: (value) async {
@@ -54,7 +55,7 @@ class _NotificationSettingsState extends State<NotificationSettings> {
             ),
             const SizedBox(height: 4),
             Text(
-              'Get notified before it\'s time to leave work.',
+              context.t("Get notified before it's time to leave work."),
               style: theme.textTheme.bodySmall,
             ),
             if (_notifications.enabled) ...[
@@ -65,7 +66,7 @@ class _NotificationSettingsState extends State<NotificationSettings> {
               const SizedBox(height: 16),
               ToggleRow(
                 icon: Icons.spatial_audio_outlined,
-                label: 'Sound alert',
+                label: context.t('Sound alert'),
                 value: _notifications.soundEnabled,
                 onChanged: (v) async {
                   await _notifications.setSoundEnabled(v);
@@ -75,7 +76,7 @@ class _NotificationSettingsState extends State<NotificationSettings> {
               const SizedBox(height: 8),
               ToggleRow(
                 icon: Icons.vibration_rounded,
-                label: 'Vibration',
+                label: context.t('Vibration'),
                 value: _notifications.vibrateEnabled,
                 onChanged: (v) async {
                   await _notifications.setVibrateEnabled(v);
@@ -88,13 +89,13 @@ class _NotificationSettingsState extends State<NotificationSettings> {
                   _notifications.ensureAudio();
                   _notifications.alertMessage(
                     'ChronoWarden ⏰',
-                    'Test alert — you\'d be notified here!',
+                    context.t("Test alert — you'd be notified here!"),
                     isUrgent: true,
                   );
                   if (context.mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
-                        content: const Text('Test alert fired — check for sound & vibration'),
+                        content: Text(context.t('Test alert fired — check for sound & vibration')),
                         duration: const Duration(seconds: 3),
                         behavior: SnackBarBehavior.floating,
                       ),
@@ -102,7 +103,7 @@ class _NotificationSettingsState extends State<NotificationSettings> {
                   }
                 },
                 icon: const Icon(Icons.send_outlined, size: 18),
-                label: const Text('Send test'),
+                label: Text(context.t('Send test')),
               ),
             ],
           ],
@@ -115,7 +116,7 @@ class _NotificationSettingsState extends State<NotificationSettings> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('Snooze duration', style: theme.textTheme.titleSmall),
+        Text(context.t('Snooze duration'), style: theme.textTheme.titleSmall),
         const SizedBox(height: 4),
         Row(
           children: [
@@ -125,7 +126,7 @@ class _NotificationSettingsState extends State<NotificationSettings> {
                 min: 1,
                 max: 30,
                 divisions: 29,
-                label: '${_notifications.snoozeMinutes} min',
+                label: context.t('{minutes} min', {'minutes': _notifications.snoozeMinutes}),
                 onChanged: (v) {
                   final value = v.round();
                   _notifications.setSnoozeMinutes(value);
@@ -133,7 +134,7 @@ class _NotificationSettingsState extends State<NotificationSettings> {
                 },
               ),
             ),
-            Text('${_notifications.snoozeMinutes} min',
+            Text(context.t('{minutes} min', {'minutes': _notifications.snoozeMinutes}),
                 style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600)),
           ],
         ),
@@ -145,7 +146,7 @@ class _NotificationSettingsState extends State<NotificationSettings> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('Minutes before leave', style: theme.textTheme.titleSmall),
+        Text(context.t('Minutes before leave'), style: theme.textTheme.titleSmall),
         const SizedBox(height: 4),
         Row(
           children: [
@@ -155,7 +156,7 @@ class _NotificationSettingsState extends State<NotificationSettings> {
                 min: 5,
                 max: 60,
                 divisions: 11,
-                label: '${_notifications.thresholdMinutes} min',
+                label: context.t('{minutes} min', {'minutes': _notifications.thresholdMinutes}),
                 onChanged: (v) {
                   final value = v.round();
                   _notifications.setThresholdMinutes(value);
@@ -163,7 +164,7 @@ class _NotificationSettingsState extends State<NotificationSettings> {
                 },
               ),
             ),
-            Text('${_notifications.thresholdMinutes} min',
+            Text(context.t('{minutes} min', {'minutes': _notifications.thresholdMinutes}),
                 style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600)),
           ],
         ),

@@ -5,6 +5,7 @@
 
 ## 2026-10-10
 
+- No-cache changelog and other text assets so they survive updates (`c183015`)
 - Hide My Day transit card when the applicable travel preset has no transit (`f7c0d67`)
 
 ## 2026-10-09

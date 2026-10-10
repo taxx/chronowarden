@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../l10n/app_strings.dart';
 import '../screens/about_encryption_screen.dart';
 import '../services/auth_service.dart';
 import '../services/crypto_service.dart';
@@ -34,7 +35,7 @@ class EncryptionSection extends StatelessWidget {
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(
-                    'Encryption',
+                    context.t('Encryption'),
                     style: theme.textTheme.titleLarge,
                   ),
                 ),
@@ -48,9 +49,9 @@ class EncryptionSection extends StatelessWidget {
                       color: Colors.green.withValues(alpha: 0.15),
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    child: const Text(
-                      'ACTIVE',
-                      style: TextStyle(
+                    child: Text(
+                      context.t('ACTIVE'),
+                      style: const TextStyle(
                         fontSize: 11,
                         fontWeight: FontWeight.w600,
                         color: Colors.green,
@@ -62,10 +63,14 @@ class EncryptionSection extends StatelessWidget {
             const SizedBox(height: 4),
             Text(
               hasDek
-                  ? 'Your data is encrypted with AES-256-GCM. '
-                      'No one — not even the admin — can read it.'
-                  : 'Encryption not yet set up. Your data is stored '
+                  ? context.t(
+                      'Your data is encrypted with AES-256-GCM. '
+                      'No one — not even the admin — can read it.',
+                    )
+                  : context.t(
+                      'Encryption not yet set up. Your data is stored '
                       'in plaintext.',
+                    ),
               style: theme.textTheme.bodySmall,
             ),
             const SizedBox(height: 16),
@@ -81,7 +86,7 @@ class EncryptionSection extends StatelessWidget {
                   );
                 },
                 icon: const Icon(Icons.info_outlined, size: 18),
-                label: const Text('How encryption works'),
+                label: Text(context.t('How encryption works')),
               ),
             ),
             if (hasDek) ...[const SizedBox(height: 8),
@@ -90,7 +95,7 @@ class EncryptionSection extends StatelessWidget {
               child: OutlinedButton.icon(
                 onPressed: () => _showRecoveryPhrase(context),
                 icon: const Icon(Icons.key, size: 18),
-                label: const Text('Show recovery phrase'),
+                label: Text(context.t('Show recovery phrase')),
               ),
             ),],
           ],
@@ -110,7 +115,7 @@ class EncryptionSection extends StatelessWidget {
     await showDialog(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text('Recovery Phrase'),
+        title: Text(context.t('Recovery Phrase')),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -118,22 +123,26 @@ class EncryptionSection extends StatelessWidget {
             RecoveryPhraseCard(phrase: phrase, title: null),
             const SizedBox(height: 16),
             Text(
-              'If you forget your encryption passphrase, this 24-word '
-              'phrase is the only way to recover your data. Store it '
-              'somewhere safe.',
+              context.t(
+                'If you forget your encryption passphrase, this 24-word '
+                'phrase is the only way to recover your data. Store it '
+                'somewhere safe.',
+              ),
               style: theme.textTheme.bodySmall,
             ),
             const SizedBox(height: 12),
-            const RecoveryWarningCard(
-              message: 'Without this phrase, lost data is gone forever. '
-                  'No one — not even the admin — can recover it.',
+            RecoveryWarningCard(
+              message: context.t(
+                'Without this phrase, lost data is gone forever. '
+                'No one — not even the admin — can recover it.',
+              ),
             ),
           ],
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Close'),
+            child: Text(context.t('Close')),
           ),
           FilledButton.icon(
             onPressed: () {
@@ -141,12 +150,12 @@ class EncryptionSection extends StatelessWidget {
               Navigator.pop(context);
               if (context.mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Recovery phrase copied')),
+                  SnackBar(content: Text(context.t('Recovery phrase copied'))),
                 );
               }
             },
             icon: const Icon(Icons.copy, size: 18),
-            label: const Text('Copy'),
+            label: Text(context.t('Copy')),
           ),
         ],
       ),

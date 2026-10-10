@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import 'l10n/app_strings.dart';
 import 'screens/main_shell.dart';
 import 'screens/login_screen.dart';
 import 'screens/migration_screen.dart';
@@ -9,6 +11,7 @@ import 'screens/pending_screen.dart';
 import 'screens/setup_screen.dart';
 import 'screens/signup_screen.dart';
 import 'services/auth_service.dart';
+import 'services/locale_service.dart';
 import 'services/notification_service.dart';
 import 'services/pinned_journey_store.dart';
 import 'services/theme_service.dart';
@@ -26,8 +29,14 @@ void main() async {
   }
 
   await ThemeService().init();
+  await LocaleService().init();
   await AuthService().init();
   await PinnedJourneyStore().init();
+
+  // Re-read the cross-device language once the DEK is available.
+  if (AuthService().dek != null) {
+    await LocaleService().syncFromServer();
+  }
 
   // Pre-load app data so the first frame never shows setup screen
   final auth = AuthService();
@@ -70,6 +79,9 @@ class _ChronoWardenAppState extends State<ChronoWardenApp> {
   void _onAuthChanged() {
     if (_auth.isAuthenticated && _auth.profile?.isApproved == true) {
       _state.refresh();
+      // Passphrase unlock may have happened after startup — pull the
+      // cross-device language now that the DEK is available.
+      LocaleService().syncFromServer();
     } else {
       // Clear any in-flight leave alert so it can't linger after sign out.
       NotificationService().resetForToday();
@@ -80,13 +92,21 @@ class _ChronoWardenAppState extends State<ChronoWardenApp> {
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
-      listenable: ThemeService(),
+      listenable: Listenable.merge([ThemeService(), LocaleService()]),
       builder: (context, _) {
         final ts = ThemeService();
         return MaterialApp(
           title: 'ChronoWarden',
           debugShowCheckedModeBanner: false,
           themeMode: ts.mode,
+          locale: LocaleService().locale,
+          supportedLocales: const [Locale('en'), Locale('sv')],
+          localizationsDelegates: const [
+            AppStringsDelegate(),
+            GlobalMaterialLocalizations.delegate,
+            GlobalWidgetsLocalizations.delegate,
+            GlobalCupertinoLocalizations.delegate,
+          ],
           theme: ThemeData(
             colorSchemeSeed: const Color(0xFF1E3A5F),
             useMaterial3: true,

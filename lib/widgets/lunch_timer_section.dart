@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../l10n/app_strings.dart';
 import 'small_button.dart';
 
 // ---------------------------------------------------------------------------
@@ -46,7 +47,7 @@ class LunchTimerSection extends StatelessWidget {
           children: [
             Icon(Icons.restaurant, size: 16, color: theme.colorScheme.tertiary),
             const SizedBox(width: 4),
-            Text('Lunch  ', style: theme.textTheme.bodyMedium),
+            Text(context.t('Lunch'), style: theme.textTheme.bodyMedium),
             Text(
               '${mins.toString().padLeft(2, '0')}:${secs.toString().padLeft(2, '0')}',
               style: theme.textTheme.bodyMedium?.copyWith(
@@ -59,7 +60,7 @@ class LunchTimerSection extends StatelessWidget {
               onPressed: onStopLunch,
               backgroundColor: theme.colorScheme.tertiary,
               foregroundColor: theme.colorScheme.onTertiary,
-              label: 'Stop',
+              label: context.t('Stop'),
             ),
           ],
         ),
@@ -73,22 +74,22 @@ class LunchTimerSection extends StatelessWidget {
         children: [
           Icon(Icons.restaurant, size: 16, color: theme.colorScheme.onSurfaceVariant),
           const SizedBox(width: 4),
-          Text('Lunch: $lunchMinutes min', style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600)),
+          Text(context.t('Lunch: {minutes} min', {'minutes': lunchMinutes}), style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600)),
           if (lunchEndTime != null)
-            Text(' (timer)', style: TextStyle(fontStyle: FontStyle.italic, fontSize: 12)),
+            Text(context.t(' (timer)'), style: const TextStyle(fontStyle: FontStyle.italic, fontSize: 12)),
           const Spacer(),
           SmallButton(
             onPressed: onStartLunch,
             backgroundColor: theme.colorScheme.primary,
             foregroundColor: theme.colorScheme.onPrimary,
-            label: 'Start',
+            label: context.t('Start'),
           ),
           const SizedBox(width: 4),
           SmallButton(
             onPressed: onEditLunch,
             backgroundColor: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
             foregroundColor: theme.colorScheme.onSurfaceVariant,
-            label: 'Edit',
+            label: context.t('Edit'),
           ),
         ],
       ),

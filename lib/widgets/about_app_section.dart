@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../app_info.dart';
+import '../l10n/app_strings.dart';
 import '../screens/about_screen.dart';
 import '../screens/changelog_screen.dart';
 import '../services/update_service.dart';
@@ -27,7 +28,7 @@ class AboutAppSection extends StatelessWidget {
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(
-                    'About & Open Source',
+                    context.t('About & Open Source'),
                     style: theme.textTheme.titleLarge,
                   ),
                 ),
@@ -35,8 +36,11 @@ class AboutAppSection extends StatelessWidget {
             ),
             const SizedBox(height: 4),
             Text(
-              '${AppInfo.name} is free software under the ${AppInfo.licenseName}. '
-              'Self-host it, read the code, or report an issue on GitHub.',
+              context.t(
+                '{app} is free software under the {license}. '
+                'Self-host it, read the code, or report an issue on GitHub.',
+                {'app': AppInfo.name, 'license': AppInfo.licenseName},
+              ),
               style: theme.textTheme.bodySmall,
             ),
             const SizedBox(height: 16),
@@ -48,7 +52,7 @@ class AboutAppSection extends StatelessWidget {
                   MaterialPageRoute(builder: (_) => const AboutScreen()),
                 ),
                 icon: const Icon(Icons.info_outline, size: 18),
-                label: const Text('About ChronoWarden'),
+                label: Text(context.t('About ChronoWarden')),
               ),
             ),
             const SizedBox(height: 8),
@@ -60,7 +64,7 @@ class AboutAppSection extends StatelessWidget {
                   MaterialPageRoute(builder: (_) => const ChangelogScreen()),
                 ),
                 icon: const Icon(Icons.new_releases_outlined, size: 18),
-                label: const Text("What's New"),
+                label: Text(context.t("What's New")),
               ),
             ),
             const SizedBox(height: 8),
@@ -69,18 +73,18 @@ class AboutAppSection extends StatelessWidget {
               child: OutlinedButton.icon(
                 onPressed: () => _checkForUpdates(context),
                 icon: const Icon(Icons.system_update_alt_rounded, size: 18),
-                label: const Text('Check for updates'),
+                label: Text(context.t('Check for updates')),
               ),
             ),
             const SizedBox(height: 8),
             ExternalLinkButton(
-              label: 'View source on GitHub',
+              label: context.t('View source on GitHub'),
               url: AppInfo.repoUrl,
               icon: Icons.code,
             ),
             const SizedBox(height: 8),
             ExternalLinkButton(
-              label: 'Report an issue',
+              label: context.t('Report an issue'),
               url: AppInfo.issuesUrl,
               icon: Icons.bug_report_outlined,
             ),
@@ -97,10 +101,11 @@ class AboutAppSection extends StatelessWidget {
 
     final server = service.serverBuild;
     final message = service.updateAvailable
-        ? 'A new version is available — use the banner to reload.'
+        ? context.t('A new version is available — use the banner to reload.')
         : (server != null && server.isKnown
-            ? 'You are on the latest version (${server.commit}).'
-            : 'Update check unavailable.');
+            ? context.t('You are on the latest version ({commit}).',
+                {'commit': server.commit})
+            : context.t('Update check unavailable.'));
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(message)),
     );

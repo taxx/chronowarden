@@ -3,6 +3,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 
 import '../app_info.dart';
 import '../app_state.dart';
+import '../l10n/app_strings.dart';
 import '../services/auth_service.dart';
 import '../services/notification_service.dart';
 import '../services/theme_service.dart';
@@ -56,7 +57,7 @@ class _MainShellState extends State<MainShell> {
   Widget _reportIssueButton(BuildContext context) {
     return IconButton(
       icon: const Icon(Icons.bug_report),
-      tooltip: 'Report an issue or request a feature',
+      tooltip: context.t('Report an issue or request a feature'),
       onPressed: () => openExternalLink(context, AppInfo.issuesUrl),
     );
   }
@@ -65,16 +66,16 @@ class _MainShellState extends State<MainShell> {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text('Sign out'),
-        content: const Text('Are you sure you want to sign out?'),
+        title: Text(context.t('Sign out')),
+        content: Text(context.t('Are you sure you want to sign out?')),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
+            child: Text(context.t('Cancel')),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Sign Out'),
+            child: Text(context.t('Sign Out')),
           ),
         ],
       ),
@@ -94,28 +95,29 @@ class _MainShellState extends State<MainShell> {
         final transitEnabled = TransitService().config.enabled;
 
         final destinations = <NavigationDestination>[
-          const NavigationDestination(icon: Icon(Icons.home), label: 'My Day'),
-          const NavigationDestination(
-            icon: Icon(Icons.bar_chart_rounded),
-            label: 'Overview',
+          NavigationDestination(
+              icon: const Icon(Icons.home), label: context.t('My Day')),
+          NavigationDestination(
+            icon: const Icon(Icons.bar_chart_rounded),
+            label: context.t('Overview'),
           ),
-          const NavigationDestination(
-            icon: Icon(Icons.trending_down),
-            label: 'Projection',
+          NavigationDestination(
+            icon: const Icon(Icons.trending_down),
+            label: context.t('Projection'),
           ),
-          const NavigationDestination(
-            icon: Icon(Icons.history),
-            label: 'History',
+          NavigationDestination(
+            icon: const Icon(Icons.history),
+            label: context.t('History'),
           ),
           if (transitEnabled)
-            const NavigationDestination(
-              icon: Icon(Icons.directions_train),
-              label: 'Transit',
+            NavigationDestination(
+              icon: const Icon(Icons.directions_train),
+              label: context.t('Transit'),
             ),
           if (isAdmin)
-            const NavigationDestination(
-              icon: Icon(Icons.admin_panel_settings),
-              label: 'Admin',
+            NavigationDestination(
+              icon: const Icon(Icons.admin_panel_settings),
+              label: context.t('Admin'),
             ),
         ];
 
@@ -143,15 +145,15 @@ class _MainShellState extends State<MainShell> {
                   switch (ts.mode) {
                     case ThemeMode.light:
                       icon = Icons.sunny;
-                      tooltip = 'Light mode';
+                      tooltip = context.t('Light mode');
                       break;
                     case ThemeMode.dark:
                       icon = Icons.nightlight_round;
-                      tooltip = 'Dark mode';
+                      tooltip = context.t('Dark mode');
                       break;
                     case ThemeMode.system:
                       icon = Icons.brightness_auto;
-                      tooltip = 'Auto (system)';
+                      tooltip = context.t('Auto (system)');
                       break;
                   }
                   return IconButton(
@@ -163,7 +165,7 @@ class _MainShellState extends State<MainShell> {
               ),
               IconButton(
                 icon: const Icon(Icons.settings),
-                tooltip: 'Settings',
+                tooltip: context.t('Settings'),
                 onPressed: () => Navigator.push(
                   context,
                   MaterialPageRoute(builder: (_) => const SettingsScreen()),
@@ -171,7 +173,7 @@ class _MainShellState extends State<MainShell> {
               ),
               IconButton(
                 icon: const Icon(Icons.logout_outlined),
-                tooltip: 'Sign out',
+                tooltip: context.t('Sign out'),
                 onPressed: _handleLogout,
               ),
             ],
@@ -184,9 +186,12 @@ class _MainShellState extends State<MainShell> {
                   padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
                   child: UpdateBanner(
                     message: _updates.serverBuild?.commit.isNotEmpty == true
-                        ? 'A new version (${_updates.serverBuild!.commit}) is '
-                            'available — reload to update.'
-                        : 'A new version is available — reload to update.',
+                        ? context.t(
+                            'A new version ({commit}) is available — reload to update.',
+                            {'commit': _updates.serverBuild!.commit},
+                          )
+                        : context.t(
+                            'A new version is available — reload to update.'),
                     onReload: _updates.reload,
                     onDismiss: _updates.dismiss,
                   ),
@@ -198,7 +203,10 @@ class _MainShellState extends State<MainShell> {
                   child: AlertBanner(
                     message: _notifications.currentAlert!.message,
                     isUrgent: _notifications.currentAlert!.isUrgent,
-                    snoozeLabel: 'Snooze ${_notifications.snoozeMinutes}m',
+                    snoozeLabel: context.t(
+                      'Snooze {minutes}m',
+                      {'minutes': _notifications.snoozeMinutes},
+                    ),
                     onSnooze: () => _notifications.snooze(),
                     onDismiss: () => _notifications.dismiss(),
                   ),

@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 
 import '../app_state.dart';
+import '../l10n/app_strings.dart';
 import '../models/travel_preset.dart';
 import '../models/work_config.dart';
 import '../widgets/about_app_section.dart';
 import '../widgets/encryption_settings_section.dart';
 import '../widgets/export_settings_section.dart';
+import '../widgets/language_setting.dart';
 import '../widgets/notification_settings.dart';
 import '../widgets/personal_settings.dart';
 import '../widgets/section_card.dart';
@@ -25,7 +27,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Settings')),
+      appBar: AppBar(title: Text(context.t('Settings'))),
       body: ListenableBuilder(
         listenable: _state,
         builder: (context, _) {
@@ -37,7 +39,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               _state.clearLastError();
               if (mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Error: $err')),
+                  SnackBar(content: Text(context.t('Error: {error}', {'error': err}))),
                 );
               }
             });
@@ -58,7 +60,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
           title: 'Travel Presets',
           subtitle: 'Commute scenarios with overhead buffer',
           items: _state.travelPresets,
-          itemBuilder: (p) => Text('${p.name}: ${p.morningOverheadMinutes}/${p.eveningOverheadMinutes} min overhead, ${p.morningProductiveCommuteMinutes}/${p.eveningProductiveCommuteMinutes} min train work'),
+          itemBuilder: (p) => Text(context.t(
+            '{name}: {amOverhead}/{pmOverhead} min overhead, {amProductive}/{pmProductive} min train work',
+            {
+              'name': p.name,
+              'amOverhead': p.morningOverheadMinutes,
+              'pmOverhead': p.eveningOverheadMinutes,
+              'amProductive': p.morningProductiveCommuteMinutes,
+              'pmProductive': p.eveningProductiveCommuteMinutes,
+            },
+          )),
           onEdit: (p) => _showEditPresetDialog(context, p),
           onDelete: (p) => _confirmDeletePreset(context, p),
           onAdd: () => _showAddPresetDialog(context),
@@ -73,6 +84,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
         DefaultFlexSetting(),
         const SizedBox(height: 24),
         SliderIntervalSetting(),
+        const SizedBox(height: 24),
+        LanguageSetting(),
         const SizedBox(height: 24),
         ExportSection(),
         const SizedBox(height: 24),
@@ -96,52 +109,52 @@ class _SettingsScreenState extends State<SettingsScreen> {
       context: ctx,
       builder: (_) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
-          title: const Text('Work Hours Configuration'),
+          title: Text(context.t('Work Hours Configuration')),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
                 TextField(
                   controller: dfltCtrl,
-                  decoration: const InputDecoration(labelText: 'Default minutes per day'),
+                  decoration: InputDecoration(labelText: context.t('Default minutes per day')),
                   keyboardType: TextInputType.number,
                 ),
                 const SizedBox(height: 16),
-                const Text('Reduced period (optional — e.g. summer time)', style: TextStyle(fontWeight: FontWeight.bold)),
+                Text(context.t('Reduced period (optional — e.g. summer time)'), style: const TextStyle(fontWeight: FontWeight.bold)),
                 const SizedBox(height: 8),
                 TextField(
                   controller: reducedCtrl,
-                  decoration: const InputDecoration(labelText: 'Reduced minutes per day'),
+                  decoration: InputDecoration(labelText: context.t('Reduced minutes per day')),
                   keyboardType: TextInputType.number,
                 ),
                 const SizedBox(height: 8),
                 TextField(
                   controller: startWeekCtrl,
-                  decoration: const InputDecoration(labelText: 'Start week (ISO, 1-53)'),
+                  decoration: InputDecoration(labelText: context.t('Start week (ISO, 1-53)')),
                   keyboardType: TextInputType.number,
                 ),
                 const SizedBox(height: 8),
                 TextField(
                   controller: endWeekCtrl,
-                  decoration: const InputDecoration(labelText: 'End week (ISO, 1-53)'),
+                  decoration: InputDecoration(labelText: context.t('End week (ISO, 1-53)')),
                   keyboardType: TextInputType.number,
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'Leave reduced fields empty to disable the reduced period.',
+                  context.t('Leave reduced fields empty to disable the reduced period.'),
                   style: const TextStyle(color: Colors.grey, fontSize: 12),
                 ),
               ],
             ),
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+            TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(context.t('Cancel'))),
             FilledButton(
               onPressed: () {
                 final dflt = int.tryParse(dfltCtrl.text);
                 if (dflt == null) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Default minutes must be a valid number')),
+                    SnackBar(content: Text(context.t('Default minutes must be a valid number'))),
                   );
                   return;
                 }
@@ -153,20 +166,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   final ew = int.tryParse(endWeekCtrl.text);
                   if (r == null || sw == null || ew == null) {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('All reduced fields must be valid numbers')),
+                      SnackBar(content: Text(context.t('All reduced fields must be valid numbers'))),
                     );
                     return;
                   }
                   if (sw < 1 || sw > 53 || ew < 1 || ew > 53) {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Weeks must be between 1 and 53')),
+                      SnackBar(content: Text(context.t('Weeks must be between 1 and 53'))),
                     );
                     return;
                   }
                 }
                 Navigator.pop(ctx, true);
               },
-              child: const Text('Save'),
+              child: Text(context.t('Save')),
             ),
           ],
         ),
@@ -195,9 +208,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final err = _state.lastError;
     if (err != null) {
       _state.clearLastError();
-      ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(content: Text('Error: $err')));
+      ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(content: Text(ctx.t('Error: {error}', {'error': err}))));
     } else {
-      ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(content: Text('✓ Saved')));
+      ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(content: Text(ctx.t('✓ Saved'))));
     }
   }
 
@@ -235,29 +248,31 @@ class _SettingsScreenState extends State<SettingsScreen> {
       context: ctx,
       builder: (_) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
-          title: Text(existing == null ? 'Add Travel Preset' : 'Edit Travel Preset'),
+          title: Text(existing == null
+              ? context.t('Add Travel Preset')
+              : context.t('Edit Travel Preset')),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              TextField(controller: nameCtrl, decoration: const InputDecoration(labelText: 'Name')),
+              TextField(controller: nameCtrl, decoration: InputDecoration(labelText: context.t('Name'))),
               const SizedBox(height: 8),
-              TextField(controller: morningOverheadCtrl, decoration: const InputDecoration(labelText: 'Morning overhead (walking to office)'), keyboardType: const TextInputType.numberWithOptions(),),
+              TextField(controller: morningOverheadCtrl, decoration: InputDecoration(labelText: context.t('Morning overhead (walking to office)')), keyboardType: const TextInputType.numberWithOptions(),),
               const SizedBox(height: 8),
-              TextField(controller: morningProductiveCtrl, decoration: const InputDecoration(labelText: 'Morning productive commute (train work)'), keyboardType: const TextInputType.numberWithOptions(),),
+              TextField(controller: morningProductiveCtrl, decoration: InputDecoration(labelText: context.t('Morning productive commute (train work)')), keyboardType: const TextInputType.numberWithOptions(),),
               const SizedBox(height: 8),
-              TextField(controller: eveningOverheadCtrl, decoration: const InputDecoration(labelText: 'Evening overhead (walking from office)'), keyboardType: const TextInputType.numberWithOptions(),),
+              TextField(controller: eveningOverheadCtrl, decoration: InputDecoration(labelText: context.t('Evening overhead (walking from office)')), keyboardType: const TextInputType.numberWithOptions(),),
               const SizedBox(height: 8),
-              TextField(controller: eveningProductiveCtrl, decoration: const InputDecoration(labelText: 'Evening productive commute (train work)'), keyboardType: const TextInputType.numberWithOptions(),),
+              TextField(controller: eveningProductiveCtrl, decoration: InputDecoration(labelText: context.t('Evening productive commute (train work)')), keyboardType: const TextInputType.numberWithOptions(),),
               const SizedBox(height: 12),
               DropdownButton<CommuteMode>(
                 value: commuteMode,
                 isExpanded: true,
                 items: CommuteMode.values.map((mode) {
                   final label = switch (mode) {
-                    CommuteMode.none => 'No commute (work from home)',
-                    CommuteMode.transit => 'Public transit (train/bus)',
-                    CommuteMode.car => 'Car (coming soon)',
-                    CommuteMode.vespa => '🛵 Vespa (coming soon)',
+                    CommuteMode.none => context.t('No commute (work from home)'),
+                    CommuteMode.transit => context.t('Public transit (train/bus)'),
+                    CommuteMode.car => context.t('Car (coming soon)'),
+                    CommuteMode.vespa => context.t('🛵 Vespa (coming soon)'),
                   };
                   return DropdownMenuItem(
                     value: mode,
@@ -271,7 +286,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ],
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+            TextButton(onPressed: () => Navigator.pop(ctx), child: Text(context.t('Cancel'))),
             FilledButton(
               onPressed: () {
                 if (nameCtrl.text.isNotEmpty &&
@@ -282,7 +297,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   Navigator.pop(ctx, true);
                 }
               },
-              child: Text(existing == null ? 'Add' : 'Save'),
+              child: Text(existing == null ? context.t('Add') : context.t('Save')),
             ),
           ],
         ),
@@ -308,24 +323,24 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final confirmed = await showDialog<bool>(
       context: ctx,
       builder: (_) => AlertDialog(
-        title: const Text('Delete Travel Preset'),
+        title: Text(ctx.t('Delete Travel Preset')),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Delete "${p.name}"?'),
+            Text(ctx.t('Delete "{name}"?', {'name': p.name})),
             if (inUse) ...[
               const SizedBox(height: 12),
               Text(
-                '⚠ This preset matches one or more logged days. Deleting it won\'t affect those logs (they store their own copy of the minutes).',
+                ctx.t('⚠ This preset matches one or more logged days. Deleting it won\'t affect those logs (they store their own copy of the minutes).'),
                 style: const TextStyle(color: Colors.orange),
               ),
             ],
           ],
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
-          FilledButton(onPressed: () => Navigator.pop(ctx, true), style: FilledButton.styleFrom(backgroundColor: Colors.red), child: const Text('Delete')),
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(ctx.t('Cancel'))),
+          FilledButton(onPressed: () => Navigator.pop(ctx, true), style: FilledButton.styleFrom(backgroundColor: Colors.red), child: Text(ctx.t('Delete'))),
         ],
       ),
     );

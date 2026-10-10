@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../l10n/app_strings.dart';
 import '../services/auth_service.dart';
 import '../utils/paste_button.dart';
 import 'about_encryption_screen.dart';
@@ -67,8 +68,8 @@ class _SignupScreenState extends State<SignupScreen> {
     if (_encCtrl.text.length < 8) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Encryption passphrase must be at least 8 characters'),
+        SnackBar(
+          content: Text(context.t('Encryption passphrase must be at least 8 characters')),
         ),
       );
       return;
@@ -76,7 +77,7 @@ class _SignupScreenState extends State<SignupScreen> {
     if (_encCtrl.text != _encConfirmCtrl.text) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Encryption passphrases do not match')),
+        SnackBar(content: Text(context.t('Encryption passphrases do not match'))),
       );
       return;
     }
@@ -86,7 +87,7 @@ class _SignupScreenState extends State<SignupScreen> {
         return;
       }
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Invalid or expired invite token')),
+        SnackBar(content: Text(context.t('Invalid or expired invite token'))),
       );
       return;
     }
@@ -150,7 +151,7 @@ class _SignupScreenState extends State<SignupScreen> {
                     const SizedBox(width: 12),
                     Expanded(
                       child: Text(
-                        'How we store & protect your data',
+                        context.t('How we store & protect your data'),
                         style: Theme.of(dialogContext).textTheme.titleLarge
                             ?.copyWith(fontWeight: FontWeight.bold),
                       ),
@@ -174,7 +175,7 @@ class _SignupScreenState extends State<SignupScreen> {
                 padding: const EdgeInsets.only(bottom: 16),
                 child: FilledButton(
                   onPressed: () => Navigator.pop(dialogContext),
-                  child: const Text('Got it'),
+                  child: Text(context.t('Got it')),
                 ),
               ),
             ],
@@ -195,7 +196,9 @@ class _SignupScreenState extends State<SignupScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.isFirstAdmin ? 'Create Admin' : 'Create Account'),
+        title: Text(widget.isFirstAdmin
+            ? context.t('Create Admin')
+            : context.t('Create Account')),
       ),
       body: Center(
         child: SingleChildScrollView(
@@ -209,8 +212,8 @@ class _SignupScreenState extends State<SignupScreen> {
                   Padding(
                     padding: const EdgeInsets.only(bottom: 16),
                     child: Text(
-                      'You are the first user. This account will have '
-                      'admin privileges.',
+                      context.t('You are the first user. This account will have '
+                          'admin privileges.'),
                       style: theme.textTheme.bodyMedium?.copyWith(
                         color: theme.colorScheme.primary,
                       ),
@@ -221,10 +224,10 @@ class _SignupScreenState extends State<SignupScreen> {
                 // --- Name ---
                 TextField(
                   controller: _nameCtrl,
-                  decoration: const InputDecoration(
-                    labelText: 'Full name',
-                    border: OutlineInputBorder(),
-                    prefixIcon: Icon(Icons.person_outline),
+                  decoration: InputDecoration(
+                    labelText: context.t('Full name'),
+                    border: const OutlineInputBorder(),
+                    prefixIcon: const Icon(Icons.person_outline),
                   ),
                 ),
                 const SizedBox(height: 12),
@@ -233,10 +236,10 @@ class _SignupScreenState extends State<SignupScreen> {
                 TextField(
                   controller: _emailCtrl,
                   keyboardType: TextInputType.emailAddress,
-                  decoration: const InputDecoration(
-                    labelText: 'Email',
-                    border: OutlineInputBorder(),
-                    prefixIcon: Icon(Icons.email_outlined),
+                  decoration: InputDecoration(
+                    labelText: context.t('Email'),
+                    border: const OutlineInputBorder(),
+                    prefixIcon: const Icon(Icons.email_outlined),
                   ),
                 ),
                 const SizedBox(height: 12),
@@ -246,7 +249,7 @@ class _SignupScreenState extends State<SignupScreen> {
                   controller: _passCtrl,
                   obscureText: _obscurePass,
                   decoration: InputDecoration(
-                    labelText: 'Password (min 6 characters)',
+                    labelText: context.t('Password (min 6 characters)'),
                     border: const OutlineInputBorder(),
                     prefixIcon: const Icon(Icons.lock_outline),
                     suffixIcon: IconButton(
@@ -265,8 +268,8 @@ class _SignupScreenState extends State<SignupScreen> {
                   controller: _encCtrl,
                   obscureText: _obscureEnc,
                   decoration: InputDecoration(
-                    labelText: 'Encryption passphrase',
-                    hintText: 'At least 8 characters',
+                    labelText: context.t('Encryption passphrase'),
+                    hintText: context.t('At least 8 characters'),
                     border: const OutlineInputBorder(),
                     prefixIcon: const Icon(Icons.shield_outlined),
                     suffixIcon: Row(
@@ -278,8 +281,8 @@ class _SignupScreenState extends State<SignupScreen> {
                               color: Colors.green, size: 20),
                       ],
                     ),
-                    helperText: '🔐 This passphrase encrypts ALL your data. '
-                        'If lost, your data is gone forever.',
+                    helperText: context.t('🔐 This passphrase encrypts ALL your data. '
+                        'If lost, your data is gone forever.'),
                     helperStyle: theme.textTheme.bodySmall?.copyWith(
                       color: Colors.orange.shade800,
                     ),
@@ -293,7 +296,7 @@ class _SignupScreenState extends State<SignupScreen> {
                   controller: _encConfirmCtrl,
                   obscureText: _obscureEnc,
                   decoration: InputDecoration(
-                    labelText: 'Confirm encryption passphrase',
+                    labelText: context.t('Confirm encryption passphrase'),
                     border: const OutlineInputBorder(),
                     prefixIcon: const Icon(Icons.shield_outlined),
                     suffixIcon: Row(
@@ -317,7 +320,7 @@ class _SignupScreenState extends State<SignupScreen> {
                         child: TextField(
                           controller: _tokenCtrl,
                           decoration: InputDecoration(
-                            labelText: 'Invite token (optional)',
+                            labelText: context.t('Invite token (optional)'),
                             border: const OutlineInputBorder(),
                             prefixIcon: const Icon(
                                 Icons.confirmation_number_outlined),
@@ -349,8 +352,8 @@ class _SignupScreenState extends State<SignupScreen> {
                                                 Icons.verified_outlined),
                                             onPressed: _validateToken,
                                           ))),
-                            helperText: 'Without a token your account will '
-                                'need admin approval',
+                            helperText: context.t('Without a token your account will '
+                                'need admin approval'),
                             helperStyle: theme.textTheme.bodySmall,
                           ),
                         ),
@@ -384,8 +387,8 @@ class _SignupScreenState extends State<SignupScreen> {
                             ? Icons.admin_panel_settings
                             : Icons.app_registration),
                     label: Text(widget.isFirstAdmin
-                        ? 'Create Admin Account'
-                        : 'Create Account'),
+                        ? context.t('Create Admin Account')
+                        : context.t('Create Account')),
                   ),
                 ),
                 const SizedBox(height: 16),
@@ -401,15 +404,15 @@ class _SignupScreenState extends State<SignupScreen> {
                         )
                       : () => Navigator.of(context).maybePop(),
                   child: Text(widget.isFirstAdmin
-                      ? 'Already signed up before? Sign in'
-                      : 'Already have an account? Sign in'),
+                      ? context.t('Already signed up before? Sign in')
+                      : context.t('Already have an account? Sign in')),
                 ),
 
                 // --- Encryption info ---
                 const SizedBox(height: 16),
                 Text(
-                  '🔐 Your data will be encrypted with AES-256-GCM. '
-                  'No one — not even the admin — can read it.',
+                  context.t('🔐 Your data will be encrypted with AES-256-GCM. '
+                      'No one — not even the admin — can read it.'),
                   style: theme.textTheme.bodySmall?.copyWith(
                     color: theme.colorScheme.onSurfaceVariant,
                   ),
@@ -418,7 +421,7 @@ class _SignupScreenState extends State<SignupScreen> {
                 TextButton(
                   onPressed: () => _showEncryptionInfoDialog(context),
                   child: Text(
-                    'How we store & protect your data',
+                    context.t('How we store & protect your data'),
                     style: theme.textTheme.bodySmall?.copyWith(
                       color: theme.colorScheme.primary,
                       fontWeight: FontWeight.w600,

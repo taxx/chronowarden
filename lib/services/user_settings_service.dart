@@ -49,6 +49,33 @@ class UserSettingsService {
     }, onConflict: 'user_id');
   }
 
+  /// UI language code stored in the encrypted settings (e.g. "en", "sv").
+  Future<String?> getLanguage() async {
+    final userId = _userId;
+    final dek = _dek;
+    if (userId == null || dek == null) return null;
+
+    final settings = await _readSettings(userId, dek);
+    return settings['language'] as String?;
+  }
+
+  Future<void> setLanguage(String code) async {
+    final userId = _userId;
+    final dek = _dek;
+    if (userId == null || dek == null) return;
+
+    final settings = await _readSettings(userId, dek);
+    settings['language'] = code;
+
+    final plaintext = jsonEncode(settings);
+    final ciphertext = await CryptoService.encrypt(plaintext, dek);
+
+    await _client.from('user_settings').upsert({
+      'user_id': userId,
+      'encrypted_data': ciphertext,
+    }, onConflict: 'user_id');
+  }
+
   // -----------------------------------------------------------------
   // Helpers
   // -----------------------------------------------------------------

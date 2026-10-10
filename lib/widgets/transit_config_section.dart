@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../app_state.dart';
+import '../l10n/app_strings.dart';
 import '../models/station_info.dart';
 import '../models/transit_config.dart';
 import '../services/transit_service.dart';
@@ -57,7 +58,7 @@ class _TransitConfigSectionState extends State<TransitConfigSection> {
                 Icon(Icons.train, color: theme.colorScheme.primary),
                 const SizedBox(width: 12),
                 Expanded(
-                  child: Text('Transit Integration',
+                  child: Text(context.t('Transit Integration'),
                       style: theme.textTheme.titleLarge),
                 ),
                 Switch(
@@ -68,13 +69,13 @@ class _TransitConfigSectionState extends State<TransitConfigSection> {
             ),
             const SizedBox(height: 4),
             Text(
-              'Journey planning between home and work stations.',
+              context.t('Journey planning between home and work stations.'),
               style: theme.textTheme.bodySmall,
             ),
             if (cfg.enabled) ...[ 
               const SizedBox(height: 16),
               _StationField(
-                label: 'Work station',
+                label: context.t('Work station'),
                 initialValue: cfg.hasWork
                     ? StationInfo(id: cfg.workStopId, name: cfg.workStopName)
                     : null,
@@ -89,7 +90,7 @@ class _TransitConfigSectionState extends State<TransitConfigSection> {
               ),
               const SizedBox(height: 12),
               _StationField(
-                label: 'Home station',
+                label: context.t('Home station'),
                 initialValue: cfg.hasHome
                     ? StationInfo(id: cfg.homeStopId, name: cfg.homeStopName)
                     : null,
@@ -103,7 +104,7 @@ class _TransitConfigSectionState extends State<TransitConfigSection> {
                 },
               ),
               const SizedBox(height: 16),
-              Text('Walk home↔station', style: theme.textTheme.titleSmall),
+              Text(context.t('Walk home↔station'), style: theme.textTheme.titleSmall),
               const SizedBox(height: 4),
               Row(
                 children: [
@@ -113,18 +114,18 @@ class _TransitConfigSectionState extends State<TransitConfigSection> {
                       min: 1,
                       max: 30,
                       divisions: 29,
-                      label: '${cfg.walkHomeMinutes} min',
+                      label: context.t('{minutes} min', {'minutes': cfg.walkHomeMinutes}),
                       onChanged: (v) => _update(
                         cfg.copyWith(walkHomeMinutes: v.round())),
                     ),
                   ),
-                  Text('${cfg.walkHomeMinutes} min',
+                  Text(context.t('{minutes} min', {'minutes': cfg.walkHomeMinutes}),
                       style: theme.textTheme.bodyMedium
                           ?.copyWith(fontWeight: FontWeight.w600)),
                 ],
               ),
               const SizedBox(height: 16),
-              Text('Walk station↔work', style: theme.textTheme.titleSmall),
+              Text(context.t('Walk station↔work'), style: theme.textTheme.titleSmall),
               const SizedBox(height: 4),
               Row(
                 children: [
@@ -134,12 +135,12 @@ class _TransitConfigSectionState extends State<TransitConfigSection> {
                       min: 1,
                       max: 30,
                       divisions: 29,
-                      label: '${cfg.walkWorkMinutes} min',
+                      label: context.t('{minutes} min', {'minutes': cfg.walkWorkMinutes}),
                       onChanged: (v) => _update(
                         cfg.copyWith(walkWorkMinutes: v.round())),
                     ),
                   ),
-                  Text('${cfg.walkWorkMinutes} min',
+                  Text(context.t('{minutes} min', {'minutes': cfg.walkWorkMinutes}),
                       style: theme.textTheme.bodyMedium
                           ?.copyWith(fontWeight: FontWeight.w600)),
                 ],
@@ -147,7 +148,7 @@ class _TransitConfigSectionState extends State<TransitConfigSection> {
               const SizedBox(height: 16),
               Center(
                 child: Text(
-                  'Departure data provided by Trafiklab.se (CC-BY 4.0)',
+                  context.t('Departure data provided by Trafiklab.se (CC-BY 4.0)'),
                   style: theme.textTheme.bodySmall?.copyWith(
                     color: theme.colorScheme.onSurfaceVariant,
                     fontStyle: FontStyle.italic,
@@ -187,7 +188,7 @@ class _StationField extends StatelessWidget {
   Widget build(BuildContext context) {
     return StationPicker(
       label: label,
-      hint: 'Type to search SL stations...',
+      hint: context.t('Type to search SL stations...'),
       initialValue: initialValue,
       onSelected: onSelected,
       onFetchStops: (query) => TransitService().fetchStops(query),

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../app_state.dart';
+import '../l10n/app_strings.dart';
 import '../utils/csv_export.dart';
 
 // ---------------------------------------------------------------------------
@@ -24,12 +25,12 @@ class ExportSection extends StatelessWidget {
               children: [
                 Icon(Icons.download_outlined, color: theme.colorScheme.primary),
                 const SizedBox(width: 12),
-                Expanded(child: Text('Export / Import', style: theme.textTheme.titleLarge)),
+                Expanded(child: Text(context.t('Export / Import'), style: theme.textTheme.titleLarge)),
               ],
             ),
             const SizedBox(height: 4),
             Text(
-              'Download all your time logs as CSV or import from a CSV file.',
+              context.t('Download all your time logs as CSV or import from a CSV file.'),
               style: theme.textTheme.bodySmall,
             ),
             const SizedBox(height: 12),
@@ -44,7 +45,7 @@ class ExportSection extends StatelessWidget {
                       if (context.mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
-                            content: Text('Exported ${state.allLogs.length} logs'),
+                            content: Text(context.t('Exported {count} logs', {'count': state.allLogs.length})),
                             duration: const Duration(seconds: 3),
                             behavior: SnackBarBehavior.floating,
                           ),
@@ -52,7 +53,7 @@ class ExportSection extends StatelessWidget {
                       }
                     },
                     icon: const Icon(Icons.file_download_outlined, size: 18),
-                    label: const Text('Export CSV'),
+                    label: Text(context.t('Export CSV')),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -60,7 +61,7 @@ class ExportSection extends StatelessWidget {
                   child: OutlinedButton.icon(
                     onPressed: () => _showImportDialog(context, state),
                     icon: const Icon(Icons.file_upload_outlined, size: 18),
-                    label: const Text('Import CSV'),
+                    label: Text(context.t('Import CSV')),
                   ),
                 ),
               ],
@@ -77,14 +78,14 @@ class ExportSection extends StatelessWidget {
     final confirmed = await showDialog<bool>(
       context: ctx,
       builder: (_) => AlertDialog(
-        title: const Text('Import CSV'),
+        title: Text(ctx.t('Import CSV')),
         content: SizedBox(
           width: double.infinity,
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text('Paste your CSV data below.', style: TextStyle(fontSize: 13)),
+              Text(ctx.t('Paste your CSV data below.'), style: const TextStyle(fontSize: 13)),
               const SizedBox(height: 8),
               TextField(
                 controller: controller,
@@ -99,8 +100,8 @@ class ExportSection extends StatelessWidget {
           ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
-          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Import')),
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(ctx.t('Cancel'))),
+          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: Text(ctx.t('Import'))),
         ],
       ),
     );
@@ -110,12 +111,18 @@ class ExportSection extends StatelessWidget {
 
       if (!ctx.mounted) return;
 
+      final skipped = importResult.skipped > 0
+          ? ctx.t(', {count} skipped (duplicates)', {'count': importResult.skipped})
+          : '';
+      final errors = importResult.hasErrors
+          ? ctx.t(', {count} error(s)', {'count': importResult.errors.length})
+          : '';
       ScaffoldMessenger.of(ctx).showSnackBar(
         SnackBar(
           content: Text(
-            'Imported ${importResult.imported.length} day(s)'
-            '${importResult.skipped > 0 ? ', ${importResult.skipped} skipped (duplicates)' : ''}'
-            '${importResult.hasErrors ? ', ${importResult.errors.length} error(s)' : ''}',
+            ctx.t('Imported {count} day(s)', {'count': importResult.imported.length}) +
+                skipped +
+                errors,
           ),
           duration: const Duration(seconds: 4),
         ),
@@ -125,7 +132,7 @@ class ExportSection extends StatelessWidget {
         showDialog(
           context: ctx,
           builder: (_) => AlertDialog(
-            title: const Text('Import Errors'),
+            title: Text(ctx.t('Import Errors')),
             content: SizedBox(
               width: double.infinity,
               child: Column(
@@ -138,7 +145,7 @@ class ExportSection extends StatelessWidget {
               ),
             ),
             actions: [
-              FilledButton(onPressed: () => Navigator.pop(ctx), child: const Text('OK')),
+              FilledButton(onPressed: () => Navigator.pop(ctx), child: Text(ctx.t('OK'))),
             ],
           ),
         );
