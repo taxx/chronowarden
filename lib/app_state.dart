@@ -11,6 +11,7 @@ import 'services/travel_preset_service.dart';
 import 'services/work_config_service.dart';
 import 'services/supabase_service.dart';
 import 'services/transit_service.dart';
+import 'services/user_settings_service.dart';
 import 'models/transit_config.dart';
 import 'utils/csv_import.dart';
 
@@ -101,6 +102,75 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
+  // -- non-work (errands) timer state --------------------------------
+  DateTime? _nonWorkStartTime;
+  DateTime? _nonWorkEndTime;
+  bool _nonWorkEnabled = true;
+
+  DateTime? get nonWorkStartTime => _nonWorkStartTime;
+  DateTime? get nonWorkEndTime => _nonWorkEndTime;
+
+  /// True when the non-work timer is running (started but not stopped).
+  bool get nonWorkActive => _nonWorkStartTime != null && _nonWorkEndTime == null;
+
+  /// Whether the non-work-time feature is enabled (Settings; default on).
+  bool get nonWorkEnabled => _nonWorkEnabled;
+
+  /// Record the moment non-work time started and persist for cross-device sync.
+  void startNonWork() {
+    _nonWorkStartTime = DateTime.now();
+    _nonWorkEndTime = null;
+    _persistNonWorkStarted();
+    notifyListeners();
+  }
+
+  /// Record the moment non-work time stopped, calculate the duration, update
+  /// the stored minutes, and reset the timer state.
+  Future<void> stopNonWork([int? overrideMinutes]) async {
+    final log = _todayLog;
+    if (log == null || log.id == null) {
+      _nonWorkStartTime = null;
+      _nonWorkEndTime = null;
+      notifyListeners();
+      return;
+    }
+
+    if (_nonWorkStartTime == null) return;
+
+    _nonWorkEndTime = DateTime.now();
+    final calculatedMinutes =
+        _nonWorkEndTime!.difference(_nonWorkStartTime!).inMinutes;
+    final nonWorkMinutes = overrideMinutes ?? calculatedMinutes;
+
+    await logs.update(log.id!, {
+      'non_work_minutes': nonWorkMinutes,
+      'non_work_started_at': null, // clear cross-device timer state
+    });
+    await _loadToday();
+
+    _nonWorkStartTime = null;
+    _nonWorkEndTime = null;
+    notifyListeners();
+  }
+
+  /// Reset the non-work timer without saving (e.g. user cancelled).
+  void resetNonWorkTimer() {
+    final log = _todayLog;
+    if (log?.id != null) {
+      logs.update(log!.id!, {'non_work_started_at': null});
+    }
+    _nonWorkStartTime = null;
+    _nonWorkEndTime = null;
+    notifyListeners();
+  }
+
+  /// Enable/disable the non-work-time feature (persisted cross-device).
+  Future<void> setNonWorkEnabled(bool value) async {
+    _nonWorkEnabled = value;
+    notifyListeners();
+    await UserSettingsService().setNonWorkEnabled(value);
+  }
+
   TimeLog? get todayLog => _todayLog;
   List<TimeLog> get allLogs => _allLogs;
   WorkConfig? get workConfig => _workConfig;
@@ -120,12 +190,21 @@ class AppState extends ChangeNotifier {
   /// the lunch elapsed so far. Without this an overrunning break would make
   /// the UI (and the wrap-up notification) point at an obsolete leave time.
   DateTime effectiveLeaveTime(TimeLog log) {
+    final now = DateTime.now();
     var lunch = log.lunchMinutes;
+    var nonWork = log.nonWorkMinutes;
     if (lunchActive && _lunchStartTime != null) {
-      final elapsed = DateTime.now().difference(_lunchStartTime!).inMinutes;
+      final elapsed = now.difference(_lunchStartTime!).inMinutes;
       if (elapsed > lunch) lunch = elapsed;
     }
-    return log.leaveTimeWithLunch(lunch);
+    if (nonWorkActive && _nonWorkStartTime != null) {
+      final elapsed = now.difference(_nonWorkStartTime!).inMinutes;
+      if (elapsed > nonWork) nonWork = elapsed;
+    }
+    return log.leaveTimeWithBreaks(
+      lunchMinutes: lunch,
+      nonWorkMinutes: nonWork,
+    );
   }
 
   /// Transit config (loaded lazily).
@@ -185,6 +264,7 @@ class AppState extends ChangeNotifier {
         _loadConfig(),
         _loadPresets(),
         _loadTransitConfig(),
+        _loadNonWorkEnabled(),
       ]);
       _tablesReady = true;
       _lastError = null;
@@ -292,6 +372,8 @@ class AppState extends ChangeNotifier {
     _tablesReady = false;
     _lunchStartTime = null;
     _lunchEndTime = null;
+    _nonWorkStartTime = null;
+    _nonWorkEndTime = null;
     transit.onLogout();
     notifyListeners();
   }
@@ -312,6 +394,15 @@ class AppState extends ChangeNotifier {
   Future<void> _loadPresets() async => _presetsList = await presets.all();
   Future<void> _loadTransitConfig() async => await transit.loadConfig();
 
+  /// Load the non-work-time feature toggle (defaults to enabled on error).
+  Future<void> _loadNonWorkEnabled() async {
+    try {
+      _nonWorkEnabled = await UserSettingsService().getNonWorkEnabled();
+    } catch (_) {
+      _nonWorkEnabled = true;
+    }
+  }
+
   /// Persist lunch_started_at to encrypted_data so other devices
   /// see the active lunch state via Realtime.
   void _persistLunchStarted() {
@@ -322,7 +413,17 @@ class AppState extends ChangeNotifier {
     logs.update(id, {'lunch_started_at': iso});
   }
 
-  /// Restore in-memory lunch timer state from the decrypted [_todayLog].
+  /// Persist non_work_started_at to encrypted_data so other devices
+  /// see the active non-work state via Realtime.
+  void _persistNonWorkStarted() {
+    final log = _todayLog;
+    final id = log?.id;
+    if (id == null) return;
+    final iso = _nonWorkStartTime!.toUtc().toIso8601String();
+    logs.update(id, {'non_work_started_at': iso});
+  }
+
+  /// Restore in-memory break-timer state from the decrypted [_todayLog].
   /// Called after loading today's log or receiving a Realtime update.
   void _restoreLunchFromLog() {
     final log = _todayLog;
@@ -332,6 +433,13 @@ class AppState extends ChangeNotifier {
     } else {
       _lunchStartTime = DateTime.parse(log.lunchStartedAt!).toLocal();
       _lunchEndTime = null;
+    }
+    if (log?.nonWorkStartedAt == null || log!.nonWorkStartedAt!.isEmpty) {
+      _nonWorkStartTime = null;
+      _nonWorkEndTime = null;
+    } else {
+      _nonWorkStartTime = DateTime.parse(log.nonWorkStartedAt!).toLocal();
+      _nonWorkEndTime = null;
     }
   }
 
@@ -374,6 +482,7 @@ class AppState extends ChangeNotifier {
     required String startTime,
     required int expectedMinutes,
     int lunchMinutes = 0,
+    int nonWorkMinutes = 0,
     int flexMinutes = 0,
     int morningOverheadMinutes = 0,
     int morningProductiveCommuteMinutes = 0,
@@ -390,6 +499,7 @@ class AppState extends ChangeNotifier {
       startTime: startTime,
       expectedMinutes: expectedMinutes,
       lunchMinutes: lunchMinutes,
+      nonWorkMinutes: nonWorkMinutes,
       flexMinutes: flexMinutes,
       morningOverheadMinutes: morningOverheadMinutes,
       morningProductiveCommuteMinutes: morningProductiveCommuteMinutes,
@@ -409,6 +519,15 @@ class AppState extends ChangeNotifier {
     final log = _todayLog;
     if (log == null || log.id == null) return;
     await logs.update(log.id!, {'lunch_minutes': lunchMinutes});
+    await _loadToday();
+    notifyListeners();
+  }
+
+  // -- update non-work time on the active day -----------------------
+  Future<void> updateNonWorkMinutes(int nonWorkMinutes) async {
+    final log = _todayLog;
+    if (log == null || log.id == null) return;
+    await logs.update(log.id!, {'non_work_minutes': nonWorkMinutes});
     await _loadToday();
     notifyListeners();
   }
@@ -468,6 +587,7 @@ class AppState extends ChangeNotifier {
       'expected_minutes': log.expectedMinutes,
       'overhead_minutes': log.overheadMinutes,
       'lunch_minutes': log.lunchMinutes,
+      'non_work_minutes': log.nonWorkMinutes,
       'overtime_minutes': overtime,
       'productive_commute_minutes': log.productiveCommuteMinutes,
       'note': log.note,
@@ -493,6 +613,7 @@ class AppState extends ChangeNotifier {
     required String endTime,
     required int expectedMinutes,
     int lunchMinutes = 0,
+    int nonWorkMinutes = 0,
     int morningOverheadMinutes = 0,
     int morningProductiveCommuteMinutes = 0,
     int eveningOverheadMinutes = 0,
@@ -505,6 +626,7 @@ class AppState extends ChangeNotifier {
       endTime: endTime,
       expectedMinutes: expectedMinutes,
       lunchMinutes: lunchMinutes,
+      nonWorkMinutes: nonWorkMinutes,
       morningOverheadMinutes: morningOverheadMinutes,
       morningProductiveCommuteMinutes: morningProductiveCommuteMinutes,
       eveningOverheadMinutes: eveningOverheadMinutes,
@@ -552,11 +674,15 @@ class AppState extends ChangeNotifier {
   }
 
   // -- stop today's workday ------------------------------------------
-  Future<void> stopDay(String endTime, {int lunchMinutes = 0}) async {
+  Future<void> stopDay(String endTime, {int lunchMinutes = 0, int nonWorkMinutes = 0}) async {
     final log = _todayLog;
     if (log == null) return;
 
-    final computed = log.copyWith(endTime: endTime, lunchMinutes: lunchMinutes);
+    final computed = log.copyWith(
+      endTime: endTime,
+      lunchMinutes: lunchMinutes,
+      nonWorkMinutes: nonWorkMinutes,
+    );
     final overtime = computed.calculateOvertimeMinutes();
     final id = log.id;
     if (id == null) return;
@@ -564,6 +690,7 @@ class AppState extends ChangeNotifier {
     await logs.update(id, {
       'end_time': endTime,
       'lunch_minutes': lunchMinutes,
+      'non_work_minutes': nonWorkMinutes,
       'overtime_minutes': overtime,
     });
 

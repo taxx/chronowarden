@@ -13,6 +13,7 @@ class AddDayResult {
   final TimeOfDay endTime;
   final int expectedMinutes;
   final int lunchMinutes;
+  final int nonWorkMinutes;
   final int flexMinutes;
   final int morningOverheadMinutes;
   final int morningProductiveCommuteMinutes;
@@ -27,6 +28,7 @@ class AddDayResult {
     required this.endTime,
     required this.expectedMinutes,
     required this.lunchMinutes,
+    this.nonWorkMinutes = 0,
     this.flexMinutes = 0,
     required this.morningOverheadMinutes,
     required this.morningProductiveCommuteMinutes,
@@ -47,6 +49,7 @@ class AddDayDialog extends StatefulWidget {
   final int expectedMinutes;
   final List<TravelPreset> travelPresets;
   final String? initialPresetId;
+  final bool showNonWork;
 
   const AddDayDialog({
     super.key,
@@ -54,6 +57,7 @@ class AddDayDialog extends StatefulWidget {
     required this.expectedMinutes,
     required this.travelPresets,
     this.initialPresetId,
+    this.showNonWork = true,
   });
 
   @override
@@ -66,6 +70,7 @@ class _AddDayDialogState extends State<AddDayDialog> {
   late TimeOfDay _endTime;
   late TravelPreset _selectedPreset;
   int _lunch = 0;
+  int _nonWork = 0;
   String _note = '';
 
   int get _expected => widget.expectedMinutes;
@@ -95,7 +100,8 @@ class _AddDayDialogState extends State<AddDayDialog> {
   int get _overtime {
     final actualMinutes = _endTime.hour * 60 + _endTime.minute -
         (_startTime.hour * 60 + _startTime.minute) -
-        _lunch;
+        _lunch -
+        _nonWork;
     return actualMinutes - _expected - (_morningOverhead + _eveningOverhead);
   }
 
@@ -216,6 +222,27 @@ class _AddDayDialogState extends State<AddDayDialog> {
                 Text(context.t('{minutes} min', {'minutes': _lunch}), style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600)),
               ],
             ),
+            if (widget.showNonWork) ...[
+              const SizedBox(height: 8),
+              Text(context.t('Non-work time'), style: theme.textTheme.titleSmall),
+              const SizedBox(height: 4),
+              Row(
+                children: [
+                  Expanded(
+                    child: Slider(
+                      value: _nonWork.toDouble(),
+                      min: 0,
+                      max: PreferencesService.maxLunchMinutes.toDouble(),
+                      divisions: PreferencesService()
+                          .sliderDivisions(0, PreferencesService.maxLunchMinutes.toDouble()),
+                      label: context.t('{minutes} min', {'minutes': _nonWork}),
+                      onChanged: (v) => setState(() => _nonWork = v.round()),
+                    ),
+                  ),
+                  Text(context.t('{minutes} min', {'minutes': _nonWork}), style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600)),
+                ],
+              ),
+            ],
             const SizedBox(height: 8),
             Text(context.t('Note'), style: theme.textTheme.titleSmall),
             const SizedBox(height: 4),
@@ -260,6 +287,7 @@ class _AddDayDialogState extends State<AddDayDialog> {
             endTime: _endTime,
             expectedMinutes: _expected,
             lunchMinutes: _lunch,
+            nonWorkMinutes: _nonWork,
             flexMinutes: 0,
             morningOverheadMinutes: _morningOverhead,
             morningProductiveCommuteMinutes: _morningProductive,

@@ -7,7 +7,7 @@ String timeLogsToCsv(List<TimeLog> logs) {
   final buf = StringBuffer();
 
   // Header row
-  buf.writeln('date,start_time,end_time,expected_minutes,overhead_minutes,lunch_minutes,productive_commute_minutes,note');
+  buf.writeln('date,start_time,end_time,expected_minutes,overhead_minutes,lunch_minutes,productive_commute_minutes,note,non_work_minutes');
 
   for (final log in logs) {
     final date = log.date;
@@ -18,8 +18,9 @@ String timeLogsToCsv(List<TimeLog> logs) {
     final lunch = log.lunchMinutes;
     final commute = log.productiveCommuteMinutes;
     final note = _csvEscape(log.note ?? '');
+    final nonWork = log.nonWorkMinutes;
 
-    buf.writeln('$date,$start,$end,$expected,$overhead,$lunch,$commute,$note');
+    buf.writeln('$date,$start,$end,$expected,$overhead,$lunch,$commute,$note,$nonWork');
   }
 
   return buf.toString();

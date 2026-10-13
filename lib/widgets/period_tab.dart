@@ -274,6 +274,7 @@ class _PeriodTabState extends State<PeriodTab> {
         log: log,
         expectedMinutes: expected,
         travelPresets: state.travelPresets,
+        showNonWork: _state.nonWorkEnabled,
       ),
     ).then((result) {
       if (result == null) return;
@@ -289,6 +290,7 @@ class _PeriodTabState extends State<PeriodTab> {
           endTime: endStr,
           expectedMinutes: result.expectedMinutes,
           lunchMinutes: result.lunchMinutes,
+          nonWorkMinutes: result.nonWorkMinutes,
           morningOverheadMinutes: result.morningOverheadMinutes,
           morningProductiveCommuteMinutes: result.morningProductiveCommuteMinutes,
           eveningOverheadMinutes: result.eveningOverheadMinutes,
@@ -324,6 +326,7 @@ class _PeriodTabState extends State<PeriodTab> {
         expectedMinutes: expected,
         travelPresets: state.travelPresets,
         initialPresetId: lastPresetId,
+        showNonWork: _state.nonWorkEnabled,
       ),
     ).then((result) {
       if (result == null) return;
@@ -337,6 +340,7 @@ class _PeriodTabState extends State<PeriodTab> {
         endTime: endStr,
         expectedMinutes: result.expectedMinutes,
         lunchMinutes: result.lunchMinutes,
+        nonWorkMinutes: result.nonWorkMinutes,
         morningOverheadMinutes: result.morningOverheadMinutes,
         morningProductiveCommuteMinutes: result.morningProductiveCommuteMinutes,
         eveningOverheadMinutes: result.eveningOverheadMinutes,

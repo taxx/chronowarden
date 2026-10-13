@@ -86,7 +86,7 @@ void main() {
     await tester.tap(find.text('open'));
     await tester.pumpAndSettle();
 
-    final lunchSlider = tester.widget<Slider>(find.byType(Slider));
+    final lunchSlider = tester.widget<Slider>(find.byType(Slider).first);
     expect(lunchSlider.max, PreferencesService.maxLunchMinutes.toDouble());
 
     lunchSlider.onChanged!(300);
@@ -96,5 +96,44 @@ void main() {
 
     expect(result, isNotNull);
     expect(result!.lunchMinutes, 300);
+  });
+
+  testWidgets('non-work slider allows a 6-hour break', (tester) async {
+    AddDayResult? result;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: Builder(
+            builder: (context) => ElevatedButton(
+              onPressed: () async {
+                result = await showDialog<AddDayResult>(
+                  context: context,
+                  builder: (_) => AddDayDialog(
+                    initialDate: DateTime(2026, 9, 1),
+                    expectedMinutes: 480,
+                    travelPresets: const [_preset],
+                  ),
+                );
+              },
+              child: const Text('open'),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.tap(find.text('open'));
+    await tester.pumpAndSettle();
+
+    // Lunch is the first slider, non-work the second.
+    final nonWorkSlider = tester.widget<Slider>(find.byType(Slider).at(1));
+    expect(nonWorkSlider.max, PreferencesService.maxLunchMinutes.toDouble());
+
+    nonWorkSlider.onChanged!(120);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Add'));
+    await tester.pumpAndSettle();
+
+    expect(result, isNotNull);
+    expect(result!.nonWorkMinutes, 120);
   });
 }

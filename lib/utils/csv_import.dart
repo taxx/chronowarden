@@ -153,6 +153,8 @@ _RowResult _parseRow(String line, String? userId, Set<String> existingDates) {
   final lunchStr = fields.length > 5 ? fields[5].trim() : '';
   final commuteStr = fields.length > 6 ? fields[6].trim() : '';
   final note = fields.length > 7 ? fields[7].trim() : '';
+  // Appended last so CSVs exported before the feature still parse.
+  final nonWorkStr = fields.length > 8 ? fields[8].trim() : '';
 
   // Validate date format
   if (date.isEmpty) return _RowResult(error: 'Date is empty');
@@ -181,6 +183,7 @@ _RowResult _parseRow(String line, String? userId, Set<String> existingDates) {
   if (overhead == null) return _RowResult(error: 'Invalid overhead_minutes "$overheadStr"');
 
   final lunch = _parseInt(lunchStr, 'lunch_minutes') ?? 0;
+  final nonWork = _parseInt(nonWorkStr, 'non_work_minutes') ?? 0;
 
   // Check for duplicate
   if (existingDates.contains(date)) {
@@ -201,6 +204,7 @@ _RowResult _parseRow(String line, String? userId, Set<String> existingDates) {
     endTime: endTime.isEmpty ? null : endTime,
     expectedMinutes: expected,
     lunchMinutes: lunch,
+    nonWorkMinutes: nonWork,
     flexMinutes: 0,
     morningOverheadMinutes: morningOverhead,
     morningProductiveCommuteMinutes: morningProductive,

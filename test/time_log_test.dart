@@ -283,6 +283,77 @@ void main() {
     });
   });
 
+  group('TimeLog non-work time', () {
+    test('leave time adds non-work minutes, like lunch', () {
+      const base = TimeLog(
+        date: '2024-01-15',
+        startTime: '07:30:00',
+        expectedMinutes: 480,
+        overtimeMinutes: 0,
+      );
+      final withNonWork = base.copyWith(nonWorkMinutes: 45);
+      expect(
+        withNonWork.leaveTime,
+        base.leaveTime.add(const Duration(minutes: 45)),
+      );
+    });
+
+    test('leaveTimeWithBreaks overrides lunch and non-work independently', () {
+      const log = TimeLog(
+        date: '2024-01-15',
+        startTime: '08:00:00',
+        expectedMinutes: 480,
+        lunchMinutes: 30,
+        nonWorkMinutes: 20,
+        overtimeMinutes: 0,
+      );
+      final overridden =
+          log.leaveTimeWithBreaks(lunchMinutes: 60, nonWorkMinutes: 5);
+      final expected = DateTime(2024, 1, 15, 8, 0)
+          .add(const Duration(minutes: 480 + 60 + 5));
+      expect(overridden, expected);
+    });
+
+    test('calculateOvertimeMinutes subtracts non-work minutes', () {
+      const log = TimeLog(
+        date: '2024-01-15',
+        startTime: '07:30:00',
+        endTime: '16:50:00',
+        expectedMinutes: 480,
+        lunchMinutes: 30,
+        nonWorkMinutes: 30,
+        overtimeMinutes: 0,
+      );
+      // 560 elapsed - 30 lunch - 30 non-work - 480 = 20 overtime.
+      expect(log.calculateOvertimeMinutes(), 20);
+    });
+
+    test('JSON round-trips non-work minutes', () {
+      const log = TimeLog(
+        date: '2024-01-15',
+        startTime: '07:30:00',
+        expectedMinutes: 480,
+        nonWorkMinutes: 75,
+        overtimeMinutes: 0,
+      );
+      final json = log.toJson();
+      expect(json['non_work_minutes'], 75);
+      expect(TimeLog.fromJson(json).nonWorkMinutes, 75);
+    });
+
+    test('missing non_work_minutes defaults to 0 (backward compatible)', () {
+      final log = TimeLog.fromJson({
+        'date': '2024-01-15',
+        'start_time': '07:30:00',
+        'expected_minutes': 480,
+        'overtime_minutes': 0,
+        'morning_overhead_minutes': 0,
+        'evening_overhead_minutes': 0,
+      });
+      expect(log.nonWorkMinutes, 0);
+    });
+  });
+
   group('TimeLog.totalExpectedMinutes', () {
     test('sums expected and total overhead', () {
       final log = TimeLog(

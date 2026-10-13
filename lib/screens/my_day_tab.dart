@@ -15,7 +15,7 @@ import '../services/transit_service.dart';
 import '../services/user_settings_service.dart';
 import '../utils/format.dart';
 import '../widgets/edit_day_dialog.dart';
-import '../widgets/lunch_timer_section.dart';
+import '../widgets/break_timer_section.dart';
 import '../widgets/journey_tile.dart';
 import '../widgets/start_stop_day_dialogs.dart';
 import '../widgets/stat_row.dart';
@@ -401,8 +401,10 @@ class _MyDayTabState extends State<MyDayTab> with SingleTickerProviderStateMixin
     final remaining = leaveTime.difference(now);
     final isPast = remaining.isNegative;
     final lunch = log.lunchMinutes;
-    // "net work" leave time = when you've done expected+overhead (no lunch)
-    final netWorkLeaveTime = leaveTime.subtract(Duration(minutes: lunch));
+    final nonWork = log.nonWorkMinutes;
+    // "net work" leave time = when you've done expected+overhead (no breaks)
+    final netWorkLeaveTime =
+        leaveTime.subtract(Duration(minutes: lunch + nonWork));
     final netRemaining = netWorkLeaveTime.difference(now);
     final isNetPast = netRemaining.isNegative;
 
@@ -455,7 +457,7 @@ class _MyDayTabState extends State<MyDayTab> with SingleTickerProviderStateMixin
                     isPast ? '—' : _formatDuration(remaining),
                     style: theme.textTheme.titleMedium,
                   ),
-                  if (lunch > 0 && !isPast)
+                  if (lunch + nonWork > 0 && !isPast)
                     Text(
                       context.t('net: {value}', {
                         'value': isNetPast
@@ -525,16 +527,37 @@ class _MyDayTabState extends State<MyDayTab> with SingleTickerProviderStateMixin
               ),
 
             // Lunch timer section
-            LunchTimerSection(
-              lunchMinutes: lunch,
-              lunchStartTime: _state.lunchStartTime,
-              lunchEndTime: _state.lunchEndTime,
-              lunchActive: _state.lunchActive,
-              onStartLunch: () => _state.startLunch(),
-              onStopLunch: () => _showStopLunchDialog(context),
-              onEditLunch: () => _showEditLunchDialog(context, lunch),
+            BreakTimerSection(
+              icon: Icons.restaurant,
+              label: context.t('Lunch'),
+              minutes: lunch,
+              startTime: _state.lunchStartTime,
+              endTime: _state.lunchEndTime,
+              active: _state.lunchActive,
+              onStart: () => _state.startLunch(),
+              onStop: () => _showStopLunchDialog(context),
+              onEdit: () => _showEditLunchDialog(context, lunch),
               theme: theme,
+              color: theme.colorScheme.tertiary,
+              onColor: theme.colorScheme.onTertiary,
             ),
+
+            // Non-work (errands) timer section — optional, Settings toggle
+            if (_state.nonWorkEnabled)
+              BreakTimerSection(
+                icon: Icons.work_off_outlined,
+                label: context.t('Non-work time'),
+                minutes: nonWork,
+                startTime: _state.nonWorkStartTime,
+                endTime: _state.nonWorkEndTime,
+                active: _state.nonWorkActive,
+                onStart: () => _state.startNonWork(),
+                onStop: () => _showStopNonWorkDialog(context),
+                onEdit: () => _showEditNonWorkDialog(context, nonWork),
+                theme: theme,
+                color: theme.colorScheme.secondary,
+                onColor: theme.colorScheme.onSecondary,
+              ),
 
             const SizedBox(height: 16),
             SizedBox(
@@ -591,6 +614,8 @@ class _MyDayTabState extends State<MyDayTab> with SingleTickerProviderStateMixin
             ),
             if (log.lunchMinutes > 0)
               StatRow(label: context.t('Lunch'), value: '${log.lunchMinutes} min', verticalPadding: 4),
+            if (log.nonWorkMinutes > 0)
+              StatRow(label: context.t('Non-work time'), value: '${log.nonWorkMinutes} min', verticalPadding: 4),
             if (log.note?.isNotEmpty == true)
               Padding(
                 padding: const EdgeInsets.only(top: 8),
@@ -659,6 +684,7 @@ class _MyDayTabState extends State<MyDayTab> with SingleTickerProviderStateMixin
         travelPresets: state.travelPresets,
         initialPresetId: lastPresetId,
         initialFlexMinutes: defaultFlex,
+        showNonWork: state.nonWorkEnabled,
       ),
     );
 
@@ -669,6 +695,7 @@ class _MyDayTabState extends State<MyDayTab> with SingleTickerProviderStateMixin
         startTime: startStr,
         expectedMinutes: result.expectedMinutes,
         lunchMinutes: result.lunchMinutes,
+        nonWorkMinutes: result.nonWorkMinutes,
         flexMinutes: result.flexMinutes,
         morningOverheadMinutes: result.morningOverheadMinutes,
         morningProductiveCommuteMinutes: result.morningProductiveCommuteMinutes,
@@ -685,14 +712,21 @@ class _MyDayTabState extends State<MyDayTab> with SingleTickerProviderStateMixin
   Future<void> _showStopDayDialog(BuildContext ctx) async {
     final log = _state.todayLog;
     final currentLunch = log?.lunchMinutes ?? 0;
+    final currentNonWork = log?.nonWorkMinutes ?? 0;
     final result = await showDialog<StopDayResult>(
       context: ctx,
-      builder: (_) => StopDayDialog(initialLunchMinutes: currentLunch),
+      builder: (_) => StopDayDialog(
+        initialLunchMinutes: currentLunch,
+        initialNonWorkMinutes: currentNonWork,
+        showNonWork: _state.nonWorkEnabled,
+      ),
     );
 
     if (result != null) {
       final endStr = '${result.time.hour.toString().padLeft(2, '0')}:${result.time.minute.toString().padLeft(2, '0')}:00';
-      await _state.stopDay(endStr, lunchMinutes: result.lunchMinutes);
+      await _state.stopDay(endStr,
+          lunchMinutes: result.lunchMinutes,
+          nonWorkMinutes: result.nonWorkMinutes);
     }
   }
 
@@ -910,6 +944,120 @@ class _MyDayTabState extends State<MyDayTab> with SingleTickerProviderStateMixin
     );
   }
 
+  /// Adjust the stored non-work time on the active day.
+  Future<void> _showEditNonWorkDialog(BuildContext ctx, int currentMinutes) async {
+    int minutes = currentMinutes;
+    await showDialog<void>(
+      context: ctx,
+      builder: (_) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: Text(context.t('Adjust non-work time')),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Slider(
+                value: minutes.toDouble(),
+                min: 0,
+                max: PreferencesService.maxLunchMinutes.toDouble(),
+                divisions: PreferencesService()
+                    .sliderDivisions(0, PreferencesService.maxLunchMinutes.toDouble()),
+                label: context.t('{minutes} min', {'minutes': minutes}),
+                onChanged: (v) {
+                  minutes = v.round();
+                  setDialogState(() {});
+                },
+              ),
+              const SizedBox(height: 4),
+              Text(context.t('{minutes} min', {'minutes': minutes}),
+                  style: Theme.of(ctx).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
+            ],
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx), child: Text(context.t('Cancel'))),
+            FilledButton(
+              onPressed: () {
+                Navigator.pop(ctx);
+                _state.updateNonWorkMinutes(minutes);
+              },
+              child: Text(context.t('Save')),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Dialog shown after pressing "Stop" on the non-work timer — shows the
+  /// calculated duration and allows fine-tuning before saving.
+  Future<void> _showStopNonWorkDialog(BuildContext ctx) async {
+    final start = _state.nonWorkStartTime;
+    if (start == null) return;
+
+    final end = DateTime.now();
+    final calculatedMinutes = end.difference(start).inMinutes;
+
+    int minutes =
+        calculatedMinutes.clamp(0, PreferencesService.maxLunchMinutes);
+    await showDialog<void>(
+      context: ctx,
+      builder: (_) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: Text(context.t('Non-work time stopped')),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(context.t('Started: {time}', {'time': '${start.hour.toString().padLeft(2, '0')}:${start.minute.toString().padLeft(2, '0')}'}),
+                   style: Theme.of(ctx).textTheme.bodyMedium),
+              Text(context.t('Ended: {time}', {'time': '${end.hour.toString().padLeft(2, '0')}:${end.minute.toString().padLeft(2, '0')}'}),
+                   style: Theme.of(ctx).textTheme.bodyMedium),
+              const SizedBox(height: 8),
+              Text(context.t('Duration: {minutes} min', {'minutes': calculatedMinutes}),
+                   style: Theme.of(ctx).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
+              const SizedBox(height: 16),
+              Text(context.t('Adjust if needed:'), style: Theme.of(ctx).textTheme.titleSmall),
+              const SizedBox(height: 4),
+              Row(
+                children: [
+                  Expanded(
+                    child: Slider(
+                      value: minutes.toDouble(),
+                      min: 0,
+                      max: PreferencesService.maxLunchMinutes.toDouble(),
+                      divisions: PreferencesService()
+                          .sliderDivisions(0, PreferencesService.maxLunchMinutes.toDouble()),
+                      label: context.t('{minutes} min', {'minutes': minutes}),
+                      onChanged: (v) {
+                        minutes = v.round();
+                        setDialogState(() {});
+                      },
+                    ),
+                  ),
+                  Text(context.t('{minutes} min', {'minutes': minutes}), style: Theme.of(ctx).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600)),
+                ],
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(ctx);
+              },
+              child: Text(context.t('Cancel')),
+            ),
+            FilledButton(
+              onPressed: () {
+                Navigator.pop(ctx);
+                _state.stopNonWork(minutes);
+              },
+              child: Text(context.t('Save')),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Future<void> _showEditDayDialog(BuildContext ctx, dynamic log) async {
     final state = _state;
     if (state.travelPresets.isEmpty) {
@@ -927,6 +1075,7 @@ class _MyDayTabState extends State<MyDayTab> with SingleTickerProviderStateMixin
         log: log,
         expectedMinutes: expected,
         travelPresets: state.travelPresets,
+        showNonWork: state.nonWorkEnabled,
       ),
     );
 
@@ -940,6 +1089,7 @@ class _MyDayTabState extends State<MyDayTab> with SingleTickerProviderStateMixin
         endTime: endStr,
         expectedMinutes: result.expectedMinutes,
         lunchMinutes: result.lunchMinutes,
+        nonWorkMinutes: result.nonWorkMinutes,
         morningOverheadMinutes: result.morningOverheadMinutes,
         morningProductiveCommuteMinutes: result.morningProductiveCommuteMinutes,
         eveningOverheadMinutes: result.eveningOverheadMinutes,

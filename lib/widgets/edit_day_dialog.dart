@@ -16,6 +16,7 @@ class EditDayResult {
   final TimeOfDay? endTime;
   final int expectedMinutes;
   final int lunchMinutes;
+  final int nonWorkMinutes;
   final int flexMinutes;
   final int morningOverheadMinutes;
   final int morningProductiveCommuteMinutes;
@@ -30,6 +31,7 @@ class EditDayResult {
     required this.endTime,
     required this.expectedMinutes,
     required this.lunchMinutes,
+    this.nonWorkMinutes = 0,
     this.flexMinutes = 0,
     required this.morningOverheadMinutes,
     required this.morningProductiveCommuteMinutes,
@@ -49,12 +51,14 @@ class EditDayDialog extends StatefulWidget {
   final TimeLog log;
   final int expectedMinutes;
   final List<dynamic> travelPresets;
+  final bool showNonWork;
 
   const EditDayDialog({
     super.key,
     required this.log,
     required this.expectedMinutes,
     required this.travelPresets,
+    this.showNonWork = true,
   });
 
   @override
@@ -66,6 +70,7 @@ class _EditDayDialogState extends State<EditDayDialog> {
   TimeOfDay? _endTime;
   late dynamic _selectedPreset;
   late int _lunch;
+  late int _nonWork;
   late String _note;
 
   int get _expected => widget.expectedMinutes;
@@ -84,8 +89,8 @@ class _EditDayDialogState extends State<EditDayDialog> {
     return end - start;
   }
 
-  /// Net work minutes = elapsed - lunch.
-  int get _netWorkMinutes => _actualMinutes - _lunch;
+  /// Net work minutes = elapsed - lunch - non-work.
+  int get _netWorkMinutes => _actualMinutes - _lunch - _nonWork;
 
   /// Over/under: actual net work minus expected work including overhead.
   /// Matches TimeLog.calculateOvertimeMinutes() logic.
@@ -100,6 +105,7 @@ class _EditDayDialogState extends State<EditDayDialog> {
         : null;
     _selectedPreset = _matchPreset(widget.travelPresets, widget.log);
     _lunch = widget.log.lunchMinutes;
+    _nonWork = widget.log.nonWorkMinutes;
     _note = widget.log.note ?? '';
   }
 
@@ -213,11 +219,38 @@ class _EditDayDialogState extends State<EditDayDialog> {
                 ),
               ],
             ),
+            if (widget.showNonWork) ...[
+              const SizedBox(height: 16),
+              Text(context.t('Non-work time'), style: theme.textTheme.titleSmall),
+              const SizedBox(height: 4),
+              Row(
+                children: [
+                  Expanded(
+                    child: Slider(
+                      value: _nonWork.toDouble(),
+                      min: 0,
+                      max: PreferencesService.maxLunchMinutes.toDouble(),
+                      divisions: PreferencesService()
+                          .sliderDivisions(0, PreferencesService.maxLunchMinutes.toDouble()),
+                      label: context.t('{minutes} min', {'minutes': _nonWork}),
+                      onChanged: (v) => setState(() => _nonWork = v.round()),
+                    ),
+                  ),
+                  Text(
+                    context.t('{minutes} min', {'minutes': _nonWork}),
+                    style: theme.textTheme.bodyMedium
+                        ?.copyWith(fontWeight: FontWeight.w600),
+                  ),
+                ],
+              ),
+            ],
             const SizedBox(height: 16),
             // ── Time breakdown ──
             Text(context.t('Time breakdown'), style: theme.textTheme.titleSmall),
             const SizedBox(height: 4),
             StatRow(label: context.t('Actual work'), value: formatMins(_netWorkMinutes), verticalPadding: 4),
+            if (_nonWork > 0)
+              StatRow(label: context.t('Non-work time'), value: formatMins(_nonWork), verticalPadding: 4),
             StatRow(label: context.t('Expected work'), value: formatMins(_expected), verticalPadding: 4),
             StatRow(
               label: context.t('Over/under'),
@@ -234,10 +267,11 @@ class _EditDayDialogState extends State<EditDayDialog> {
                 padding: const EdgeInsets.only(top: 4),
                 child: Text(
                   context.t(
-                    '{actual} min total · {lunch} min lunch · {net} min net',
+                    '{actual} min total · {lunch} min lunch · {nonWork} min non-work · {net} min net',
                     {
                       'actual': _actualMinutes,
                       'lunch': _lunch,
+                      'nonWork': _nonWork,
                       'net': _netWorkMinutes,
                     },
                   ),
@@ -274,6 +308,7 @@ class _EditDayDialogState extends State<EditDayDialog> {
                 endTime: _endTime,
                 expectedMinutes: _expected,
                 lunchMinutes: _lunch,
+                nonWorkMinutes: _nonWork,
                 morningOverheadMinutes: _morningOverhead,
                 morningProductiveCommuteMinutes: _morningProductive,
                 eveningOverheadMinutes: _eveningOverhead,
@@ -293,6 +328,7 @@ class _EditDayDialogState extends State<EditDayDialog> {
               endTime: _endTime,
               expectedMinutes: _expected,
               lunchMinutes: _lunch,
+              nonWorkMinutes: _nonWork,
               morningOverheadMinutes: _morningOverhead,
               morningProductiveCommuteMinutes: _morningProductive,
               eveningOverheadMinutes: _eveningOverhead,

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../l10n/app_strings.dart';
+import '../app_state.dart';
 import '../services/preferences_service.dart';
 import '../services/user_settings_service.dart';
 
@@ -265,3 +266,56 @@ class _SliderIntervalSettingState extends State<SliderIntervalSetting> {
   }
 }
 
+
+
+/// Toggle for the optional non-work-time (errands) feature.
+///
+/// Defaults to enabled; stored in encrypted user settings so it follows the
+/// user across devices.
+class NonWorkSetting extends StatelessWidget {
+  const NonWorkSetting({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final state = AppState();
+    return ListenableBuilder(
+      listenable: state,
+      builder: (context, _) => Card(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(Icons.work_off_outlined,
+                      color: theme.colorScheme.primary),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      context.t('Non-work time'),
+                      style: theme.textTheme.titleLarge,
+                    ),
+                  ),
+                  Switch(
+                    value: state.nonWorkEnabled,
+                    onChanged: (v) => state.setNonWorkEnabled(v),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 4),
+              Text(
+                context.t(
+                  'Track time spent on errands or other non-work activities. '
+                  'Counts as not-working time, like lunch.',
+                ),
+                style: theme.textTheme.bodySmall,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}

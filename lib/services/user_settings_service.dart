@@ -76,6 +76,34 @@ class UserSettingsService {
     }, onConflict: 'user_id');
   }
 
+  /// Whether the non-work-time feature is enabled. Defaults to `true` so the
+  /// feature is on for existing users who never set it.
+  Future<bool> getNonWorkEnabled() async {
+    final userId = _userId;
+    final dek = _dek;
+    if (userId == null || dek == null) return true;
+
+    final settings = await _readSettings(userId, dek);
+    return (settings['non_work_enabled'] as bool?) ?? true;
+  }
+
+  Future<void> setNonWorkEnabled(bool enabled) async {
+    final userId = _userId;
+    final dek = _dek;
+    if (userId == null || dek == null) return;
+
+    final settings = await _readSettings(userId, dek);
+    settings['non_work_enabled'] = enabled;
+
+    final plaintext = jsonEncode(settings);
+    final ciphertext = await CryptoService.encrypt(plaintext, dek);
+
+    await _client.from('user_settings').upsert({
+      'user_id': userId,
+      'encrypted_data': ciphertext,
+    }, onConflict: 'user_id');
+  }
+
   // -----------------------------------------------------------------
   // Helpers
   // -----------------------------------------------------------------

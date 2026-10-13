@@ -125,7 +125,6 @@ const Map<String, String> svCatalog = <String, String>{
   'Light mode': 'Ljust läge',
   'Lunch': 'Lunch',
   'Lunch stopped': 'Lunchen stoppad',
-  'Lunch: {minutes} min': 'Lunch: {minutes} min',
   'Minutes before leave': 'Minuter innan hemgång',
   'Minutes: ': 'Minuter: ',
   'Morning overhead (walking to office)': 'Morgontid (gång till kontoret)',
@@ -463,7 +462,6 @@ const Map<String, String> svCatalog = <String, String>{
   'Zero-Knowledge Architecture': 'Zero-knowledge-arkitektur',
   'admin': 'admin',
   'net work done at {time}': 'nettoarbete klart {time}',
-  '{actual} min total · {lunch} min lunch · {net} min net': '{actual} min totalt · {lunch} min lunch · {net} min netto',
   '{app} also runs as a convenience instance at {url}. It is maintained on a best-effort basis: there are no guarantees of availability, uptime, or data retention.':
       '{app} körs också som en bekvämlighetsinstans på {url}. Den underhålls i mån av tid: inga garantier ges för tillgänglighet, drifttid eller datalagring.',
   '{app} is designed to be self-hosted. The whole stack — Flutter web app, nginx container, Supabase schema, and the SL transit proxy — lives in the repository. Bring your own Supabase project and secrets, then build with Docker Compose.':
@@ -550,4 +548,13 @@ const Map<String, String> svCatalog = <String, String>{
   'Oct': 'okt',
   'Nov': 'nov',
   'Dec': 'dec',
+  '  minus {minutes} min non-work': '  minus {minutes} min icke-arbete',
+  'Adjust non-work time': 'Justera icke-arbetstid',
+  'Non-work time': 'Icke-arbetstid',
+  'Non-work time stopped': 'Icke-arbetstid stoppad',
+  'Track time spent on errands or other non-work activities. Counts as not-working time, like lunch.':
+      'Spåra tid för ärenden eller andra aktiviteter som inte är arbete. Räknas som icke-arbetstid, precis som lunch.',
+  '{actual} min total · {lunch} min lunch · {nonWork} min non-work · {net} min net':
+      '{actual} min totalt · {lunch} min lunch · {nonWork} min icke-arbete · {net} min netto',
+  '{label}: {minutes} min': '{label}: {minutes} min',
 };

@@ -11,6 +11,9 @@ class TimeLog {
   final String? endTime;  // "HH:MM:SS" — null while the day is active
   final int expectedMinutes;
   final int lunchMinutes;
+  /// Non-work time (errands, appointments, …) — counts as not working, like
+  /// lunch, and is excluded from overtime.
+  final int nonWorkMinutes;
   final int flexMinutes;
   final int morningOverheadMinutes;
   final int morningProductiveCommuteMinutes;
@@ -20,6 +23,7 @@ class TimeLog {
   final String? note;
   final String? createdAt;
   final String? lunchStartedAt;  // ISO timestamp, null when lunch is not active
+  final String? nonWorkStartedAt; // ISO timestamp, null when non-work is not active
 
   const TimeLog({
     this.id,
@@ -29,6 +33,7 @@ class TimeLog {
     this.endTime,
     required this.expectedMinutes,
     this.lunchMinutes = 0,
+    this.nonWorkMinutes = 0,
     this.flexMinutes = 0,
     this.morningOverheadMinutes = 0,
     this.morningProductiveCommuteMinutes = 0,
@@ -38,6 +43,7 @@ class TimeLog {
     this.note,
     this.createdAt,
     this.lunchStartedAt,
+    this.nonWorkStartedAt,
   });
 
   /// Total overhead across both directions (computed).
@@ -69,6 +75,7 @@ class TimeLog {
         endTime: json['end_time'] as String?,
         expectedMinutes: json['expected_minutes'] as int,
         lunchMinutes: (json['lunch_minutes'] as int?) ?? 0,
+        nonWorkMinutes: (json['non_work_minutes'] as int?) ?? 0,
         flexMinutes: (json['flex_minutes'] as int?) ?? 0,
         morningOverheadMinutes: morningOverhead,
         morningProductiveCommuteMinutes: morningProductive ?? 0,
@@ -78,6 +85,7 @@ class TimeLog {
         note: json['note'] as String?,
         createdAt: json['created_at'] as String?,
         lunchStartedAt: json['lunch_started_at'] as String?,
+        nonWorkStartedAt: json['non_work_started_at'] as String?,
       );
     }
 
@@ -92,6 +100,7 @@ class TimeLog {
       endTime: json['end_time'] as String?,
       expectedMinutes: json['expected_minutes'] as int,
       lunchMinutes: (json['lunch_minutes'] as int?) ?? 0,
+      nonWorkMinutes: (json['non_work_minutes'] as int?) ?? 0,
       flexMinutes: (json['flex_minutes'] as int?) ?? 0,
       morningOverheadMinutes: totalOverhead ~/ 2,
       morningProductiveCommuteMinutes: totalProductive ~/ 2,
@@ -101,6 +110,7 @@ class TimeLog {
       note: json['note'] as String?,
       createdAt: json['created_at'] as String?,
       lunchStartedAt: json['lunch_started_at'] as String?,
+      nonWorkStartedAt: json['non_work_started_at'] as String?,
     );
   }
 
@@ -113,6 +123,7 @@ class TimeLog {
       'end_time': endTime,
       'expected_minutes': expectedMinutes,
       'lunch_minutes': lunchMinutes,
+      'non_work_minutes': nonWorkMinutes,
       'flex_minutes': flexMinutes,
       // New per-direction fields
       'morning_overhead_minutes': morningOverheadMinutes,
@@ -126,6 +137,7 @@ class TimeLog {
       'note': note,
       'created_at': createdAt,
       'lunch_started_at': lunchStartedAt,
+      'non_work_started_at': nonWorkStartedAt,
     };
   }
 
@@ -174,22 +186,28 @@ class TimeLog {
   ///
   /// Does NOT include [eveningOverheadMinutes] — evening commute overhead
   /// happens after leaving, so it doesn't extend your office stay.
-  DateTime get leaveTime => leaveTimeWithLunch(lunchMinutes);
+  DateTime get leaveTime => leaveTimeWithBreaks();
 
-  /// Same as [leaveTime], but lets the caller override the lunch duration.
+  /// Same as [leaveTime], but lets the caller override the lunch and/or
+  /// non-work durations.
   ///
-  /// Used while a lunch timer is running: an overrunning break must push the
+  /// Used while a break timer is running: an overrunning break must push the
   /// projected leave time later, otherwise the wrap-up alert fires too early.
-  DateTime leaveTimeWithLunch(int lunchMinutesOverride) {
+  DateTime leaveTimeWithBreaks({int? lunchMinutes, int? nonWorkMinutes}) {
     final start = combineDateAndTime(date, startTime);
     return start.add(Duration(
       minutes: expectedMinutes +
-          lunchMinutesOverride +
+          (lunchMinutes ?? this.lunchMinutes) +
+          (nonWorkMinutes ?? this.nonWorkMinutes) +
           morningOverheadMinutes -
           eveningProductiveCommuteMinutes -
           flexMinutes,
     ));
   }
+
+  /// Backwards-compatible helper: override only the lunch duration.
+  DateTime leaveTimeWithLunch(int lunchMinutesOverride) =>
+      leaveTimeWithBreaks(lunchMinutes: lunchMinutesOverride);
 
   /// Elapsed minutes from start → now (or end if closed).
   Duration get elapsed {
@@ -207,12 +225,13 @@ class TimeLog {
   /// **Morning Calculator** — Given the workday's exact start [DateTime],
   /// return the precise wall-clock moment the user is free to log off.
   ///
-  /// Formula: `[dayStart] + expectedMinutes + lunchMinutes
+  /// Formula: `[dayStart] + expectedMinutes + lunchMinutes + nonWorkMinutes
   ///          + morningOverheadMinutes - eveningProductiveCommuteMinutes`
   DateTime calculateLeaveTime(DateTime dayStart) {
     return dayStart.add(Duration(
       minutes: expectedMinutes +
           lunchMinutes +
+          nonWorkMinutes +
           morningOverheadMinutes -
           eveningProductiveCommuteMinutes -
           flexMinutes,
@@ -237,7 +256,7 @@ class TimeLog {
     final actualMinutes = end.difference(start).inMinutes;
     final totalExpected = expectedMinutes + overheadMinutes;
 
-    return actualMinutes - lunchMinutes - totalExpected;
+    return actualMinutes - lunchMinutes - nonWorkMinutes - totalExpected;
   }
 
   /// Total minutes the user is expected to spend (work + total overhead).
@@ -261,6 +280,7 @@ class TimeLog {
     String? endTime,
     int? expectedMinutes,
     int? lunchMinutes,
+    int? nonWorkMinutes,
     int? flexMinutes,
     int? morningOverheadMinutes,
     int? morningProductiveCommuteMinutes,
@@ -271,6 +291,7 @@ class TimeLog {
     String? note,
     String? createdAt,
     String? lunchStartedAt,
+    String? nonWorkStartedAt,
   }) {
     return TimeLog(
       id: id ?? this.id,
@@ -280,6 +301,7 @@ class TimeLog {
       endTime: endTime ?? this.endTime,
       expectedMinutes: expectedMinutes ?? this.expectedMinutes,
       lunchMinutes: lunchMinutes ?? this.lunchMinutes,
+      nonWorkMinutes: nonWorkMinutes ?? this.nonWorkMinutes,
       flexMinutes: flexMinutes ?? this.flexMinutes,
       morningOverheadMinutes:
           morningOverheadMinutes ?? this.morningOverheadMinutes,
@@ -295,6 +317,7 @@ class TimeLog {
       note: note ?? this.note,
       createdAt: createdAt ?? this.createdAt,
       lunchStartedAt: lunchStartedAt ?? this.lunchStartedAt,
+      nonWorkStartedAt: nonWorkStartedAt ?? this.nonWorkStartedAt,
     );
   }
 

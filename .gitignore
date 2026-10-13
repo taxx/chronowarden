@@ -41,3 +41,5 @@ coverage/
 # Database backups
 chronowarden_backup_*.tar
 chronowarden_backup_*.tar.gz
+# Flutter crash logs
+flutter_*.log

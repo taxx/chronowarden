@@ -186,6 +186,7 @@ class _HistoryContentState extends State<HistoryContent> {
         initialDate: DateTime.now().subtract(const Duration(days: 1)),
         expectedMinutes: expected,
         travelPresets: state.travelPresets,
+        showNonWork: _state.nonWorkEnabled,
       ),
     );
 
@@ -200,6 +201,7 @@ class _HistoryContentState extends State<HistoryContent> {
         endTime: endStr,
         expectedMinutes: result.expectedMinutes,
         lunchMinutes: result.lunchMinutes,
+        nonWorkMinutes: result.nonWorkMinutes,
         morningOverheadMinutes: result.morningOverheadMinutes,
         morningProductiveCommuteMinutes: result.morningProductiveCommuteMinutes,
         eveningOverheadMinutes: result.eveningOverheadMinutes,
@@ -284,6 +286,7 @@ class _HistoryContentState extends State<HistoryContent> {
         log: log,
         expectedMinutes: expected,
         travelPresets: state.travelPresets,
+        showNonWork: _state.nonWorkEnabled,
       ),
     );
 
@@ -300,6 +303,7 @@ class _HistoryContentState extends State<HistoryContent> {
           endTime: endStr,
           expectedMinutes: result.expectedMinutes,
           lunchMinutes: result.lunchMinutes,
+          nonWorkMinutes: result.nonWorkMinutes,
           morningOverheadMinutes: result.morningOverheadMinutes,
           morningProductiveCommuteMinutes: result.morningProductiveCommuteMinutes,
           eveningOverheadMinutes: result.eveningOverheadMinutes,

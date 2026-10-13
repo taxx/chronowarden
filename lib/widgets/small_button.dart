@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 // Compact labelled button
 // ---------------------------------------------------------------------------
 
-/// A compact button with label, used in _LunchTimerSection.
+/// A compact button with label, used in BreakTimerSection.
 class SmallButton extends StatelessWidget {
   final VoidCallback onPressed;
   final Color backgroundColor;

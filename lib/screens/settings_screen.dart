@@ -86,6 +86,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
         const SizedBox(height: 24),
         SliderIntervalSetting(),
         const SizedBox(height: 24),
+        NonWorkSetting(),
+        const SizedBox(height: 24),
         LanguageSetting(),
         const SizedBox(height: 24),
         ExportSection(),

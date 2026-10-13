@@ -21,6 +21,7 @@ class StartDayResult {
   final int eveningProductiveCommuteMinutes;
   final String? presetId;
   final String? note;
+  final int nonWorkMinutes;
   StartDayResult(
     this.time,
     this.expectedMinutes,
@@ -32,13 +33,15 @@ class StartDayResult {
     this.eveningProductiveCommuteMinutes, {
     this.presetId,
     this.note,
+    this.nonWorkMinutes = 0,
   });
 }
 
 class StopDayResult {
   final TimeOfDay time;
   final int lunchMinutes;
-  StopDayResult(this.time, this.lunchMinutes);
+  final int nonWorkMinutes;
+  StopDayResult(this.time, this.lunchMinutes, {this.nonWorkMinutes = 0});
 }
 
 // ---------------------------------------------------------------------------
@@ -51,6 +54,7 @@ class StartDayDialog extends StatefulWidget {
   final String? initialPresetId;
   final int initialFlexMinutes;
   final String? initialNote;
+  final bool showNonWork;
 
   const StartDayDialog({
     super.key,
@@ -59,6 +63,7 @@ class StartDayDialog extends StatefulWidget {
     this.initialPresetId,
     this.initialFlexMinutes = 0,
     this.initialNote,
+    this.showNonWork = true,
   });
 
   @override
@@ -70,6 +75,7 @@ class _StartDayDialogState extends State<StartDayDialog> {
   late TravelPreset _selectedPreset;
   late TextEditingController _noteController;
   int _lunchMinutes = 30;
+  int _nonWorkMinutes = 0;
   int _flexMinutes = 0;
 
   @override
@@ -114,6 +120,7 @@ class _StartDayDialogState extends State<StartDayDialog> {
     return start.add(Duration(
       minutes: _expected +
           _lunchMinutes +
+          _nonWorkMinutes +
           _morningOverhead -
           _eveningProductive -
           _flexMinutes,
@@ -199,6 +206,27 @@ class _StartDayDialogState extends State<StartDayDialog> {
                 Text(context.t('{minutes} min', {'minutes': _lunchMinutes}), style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600)),
               ],
             ),
+            if (widget.showNonWork) ...[
+              const SizedBox(height: 16),
+              Text(context.t('Non-work time'), style: theme.textTheme.titleSmall),
+              const SizedBox(height: 4),
+              Row(
+                children: [
+                  Expanded(
+                    child: Slider(
+                      value: _nonWorkMinutes.toDouble(),
+                      min: 0,
+                      max: PreferencesService.maxLunchMinutes.toDouble(),
+                      divisions: PreferencesService()
+                          .sliderDivisions(0, PreferencesService.maxLunchMinutes.toDouble()),
+                      label: context.t('{minutes} min', {'minutes': _nonWorkMinutes}),
+                      onChanged: (v) => setState(() => _nonWorkMinutes = v.round()),
+                    ),
+                  ),
+                  Text(context.t('{minutes} min', {'minutes': _nonWorkMinutes}), style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600)),
+                ],
+              ),
+            ],
             const SizedBox(height: 16),
             Text(context.t('Flex time (banked overtime)'), style: theme.textTheme.titleSmall),
             const SizedBox(height: 4),
@@ -246,7 +274,7 @@ class _StartDayDialogState extends State<StartDayDialog> {
                     '${_leaveTime.hour.toString().padLeft(2, '0')}:${_leaveTime.minute.toString().padLeft(2, '0')}',
                     style: theme.textTheme.headlineLarge?.copyWith(fontFamily: 'monospace', fontWeight: FontWeight.bold),
                   ),
-                  if (_lunchMinutes > 0 || _flexMinutes > 0) ...<Widget>[
+                  if (_lunchMinutes > 0 || _flexMinutes > 0 || _nonWorkMinutes > 0) ...<Widget>[
                     const SizedBox(height: 4),
                     Text(
                       context.t('net work done at {time}', {'time': '${_netWorkTime.hour.toString().padLeft(2, '0')}:${_netWorkTime.minute.toString().padLeft(2, '0')}'}),
@@ -254,6 +282,8 @@ class _StartDayDialogState extends State<StartDayDialog> {
                     ),
                     if (_lunchMinutes > 0)
                       Text(context.t('  minus {minutes} min lunch', {'minutes': _lunchMinutes}), style: theme.textTheme.bodySmall),
+                    if (_nonWorkMinutes > 0)
+                      Text(context.t('  minus {minutes} min non-work', {'minutes': _nonWorkMinutes}), style: theme.textTheme.bodySmall),
                     if (_flexMinutes > 0)
                       Text(context.t('  minus {minutes} min flex', {'minutes': _flexMinutes}), style: theme.textTheme.bodySmall),
                   ],
@@ -284,6 +314,7 @@ class _StartDayDialogState extends State<StartDayDialog> {
             note: _noteController.text.trim().isEmpty
                 ? null
                 : _noteController.text.trim(),
+            nonWorkMinutes: _nonWorkMinutes,
           )),
           child: Text(context.t('Start')),
         ),
@@ -305,7 +336,14 @@ class _StartDayDialogState extends State<StartDayDialog> {
 
 class StopDayDialog extends StatefulWidget {
   final int initialLunchMinutes;
-  const StopDayDialog({super.key, this.initialLunchMinutes = 0});
+  final int initialNonWorkMinutes;
+  final bool showNonWork;
+  const StopDayDialog({
+    super.key,
+    this.initialLunchMinutes = 0,
+    this.initialNonWorkMinutes = 0,
+    this.showNonWork = true,
+  });
 
   @override
   State<StopDayDialog> createState() => _StopDayDialogState();
@@ -314,11 +352,13 @@ class StopDayDialog extends StatefulWidget {
 class _StopDayDialogState extends State<StopDayDialog> {
   late TimeOfDay _time;
   late int _lunchMinutes;
+  late int _nonWorkMinutes;
   @override
   void initState() {
     super.initState();
     _time = TimeOfDay.now();
     _lunchMinutes = widget.initialLunchMinutes;
+    _nonWorkMinutes = widget.initialNonWorkMinutes;
   }
 
   @override
@@ -358,13 +398,34 @@ class _StopDayDialogState extends State<StopDayDialog> {
               Text(context.t('{minutes} min', {'minutes': _lunchMinutes}), style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600)),
             ],
           ),
+          if (widget.showNonWork) ...[
+            const SizedBox(height: 16),
+            Text(context.t('Non-work time'), style: theme.textTheme.titleSmall),
+            const SizedBox(height: 4),
+            Row(
+              children: [
+                Expanded(
+                  child: Slider(
+                    value: _nonWorkMinutes.toDouble(),
+                    min: 0,
+                    max: PreferencesService.maxLunchMinutes.toDouble(),
+                    divisions: PreferencesService()
+                        .sliderDivisions(0, PreferencesService.maxLunchMinutes.toDouble()),
+                    label: context.t('{minutes} min', {'minutes': _nonWorkMinutes}),
+                    onChanged: (v) => setState(() => _nonWorkMinutes = v.round()),
+                  ),
+                ),
+                Text(context.t('{minutes} min', {'minutes': _nonWorkMinutes}), style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600)),
+              ],
+            ),
+          ],
 
         ],
       ),
       actions: [
         TextButton(onPressed: () => Navigator.pop(context), child: Text(context.t('Cancel'))),
         FilledButton(
-          onPressed: () => Navigator.pop(context, StopDayResult(_time, _lunchMinutes)),
+          onPressed: () => Navigator.pop(context, StopDayResult(_time, _lunchMinutes, nonWorkMinutes: _nonWorkMinutes)),
           child: Text(context.t('Stop')),
         ),
       ],
