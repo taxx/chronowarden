@@ -1,3 +1,4 @@
+import 'package:chronowarden/models/travel_preset.dart';
 import 'package:chronowarden/screens/my_day_tab.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -44,6 +45,30 @@ void main() {
         shouldShowTransitPlanning(now: sunday, showWeekends: true),
         isTrue,
       );
+    });
+  });
+
+  group('shouldShowTransitPlanningForPresets', () {
+    const wfh = TravelPreset(name: 'Work from home');
+    const transit = TravelPreset(
+      name: 'Train',
+      commuteMode: CommuteMode.transit,
+      morningOverheadMinutes: 10,
+      eveningOverheadMinutes: 10,
+    );
+
+    test('keeps the card visible while presets are still loading', () {
+      expect(shouldShowTransitPlanningForPresets(const []), isTrue);
+    });
+
+    test('hides when no preset uses transit', () {
+      expect(shouldShowTransitPlanningForPresets(const [wfh]), isFalse);
+    });
+
+    test('shows when any preset uses transit', () {
+      expect(shouldShowTransitPlanningForPresets(const [transit]), isTrue);
+      // A stale last-used work-from-home preset must not hide the card.
+      expect(shouldShowTransitPlanningForPresets(const [wfh, transit]), isTrue);
     });
   });
 }

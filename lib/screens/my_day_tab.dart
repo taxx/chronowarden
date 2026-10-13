@@ -34,6 +34,20 @@ bool shouldShowTransitPlanning({
   return showWeekends;
 }
 
+/// Whether the pre-start transit card should be shown given the user's
+/// presets.
+///
+/// Before a day is started the card is *planning*, so it depends on whether
+/// the user commutes by transit at all — not on the last-used preset. Using
+/// the last-used preset hid the weekday commute-to-work card whenever the
+/// previous selection happened to be a work-from-home preset.
+///
+/// An empty list (presets still loading) keeps the card visible.
+bool shouldShowTransitPlanningForPresets(List<TravelPreset> presets) {
+  if (presets.isEmpty) return true;
+  return presets.any((p) => p.usesTransit);
+}
+
 /// The "My Day" content widget — shows today's time tracking.
 /// This is a standalone widget (no Scaffold) meant for use inside MainShell.
 class MyDayTab extends StatefulWidget {
@@ -122,18 +136,8 @@ class _MyDayTabState extends State<MyDayTab> with SingleTickerProviderStateMixin
     );
   }
 
-  /// The preset that currently applies, for transit visibility.
-  ///
-  /// An active/completed day is matched by commute profile so the decision
-  /// follows the synced log rather than this device's last-used preset. When
-  /// no day exists yet, the last-used preset (the Start Day default) is used.
-  TravelPreset? _selectedPreset() {
-    final log = _state.todayLog;
-    if (log != null) {
-      final match = _state.presetMatchingLog(log);
-      if (match != null) return match;
-    }
-    final id = _selectedPresetId;
+  /// The preset matching [id] from the user's presets, if any.
+  TravelPreset? _presetById(String? id) {
     if (id == null) return null;
     for (final p in _state.travelPresets) {
       if (p.id == id) return p;
@@ -141,9 +145,22 @@ class _MyDayTabState extends State<MyDayTab> with SingleTickerProviderStateMixin
     return null;
   }
 
-  /// Whether the current commute involves public transit. When the selection
-  /// is unknown we keep the card visible so transit users aren't cut off.
-  bool _commuteUsesTransit() => _selectedPreset()?.usesTransit ?? true;
+  /// Whether the transit card applies to the current commute.
+  ///
+  /// - Active day: trust the day's commute profile (matched to a preset), so
+  ///   the decision follows the synced log across devices. Falls back to the
+  ///   last-used preset, then to visible.
+  /// - No day yet: it is planning, so show whenever the user commutes by
+  ///   transit at all (see [shouldShowTransitPlanningForPresets]).
+  bool _commuteUsesTransit(bool hasActiveDay) {
+    if (!hasActiveDay) {
+      return shouldShowTransitPlanningForPresets(_state.travelPresets);
+    }
+    final log = _state.todayLog;
+    final match = log == null ? null : _state.presetMatchingLog(log);
+    if (match != null) return match.usesTransit;
+    return _presetById(_selectedPresetId)?.usesTransit ?? true;
+  }
 
   Widget _buildTransitCard(ThemeData theme) {
     _transitCfg = _transit.config;
@@ -178,10 +195,10 @@ class _MyDayTabState extends State<MyDayTab> with SingleTickerProviderStateMixin
       return const SizedBox.shrink();
     }
 
-    // Respect the applicable travel preset: a non-transit commute (e.g.
+    // Respect the applicable commute: a non-transit commute (e.g.
     // "No commute, work from home") hides the card even when the global
     // transit integration is enabled and stops are configured.
-    if (!_commuteUsesTransit()) {
+    if (!_commuteUsesTransit(hasActiveDay)) {
       _transitCardShown = false;
       return const SizedBox.shrink();
     }

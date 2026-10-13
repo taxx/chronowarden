@@ -390,8 +390,11 @@ applicable travel preset uses transit:
   per-direction commute values (`TravelPreset.matchesLog` /
   `findPresetForLog`). Day logs don't store a preset id, so matching the
   profile is what makes the decision follow the *synced* log across devices.
-- **No day yet** — the last-used preset is used (the Start Day dialog default,
-  `PreferencesService.lastTravelPresetId`).
+- **No day yet** — it is *planning*, so the card is shown whenever the user
+  commutes by transit **at all** (`shouldShowTransitPlanningForPresets`), not
+  based on the last-used preset. A stale work-from-home selection must not
+  hide the weekday commute-to-work card. Hidden when no preset uses transit;
+  visible while the preset list is still empty (loading).
 - **Unknown selection** — the card is shown, so transit users are never cut off.
 - **Weekends** — the pre-start ("morning planning") card is hidden on
   Saturday/Sunday unless the user has enabled the **show weekends** calendar
