@@ -5,6 +5,7 @@
 
 ## 2026-10-13
 
+- Add non-work time (errands) as a second optional break, like lunch (`f20a112`)
 - Show weekday transit-to-work planning regardless of stale last-used preset (`d6b8987`)
 
 ## 2026-10-10

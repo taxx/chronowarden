@@ -556,5 +556,4 @@ const Map<String, String> svCatalog = <String, String>{
       'Spåra tid för ärenden eller andra aktiviteter som inte är arbete. Räknas som icke-arbetstid, precis som lunch.',
   '{actual} min total · {lunch} min lunch · {nonWork} min non-work · {net} min net':
       '{actual} min totalt · {lunch} min lunch · {nonWork} min icke-arbete · {net} min netto',
-  '{label}: {minutes} min': '{label}: {minutes} min',
 };

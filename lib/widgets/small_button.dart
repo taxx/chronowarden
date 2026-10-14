@@ -28,7 +28,11 @@ class SmallButton extends StatelessWidget {
         style: FilledButton.styleFrom(
           backgroundColor: backgroundColor,
           foregroundColor: foregroundColor,
-          padding: const EdgeInsets.symmetric(horizontal: 10),
+          padding: const EdgeInsets.symmetric(horizontal: 8),
+          // Drop Material's default 64x40 minimum and padded tap target so
+          // these stay compact on narrow (mobile) layouts.
+          minimumSize: const Size(0, 28),
+          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
           textStyle: const TextStyle(fontSize: 12),
         ),
         child: Text(label),

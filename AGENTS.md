@@ -546,6 +546,10 @@ time** and is excluded from overtime.
   non-work (Start / Stop / Edit). It appears on the My Day active card, in the
   Start/Stop day dialogs, and in the Add/Edit day dialogs.
 - **Flex is unaffected** — non-work, like lunch, is *not* a bank withdrawal.
+- **Mobile layout:** `BreakTimerSection` makes the **label** the flexible
+  element (ellipsized) so the live timer / stored minutes and the action
+  buttons are never clipped on narrow screens. `SmallButton` drops Material's
+  64×40 minimum size for the same reason.
 - **Feature toggle:** `AppState.nonWorkEnabled` (default `true`), read in
   `AppState.refresh()` and persisted cross-device via
   `UserSettingsService.getNonWorkEnabled/setNonWorkEnabled`

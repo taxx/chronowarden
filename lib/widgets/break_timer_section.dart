@@ -12,6 +12,9 @@ import 'small_button.dart';
 /// Used for both lunch and non-work time (errands). When [active], shows a
 /// live mm:ss timer and a Stop button; otherwise shows the stored minutes plus
 /// Start and Edit buttons.
+///
+/// The label is the flexible element: it ellipsizes on narrow (mobile) screens
+/// so the timer and action buttons are never clipped.
 class BreakTimerSection extends StatelessWidget {
   final IconData icon;
 
@@ -55,7 +58,7 @@ class BreakTimerSection extends StatelessWidget {
       final mins = elapsed.inMinutes;
       final secs = elapsed.inSeconds % 60;
       return Container(
-        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
         decoration: BoxDecoration(
           color: color.withValues(alpha: 0.2),
           borderRadius: BorderRadius.circular(8),
@@ -63,8 +66,18 @@ class BreakTimerSection extends StatelessWidget {
         child: Row(
           children: [
             Icon(icon, size: 16, color: color),
-            const SizedBox(width: 4),
-            Text('$label  ', style: theme.textTheme.bodyMedium),
+            const SizedBox(width: 6),
+            // Flexible label — ellipsizes rather than pushing the timer off
+            // screen on narrow layouts.
+            Expanded(
+              child: Text(
+                label,
+                style: theme.textTheme.bodyMedium,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            const SizedBox(width: 6),
             Text(
               '${mins.toString().padLeft(2, '0')}:${secs.toString().padLeft(2, '0')}',
               style: theme.textTheme.bodyMedium?.copyWith(
@@ -72,7 +85,7 @@ class BreakTimerSection extends StatelessWidget {
                 fontFamily: 'monospace',
               ),
             ),
-            const Spacer(),
+            const SizedBox(width: 8),
             SmallButton(
               onPressed: onStop,
               backgroundColor: color,
@@ -84,27 +97,35 @@ class BreakTimerSection extends StatelessWidget {
       );
     }
 
-    // Timer not running — show stored minutes + Start button.
+    // Timer not running — show stored minutes + Start/Edit buttons.
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
         children: [
           Icon(icon, size: 16, color: theme.colorScheme.onSurfaceVariant),
-          const SizedBox(width: 4),
-          Flexible(
+          const SizedBox(width: 6),
+          Expanded(
             child: Text(
-              context.t('{label}: {minutes} min',
-                  {'label': label, 'minutes': minutes}),
+              label,
               style: theme.textTheme.bodyMedium
                   ?.copyWith(fontWeight: FontWeight.w600),
+              maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
           ),
-          if (endTime != null)
+          const SizedBox(width: 6),
+          Text(
+            context.t('{minutes} min', {'minutes': minutes}),
+            style: theme.textTheme.bodyMedium
+                ?.copyWith(fontWeight: FontWeight.w600),
+          ),
+          if (endTime != null) ...[
+            const SizedBox(width: 4),
             Text(context.t(' (timer)'),
                 style: const TextStyle(
                     fontStyle: FontStyle.italic, fontSize: 12)),
-          const Spacer(),
+          ],
+          const SizedBox(width: 8),
           SmallButton(
             onPressed: onStart,
             backgroundColor: theme.colorScheme.primary,
