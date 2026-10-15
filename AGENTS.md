@@ -582,6 +582,45 @@ leaving, then again if they overrun.
   delivered but neither snoozed nor dismissed is restored silently (no
   second beep) after a reload.
 
+### Delivery
+An alert is delivered three ways, so it surfaces whether or not the user is
+looking at the app:
+
+1. **In-app banner** — rendered by `MainShell`, visible on every tab.
+2. **OS notification** — `showOsNotification()` (Notification API) when
+   permission is granted, so it also appears when the tab is backgrounded.
+   Not available in iOS Safari tabs (only installed PWAs).
+3. **Beep + vibration** — Web Audio beep (`window._cwBeep`) and
+   `navigator.vibrate` where supported.
+
+### Audio lifecycle (important)
+Browsers suspend `AudioContext` until a user gesture; a naive
+`new AudioContext()` per beep is silent. So:
+
+- A single **shared `window._cwAudioCtx`** is created and reused for all beeps
+  (`lib/utils/web_browser_web.dart`).
+- `NotificationService.init()` registers the JS bridge immediately (it used to
+  be registered only when toggling the setting, which killed sound after any
+  reload).
+- `NotificationService.primeAudio()` creates/resumes the context and is called
+  from the app's **first pointer-down** (`MaterialApp.builder` → `Listener` in
+  `lib/main.dart`) and from the Sound toggle / "Send test" button.
+- `showOsNotification()` / `notificationPermission()` / `audioState()` /
+  `vibrateSupported()` all live behind the conditional `web_browser` bridge
+  (VM stub returns no-ops), so they are safe in tests.
+
+### Catch-up on return
+Browsers throttle timers in hidden tabs, so `MyDayTab` is a
+`WidgetsBindingObserver` and re-runs `check()` on `AppLifecycleState.resumed`
+— an alert missed while backgrounded fires as soon as the user returns (the
+overtime window covers up to 60 min past leave).
+
+### Diagnostics
+Settings → Notifications shows a read-only panel (permission, audio-context
+state, vibration support) with a refresh action, so users/agents can see *why*
+an alert didn't appear. `NotificationService` exposes `permissionStatus`,
+`audioStatus`, and `vibrationSupported` for it.
+
 ### Robustness notes
 - All timing decisions live in the pure `evaluateLeaveAlert()` function in
   `lib/services/notification_service.dart`, so they are unit-tested
@@ -591,16 +630,20 @@ leaving, then again if they overrun.
   active-day card) shift later via `AppState.effectiveLeaveTime()` /
   `TimeLog.leaveTimeWithLunch()`. This prevents the wrap-up alert from firing
   too early during an overrunning lunch.
-- The banner is rendered by `MainShell`, so it is visible on every tab. The
-  per-second check runs in `MyDayTab`, which `MainShell` keeps alive in its
-  `IndexedStack`.
+- The per-second check runs in `MyDayTab`, which `MainShell` keeps alive in
+  its `IndexedStack`.
+- The OS notification message is localized via
+  `AppStrings.forLocale(LocaleService().locale)` (the in-app banner localizes
+  independently via `context.t`).
 
 ### Key files
 | File | Purpose |
 |------|---------|
-| `lib/services/notification_service.dart` | Settings, per-day state, `evaluateLeaveAlert()` |
+| `lib/services/notification_service.dart` | Settings, per-day state, `evaluateLeaveAlert()`, audio/OS delivery |
 | `lib/widgets/alert_banner.dart` | Banner UI with snooze + dismiss actions |
-| `lib/widgets/notification_settings.dart` | Threshold + snooze sliders, sound/vibration |
+| `lib/widgets/notification_settings.dart` | Threshold + snooze sliders, sound/vibration, diagnostics |
+| `lib/utils/web_browser_web.dart` | Shared AudioContext beep, OS notification, diagnostics queries |
+| `lib/main.dart` | First-gesture `primeAudio()` via `MaterialApp.builder` |
 | `lib/screens/my_day_tab.dart` | Per-second `_checkNotification()` tick |
 | `lib/screens/main_shell.dart` | Global banner host |
 | `test/notification_service_test.dart` | Alert-timing regression tests |

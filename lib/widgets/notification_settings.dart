@@ -86,13 +86,14 @@ class _NotificationSettingsState extends State<NotificationSettings> {
               const SizedBox(height: 16),
               OutlinedButton.icon(
                 onPressed: () {
-                  _notifications.ensureAudio();
+                  _notifications.primeAudio();
                   _notifications.alertMessage(
                     'ChronoWarden ⏰',
                     context.t("Test alert — you'd be notified here!"),
                     isUrgent: true,
                   );
                   if (context.mounted) {
+                    setState(() {});
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
                         content: Text(context.t('Test alert fired — check for sound & vibration')),
@@ -105,9 +106,57 @@ class _NotificationSettingsState extends State<NotificationSettings> {
                 icon: const Icon(Icons.send_outlined, size: 18),
                 label: Text(context.t('Send test')),
               ),
+              const SizedBox(height: 16),
+              _diagnostics(theme),
             ],
           ],
         ),
+      ),
+    );
+  }
+
+  /// Small read-only status panel to make alert-delivery issues visible
+  /// (permission, audio unlock state, vibration support).
+  Widget _diagnostics(ThemeData theme) {
+    final n = _notifications;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Text(context.t('Diagnostics'), style: theme.textTheme.titleSmall),
+            const SizedBox(width: 4),
+            IconButton(
+              icon: const Icon(Icons.refresh, size: 16),
+              tooltip: context.t('Refresh'),
+              visualDensity: VisualDensity.compact,
+              onPressed: () => setState(() {}),
+            ),
+          ],
+        ),
+        const SizedBox(height: 4),
+        _diagnosticRow(theme, context.t('Notifications permission'), n.permissionStatus),
+        _diagnosticRow(theme, context.t('Alert sound'), n.audioStatus),
+        _diagnosticRow(
+          theme,
+          context.t('Vibration supported'),
+          n.vibrationSupported ? context.t('Yes') : context.t('No'),
+        ),
+      ],
+    );
+  }
+
+  Widget _diagnosticRow(ThemeData theme, String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(label, style: theme.textTheme.bodySmall),
+          Text(value,
+              style: theme.textTheme.bodySmall
+                  ?.copyWith(fontWeight: FontWeight.w600)),
+        ],
       ),
     );
   }

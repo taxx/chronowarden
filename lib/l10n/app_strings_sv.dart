@@ -232,6 +232,12 @@ const Map<String, String> svCatalog = <String, String>{
       '{app} är fri programvara under {license}. Drifta det själv, läs koden eller rapportera ett problem på GitHub.',
   '{app} is open source ({license}).': '{app} är öppen källkod ({license}).',
   '{minutes} min': '{minutes} min',
+  'Alert sound': 'Larmljud',
+  'Diagnostics': 'Diagnostik',
+  'No': 'Nej',
+  'Notifications permission': 'Notisbehörighet',
+  'Vibration supported': 'Vibration stöds',
+  'Yes': 'Ja',
   '{name} — {am} min walk, {pm} min train': '{name} – {am} min gång, {pm} min tåg',
   '{name}: {amOverhead}/{pmOverhead} min overhead, {amProductive}/{pmProductive} min train work':
       '{name}: {amOverhead}/{pmOverhead} min overhead, {amProductive}/{pmProductive} min tågarbete',

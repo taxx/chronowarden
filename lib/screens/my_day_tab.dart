@@ -57,7 +57,8 @@ class MyDayTab extends StatefulWidget {
   State<MyDayTab> createState() => _MyDayTabState();
 }
 
-class _MyDayTabState extends State<MyDayTab> with SingleTickerProviderStateMixin {
+class _MyDayTabState extends State<MyDayTab>
+    with SingleTickerProviderStateMixin, WidgetsBindingObserver {
   late Timer _ticker;
   final _state = AppState();
   final _notifications = NotificationService();
@@ -84,13 +85,25 @@ class _MyDayTabState extends State<MyDayTab> with SingleTickerProviderStateMixin
         setState(() {});
       }
     });
+    WidgetsBinding.instance.addObserver(this);
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _ticker.cancel();
     _notifications.removeListener(_onNotificationsChanged);
     super.dispose();
+  }
+
+  /// Browsers throttle timers in background tabs, so catch up immediately when
+  /// the app/tab becomes visible again.
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed && mounted) {
+      _checkNotification();
+      setState(() {});
+    }
   }
 
   void _onNotificationsChanged() {

@@ -72,6 +72,16 @@ class _ChronoWardenAppState extends State<ChronoWardenApp> {
     if (mounted) setState(() {});
   }
 
+  bool _audioPrimed = false;
+
+  /// Unlock the alert audio on the first user gesture — browsers keep the
+  /// Web Audio context suspended otherwise, making the alert beep silent.
+  void _primeAudioOnce() {
+    if (_audioPrimed) return;
+    _audioPrimed = true;
+    NotificationService().primeAudio();
+  }
+
   @override
   void dispose() {
     _auth.removeListener(_onAuthChanged);
@@ -118,6 +128,12 @@ class _ChronoWardenAppState extends State<ChronoWardenApp> {
             colorSchemeSeed: const Color(0xFF1E3A5F),
             useMaterial3: true,
             brightness: Brightness.dark,
+          ),
+          // Capture the first pointer-down anywhere to unlock alert audio.
+          builder: (context, child) => Listener(
+            behavior: HitTestBehavior.translucent,
+            onPointerDown: (_) => _primeAudioOnce(),
+            child: child ?? const SizedBox.shrink(),
           ),
           home: SelectionArea(
             child: _buildRoot(),

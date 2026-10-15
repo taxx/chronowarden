@@ -1,7 +1,9 @@
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../l10n/app_strings.dart';
 import '../utils/web_browser.dart';
+import 'locale_service.dart';
 
 /// Which phase of the day an alert belongs to.
 enum LeaveAlertKind { wrapUp, overtime }
@@ -141,6 +143,9 @@ class NotificationService extends ChangeNotifier {
     _dismissedDate = prefs.getString(_kDismissedDateKey);
     final snoozeIso = prefs.getString(_kSnoozedUntilKey);
     _snoozedUntil = snoozeIso == null ? null : DateTime.tryParse(snoozeIso);
+    // Register the beep bridge as soon as we load: it is otherwise undefined
+    // after a page reload, which silently killed the alert sound.
+    ensureAudio();
     // Note: _currentAlert is intentionally left alone — a re-init (e.g. from
     // the Settings screen) must not silently hide a visible alert.
     notifyListeners();
@@ -150,9 +155,9 @@ class NotificationService extends ChangeNotifier {
   Future<void> setEnabled(bool value) async {
     _enabled = value;
     if (value && kIsWeb) {
-      // Call BEFORE any await to preserve browser gesture context
+      // Call BEFORE any await to preserve browser gesture context.
       _requestPermissionIfNeeded();
-      ensureAudio();
+      primeAudio();
     }
     // Re-arm so a freshly enabled alert can fire even if one was already
     // delivered or dismissed earlier today.
@@ -272,13 +277,38 @@ class NotificationService extends ChangeNotifier {
     _currentAlert = alert;
     _alertedDate = date;
     _persistTracking();
-    // Only sound on a fresh delivery, not when restoring the banner after a
-    // page reload.
+    // Only sound/notify on a fresh delivery, not when restoring the banner
+    // after a page reload.
     if (!alreadyDelivered) {
       if (soundEnabled) playAlertSound(count: alert.isUrgent ? 3 : 1);
-      if (vibrateEnabled && kIsWeb) vibrate(200);
+      if (vibrateEnabled && kIsWeb && vibrationSupported) vibrate(200);
+      // OS notification so the alert surfaces even when the tab is hidden.
+      showOsNotification(alert.title, _localizedMessage(alert),
+          urgent: alert.isUrgent);
     }
     notifyListeners();
+  }
+
+  /// The alert text for the current locale, used for OS notifications (the
+  /// in-app banner localizes its own message via `context.t`).
+  String _localizedMessage(LeaveAlert alert) {
+    final strings = AppStrings.forLocale(LocaleService().locale);
+    switch (alert.kind) {
+      case LeaveAlertKind.wrapUp:
+        final mins = alert.remainingMinutes.round();
+        final h = mins ~/ 60;
+        final m = mins % 60;
+        final timeStr = h > 0 ? '${h}h ${m}m' : '$m min';
+        return strings.translate(
+          '⏰ {time} left — wrap up and head out!',
+          {'time': timeStr},
+        );
+      case LeaveAlertKind.overtime:
+        return strings.translate(
+          '🚨 {minutes} min past your time — finish up and stop the day!',
+          {'minutes': alert.remainingMinutes.abs().round()},
+        );
+    }
   }
 
   /// Snooze the current alert for [snoozeMinutes]; it re-fires afterwards.
@@ -324,24 +354,49 @@ class NotificationService extends ChangeNotifier {
   String alertMessage(String title, String body, {bool isUrgent = false}) {
     if (!_enabled) return '';
     if (_soundEnabled) playAlertSound(count: isUrgent ? 3 : 1);
-    if (_vibrateEnabled && kIsWeb) vibrate(200);
+    if (_vibrateEnabled && kIsWeb && vibrationSupported) vibrate(200);
+    showOsNotification(title, body, urgent: isUrgent);
     return body;
   }
 
   bool _audioInitialized = false;
 
-  /// Register the JS beep helper (Web Audio API).
+  /// Register the JS beep helper (Web Audio API). Idempotent and safe to call
+  /// before any user gesture — it only defines the helper; [primeAudio]
+  /// actually unlocks the audio context.
   void ensureAudio() {
     if (_audioInitialized || !kIsWeb) return;
     initBeepBridge();
     _audioInitialized = true;
   }
 
+  /// Create/resume the shared audio context. Must be called from a user
+  /// gesture (wired to the app's first pointer-down in `main.dart`), otherwise
+  /// browsers keep it suspended and the beep is silent.
+  void primeAudio() {
+    if (!kIsWeb) return;
+    ensureAudio();
+    unlockAudio();
+  }
+
   /// Play a short beep via the JS beep helper.
   void playAlertSound({int count = 1}) {
     if (!_soundEnabled || !kIsWeb) return;
+    // Register lazily too, in case init() ran before the web bundle was ready.
+    ensureAudio();
     playBeep(count);
   }
+
+  // -- Diagnostics (web) -----------------------------------------------------
+
+  /// Browser notification permission ("granted"/"denied"/"default"/…).
+  String get permissionStatus => notificationPermission();
+
+  /// Shared audio-context state ("running"/"suspended"/…).
+  String get audioStatus => audioState();
+
+  /// Whether the Vibration API is available on this device/browser.
+  bool get vibrationSupported => vibrateSupported();
 
   // -- Persistence -----------------------------------------------------------
 
