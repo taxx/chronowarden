@@ -5,12 +5,16 @@ secrets.json
 .env.edge
 
 # Flutter build output
-/.dart_tool/
-/.flutter-plugins
-/.flutter-plugins-dependencies
-/build/
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+build/
 *.iml
 .metadata
+
+# API build output / deps
+node_modules/
+apps/api/dist/
 
 # IDE
 .idea/

@@ -16,21 +16,18 @@ RUN git clone https://github.com/flutter/flutter.git \
     && /usr/local/flutter/bin/flutter precache --web
 ENV PATH="/usr/local/flutter/bin:$PATH"
 
+# Build context is the repository root (see docker-compose.yaml) so this
+# Dockerfile can be built from ./apps/web while the changelog/build-info
+# assets live inside the app directory.
 WORKDIR /app
-COPY pubspec.yaml pubspec.lock ./
+COPY apps/web/pubspec.yaml apps/web/pubspec.lock ./
 RUN flutter pub get
 
-COPY . .
+COPY apps/web/ ./
 
-# Refresh the changelog from the checked-out git history so the hosted
-# instance always reflects the commits it was built from. Also regenerate the
-# build metadata so the running app can detect a newer deployment. Best
-# effort — the committed files are used if git history is unavailable.
-RUN git config --global --add safe.directory /app \
-    && tool/generate_changelog.sh \
-    && tool/generate_build_info.sh \
-    || echo "changelog/version generation skipped"
-
+# CHANGELOG.md and build_info.json are generated on the host by tool/*.sh as
+# part of the release routine, then committed — the Docker build consumes the
+# committed copies (the build context has no .git history).
 ARG SUPABASE_URL
 ARG SUPABASE_ANON_KEY
 RUN printf '{"SUPABASE_URL":"%s","SUPABASE_ANON_KEY":"%s"}' \

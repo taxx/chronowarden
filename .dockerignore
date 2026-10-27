@@ -1,0 +1,17 @@
+# Keep the Docker build contexts small and free of local artifacts.
+.git
+.dart_tool
+build
+node_modules
+apps/api/dist
+apps/web/.dart_tool
+apps/web/build
+coverage
+*.log
+.DS_Store
+chronowarden_backup_*.tar
+chronowarden_backup_*.tar.gz
+.env
+.env.db
+.env.edge
+secrets.json
