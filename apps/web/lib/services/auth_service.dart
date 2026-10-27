@@ -236,6 +236,18 @@ class AuthService extends ChangeNotifier {
   // Migration support
   // -----------------------------------------------------------------
 
+  /// Called after restoring a backup: the just-imported envelope has a
+  /// different DEK, so any in-memory/cached key must be dropped and the user
+  /// prompted for the passphrase that belongs to the backup.
+  Future<void> onBackupRestored() async {
+    _dek = null;
+    CryptoService.clearLocalCache();
+    _hasEnvelope = true;
+    _needsPassphrase = true;
+    _needsMigration = false;
+    notifyListeners();
+  }
+
   /// Set the DEK after a successful migration (called by MigrationService).
   Future<void> setDekAfterMigration(SecretKey dek) async {
     _dek = dek;

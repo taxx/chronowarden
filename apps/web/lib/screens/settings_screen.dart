@@ -5,6 +5,7 @@ import '../l10n/app_strings.dart';
 import '../models/travel_preset.dart';
 import '../models/work_config.dart';
 import '../widgets/about_app_section.dart';
+import '../widgets/backup_section.dart';
 import '../widgets/encryption_settings_section.dart';
 import '../widgets/export_settings_section.dart';
 import '../widgets/language_setting.dart';
@@ -91,6 +92,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
         LanguageSetting(),
         const SizedBox(height: 24),
         ExportSection(),
+        const SizedBox(height: 24),
+        BackupSection(),
         const SizedBox(height: 24),
         EncryptionSection(),
         const SizedBox(height: 24),

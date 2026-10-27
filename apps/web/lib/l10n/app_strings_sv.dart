@@ -563,4 +563,17 @@ const Map<String, String> svCatalog = <String, String>{
   'Password resets are handled by your administrator, who can issue a new temporary password. Your encryption passphrase is separate and never changes.':
       'Lösenordsåterställning hanteras av din administratör, som kan utfärda ett nytt tillfälligt lösenord. Din krypteringsfras är separat och ändras aldrig.',
   'The server is still unavailable.': 'Servern är fortfarande otillgänglig.',
+  // Backup & restore
+  'Backup & Restore': 'Backup & återställning',
+  'Download a complete, encrypted backup you can restore on any ChronoWarden instance — for example when moving from a hosted instance to your own.':
+      'Ladda ner en komplett, krypterad säkerhetskopia som du kan återställa på vilken ChronoWarden-instans som helst — till exempel när du flyttar från en hostad instans till din egen.',
+  'Download backup': 'Ladda ner säkerhetskopia',
+  'Restore backup': 'Återställ säkerhetskopia',
+  'Paste your backup JSON below.': 'Klistra in din säkerhetskopia (JSON) nedan.',
+  'Restoring replaces all data in this account. Use the encryption passphrase from the backup.':
+      'Återställning ersätter all data i detta konto. Använd krypteringsfrasen från säkerhetskopian.',
+  'Restore': 'Återställ',
+  'Backup downloaded': 'Säkerhetskopia nedladdad',
+  'Backup restored. Enter the backup’s encryption passphrase.':
+      'Säkerhetskopia återställd. Ange säkerhetskopians krypteringsfras.',
 };
