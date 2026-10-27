@@ -1,25 +1,21 @@
 import 'dart:convert';
 
 import 'package:cryptography/cryptography.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/time_log.dart';
+import 'api_client.dart';
 import 'auth_service.dart';
 import 'crypto_service.dart';
-import 'supabase_service.dart';
 
 /// Data service for time logs with envelope encryption.
 ///
 /// All data is encrypted with the user's DEK before storage and decrypted
-/// after retrieval. Only `date` and `user_id` remain plaintext for
-/// server-side filtering.
+/// after retrieval. Only `date` remains plaintext for server-side filtering;
+/// the API scopes every request to the authenticated user.
 class TimeLogService {
-  SupabaseClient get _client => SupabaseService.instance.client;
+  ApiClient get _api => ApiClient();
 
-  String? get _userId {
-    final session = _client.auth.currentSession;
-    return session?.user.id;
-  }
+  String? get _userId => AuthService().profile?.id;
 
   SecretKey? get _dek => AuthService().dek;
 
@@ -28,65 +24,34 @@ class TimeLogService {
   // -----------------------------------------------------------------
 
   Future<List<TimeLog>> all() async {
-    final userId = _userId;
-    if (userId == null) return [];
+    if (_userId == null) return [];
 
-    final resp = await _client
-        .from('time_logs')
-        .select()
-        .eq('user_id', userId)
-        .order('date', ascending: false);
-    final rows = resp as List<dynamic>;
+    final resp = await _api.get('/time-logs') as List<dynamic>;
     final results = <TimeLog>[];
     final dek = _dek;
-    for (final r in rows) {
-      final map = r as Map<String, dynamic>;
-      final timeLog = await _decryptTimeLog(map, dek);
+    for (final r in resp) {
+      final timeLog = await _decryptTimeLog(r as Map<String, dynamic>, dek);
       if (timeLog != null) results.add(timeLog);
     }
     return results;
   }
 
   Future<TimeLog?> today() async {
-    final userId = _userId;
-    if (userId == null) return null;
-
-    final dateStr = _dateStr(DateTime.now());
-    final resp = await _client
-        .from('time_logs')
-        .select()
-        .eq('date', dateStr)
-        .eq('user_id', userId)
-        .limit(1);
-    final rows = resp as List<dynamic>;
-    final dek = _dek;
-    for (final r in rows) {
-      final map = r as Map<String, dynamic>;
-      return await _decryptTimeLog(map, dek);
-    }
-    return null;
+    if (_userId == null) return null;
+    return _byDate(_dateStr(DateTime.now()));
   }
 
   Future<TimeLog?> activeToday() async {
-    final userId = _userId;
-    if (userId == null) return null;
+    final log = await today();
+    if (log == null) return null;
+    return log.endTime == null ? log : null;
+  }
 
-    final dateStr = _dateStr(DateTime.now());
-    final resp = await _client
-        .from('time_logs')
-        .select()
-        .eq('date', dateStr)
-        .eq('user_id', userId)
-        .limit(1);
-    final rows = resp as List<dynamic>;
-    final dek = _dek;
-    for (final r in rows) {
-      final map = r as Map<String, dynamic>;
-      if (map['end_time'] == null) {
-        return await _decryptTimeLog(map, dek);
-      }
-    }
-    return null;
+  Future<TimeLog?> _byDate(String date) async {
+    final resp = await _api.get('/time-logs', query: {'date': date}) as List<dynamic>;
+    if (resp.isEmpty) return null;
+    final first = resp.first as Map<String, dynamic>;
+    return _decryptTimeLog(first, _dek);
   }
 
   // -----------------------------------------------------------------
@@ -94,67 +59,51 @@ class TimeLogService {
   // -----------------------------------------------------------------
 
   Future<TimeLog> insert(TimeLog log) async {
-    final userId = _userId;
-    if (userId == null) throw Exception('Not authenticated');
-
+    if (_userId == null) throw Exception('Not authenticated');
     final dek = _dek;
+    if (dek == null) throw Exception('Encryption key not loaded');
+
     final json = log.toJson();
     json.remove('id');
     json.remove('created_at');
     json.remove('encrypted_data');
-    json['user_id'] = userId;
+    json.remove('user_id');
 
-    if (dek == null) throw Exception('Encryption key not loaded');
-
-    final plaintext = jsonEncode(json);
-    final ciphertext = await CryptoService.encrypt(plaintext, dek);
-    final row = await _client.from('time_logs').insert({
-      'user_id': userId,
+    final ciphertext = await CryptoService.encrypt(jsonEncode(json), dek);
+    final row = await _api.post('/time-logs', {
       'date': log.date,
       'encrypted_data': ciphertext,
-    }).select().single();
-    final decrypted = await _decryptTimeLog(Map<String, dynamic>.from(row), dek);
+    }) as Map<String, dynamic>;
+
+    final decrypted = await _decryptTimeLog(row, dek);
     return decrypted ?? (throw Exception('Failed to decrypt inserted row'));
   }
 
+  /// Merge [fields] into the encrypted payload of the log with [id].
   Future<void> update(String id, Map<String, dynamic> fields) async {
-    final userId = _userId;
     final dek = _dek;
-    if (userId == null || dek == null) return;
+    if (_userId == null || dek == null) return;
 
     fields.remove('user_id');
     fields.remove('id');
     fields.remove('date');
     fields.remove('encrypted_data');
-
     if (fields.isEmpty) return;
 
-    // Read existing encrypted data, merge changes, re-encrypt full payload
-    final row = await _client
-        .from('time_logs')
-        .select('encrypted_data')
-        .eq('id', id)
-        .eq('user_id', userId)
-        .limit(1)
-        .single();
-
-    final existingEncrypted = Map<String, dynamic>.from(row)['encrypted_data'] as String?;
+    final row = await _api.get('/time-logs/$id') as Map<String, dynamic>;
+    final existingEncrypted = row['encrypted_data'] as String?;
     if (existingEncrypted == null || existingEncrypted.isEmpty) return;
 
-    final existingPlaintext = await CryptoService.decrypt(existingEncrypted, dek);
-    final existingJson = jsonDecode(existingPlaintext) as Map<String, dynamic>;
+    final existingJson =
+        jsonDecode(await CryptoService.decrypt(existingEncrypted, dek)) as Map<String, dynamic>;
     existingJson.addAll(fields);
 
-    final merged = jsonEncode(existingJson);
-    final ciphertext = await CryptoService.encrypt(merged, dek);
-    await _client.from('time_logs').update({
-      'encrypted_data': ciphertext,
-    }).eq('id', id).eq('user_id', userId);
+    final ciphertext = await CryptoService.encrypt(jsonEncode(existingJson), dek);
+    await _api.patch('/time-logs/$id', {'encrypted_data': ciphertext});
   }
 
   Future<void> delete(String id) async {
-    final userId = _userId ?? '';
-    await _client.from('time_logs').delete().eq('id', id).eq('user_id', userId);
+    await _api.delete('/time-logs/$id');
   }
 
   // -----------------------------------------------------------------
@@ -162,28 +111,19 @@ class TimeLogService {
   // -----------------------------------------------------------------
 
   /// Decrypt an encrypted time_log row into a [TimeLog] model.
-  ///
-  /// Falls back to plaintext columns if [encrypted_data] is empty
-  /// (pre-migration state).
   Future<TimeLog?> _decryptTimeLog(
     Map<String, dynamic> row,
     SecretKey? dek,
   ) async {
     final encrypted = row['encrypted_data'] as String?;
-
-    // No encrypted data or no DEK loaded — can't decrypt
     if (encrypted == null || encrypted.isEmpty || dek == null) return null;
 
     try {
-      final plaintext = await CryptoService.decrypt(encrypted, dek);
-      final json = jsonDecode(plaintext) as Map<String, dynamic>;
-
-      // Merge with plaintext envelope fields
+      final json = jsonDecode(await CryptoService.decrypt(encrypted, dek)) as Map<String, dynamic>;
       json['id'] = row['id'];
       json['user_id'] = row['user_id'];
       json['date'] = row['date'];
       json['created_at'] = row['created_at'];
-
       return TimeLog.fromJson(json);
     } catch (_) {
       return null;

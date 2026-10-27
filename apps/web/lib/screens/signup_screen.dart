@@ -53,8 +53,16 @@ class _SignupScreenState extends State<SignupScreen> {
       return;
     }
     setState(() => _validatingToken = true);
-    _tokenValid = await _auth.validateInviteToken(token);
-    setState(() => _validatingToken = false);
+    final email = await _auth.validateInvite(token);
+    if (!mounted) return;
+    // The invite is bound to an email; prefill it so it can't be mistyped.
+    if (email != null && _emailCtrl.text.isEmpty) {
+      _emailCtrl.text = email;
+    }
+    setState(() {
+      _tokenValid = email != null;
+      _validatingToken = false;
+    });
   }
 
   Future<void> _signUp() async {
@@ -82,10 +90,15 @@ class _SignupScreenState extends State<SignupScreen> {
       return;
     }
 
-    if (!widget.isFirstAdmin && _tokenValid == false && _tokenCtrl.text.isNotEmpty) {
-      if (!mounted) {
-        return;
-      }
+    if (!widget.isFirstAdmin && _tokenCtrl.text.trim().isEmpty) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(context.t('An invite token is required to create an account'))),
+      );
+      return;
+    }
+    if (!widget.isFirstAdmin && _tokenValid == false) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(context.t('Invalid or expired invite token'))),
       );
@@ -249,7 +262,7 @@ class _SignupScreenState extends State<SignupScreen> {
                   controller: _passCtrl,
                   obscureText: _obscurePass,
                   decoration: InputDecoration(
-                    labelText: context.t('Password (min 6 characters)'),
+                    labelText: context.t('Password (min 10 characters)'),
                     border: const OutlineInputBorder(),
                     prefixIcon: const Icon(Icons.lock_outline),
                     suffixIcon: IconButton(
@@ -320,7 +333,7 @@ class _SignupScreenState extends State<SignupScreen> {
                         child: TextField(
                           controller: _tokenCtrl,
                           decoration: InputDecoration(
-                            labelText: context.t('Invite token (optional)'),
+                            labelText: context.t('Invite token'),
                             border: const OutlineInputBorder(),
                             prefixIcon: const Icon(
                                 Icons.confirmation_number_outlined),
@@ -352,8 +365,7 @@ class _SignupScreenState extends State<SignupScreen> {
                                                 Icons.verified_outlined),
                                             onPressed: _validateToken,
                                           ))),
-                            helperText: context.t('Without a token your account will '
-                                'need admin approval'),
+                            helperText: context.t('Ask your administrator for an invite token'),
                             helperStyle: theme.textTheme.bodySmall,
                           ),
                         ),

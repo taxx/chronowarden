@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'l10n/app_strings.dart';
 import 'screens/main_shell.dart';
@@ -18,17 +17,11 @@ import 'services/preferences_service.dart';
 import 'services/theme_service.dart';
 import 'app_state.dart';
 
-// Compile-time injection via --dart-define-from-file=secrets.json
-const supabaseUrl = String.fromEnvironment('SUPABASE_URL');
-const supabaseAnonKey = String.fromEnvironment('SUPABASE_ANON_KEY');
-
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  if (supabaseUrl.isNotEmpty && supabaseAnonKey.isNotEmpty) {
-    await Supabase.initialize(url: supabaseUrl, publishableKey: supabaseAnonKey);
-  }
-
+  // The API base URL defaults to the same-origin `/api/v1`. Local development
+  // can override it with --dart-define=API_URL=http://localhost:8080/api/v1.
   await ThemeService().init();
   await LocaleService().init();
   await AuthService().init();
@@ -144,10 +137,6 @@ class _ChronoWardenAppState extends State<ChronoWardenApp> {
   }
 
   Widget _buildRoot() {
-    if (supabaseUrl.isEmpty) {
-      return const _NoConfigScreen();
-    }
-
     return ListenableBuilder(
       listenable: _auth,
       builder: (context, _) {
@@ -209,31 +198,6 @@ class _ChronoWardenAppState extends State<ChronoWardenApp> {
         }
         return const LoginScreen();
       },
-    );
-  }
-}
-
-class _NoConfigScreen extends StatelessWidget {
-  const _NoConfigScreen();
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      body: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Text(
-            context.t(
-              'Supabase credentials not found.\n\n'
-              'Copy secrets.json.template → secrets.json, fill in your '
-              'SUPABASE_URL and SUPABASE_ANON_KEY, then run:\n\n'
-              'flutter run --dart-define-from-file=secrets.json',
-            ),
-            textAlign: TextAlign.center,
-            style: Theme.of(context).textTheme.bodyLarge,
-          ),
-        ),
-      ),
     );
   }
 }

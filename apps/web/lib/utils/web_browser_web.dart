@@ -171,3 +171,39 @@ void reloadPage() {
     html.window.location.reload();
   } catch (_) {}
 }
+
+// ---------------------------------------------------------------------------
+// Server-Sent Events (cross-device sync)
+// ---------------------------------------------------------------------------
+
+html.EventSource? _eventSource;
+void Function(String data)? _eventSourceHandler;
+
+/// Open an SSE stream, replacing any previous one. `EventSource` reconnects
+/// automatically after transient failures, so no retry logic is needed here.
+void startEventStream(String url, void Function(String data) onData) {
+  stopEventStream();
+  try {
+    final source = html.EventSource(url);
+    _eventSource = source;
+    _eventSourceHandler = onData;
+    source.onMessage.listen((event) {
+      final data = event.data;
+      if (data is String && data.isNotEmpty) _eventSourceHandler?.call(data);
+    });
+    // Errors (including the automatic reconnect) need no handling here.
+    source.onError.listen((_) {});
+  } catch (_) {
+    _eventSource = null;
+    _eventSourceHandler = null;
+  }
+}
+
+/// Close the current SSE stream, if any.
+void stopEventStream() {
+  try {
+    _eventSource?.close();
+  } catch (_) {}
+  _eventSource = null;
+  _eventSourceHandler = null;
+}

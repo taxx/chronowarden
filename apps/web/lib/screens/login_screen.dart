@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import '../app_info.dart';
 import '../l10n/app_strings.dart';
 import '../services/auth_service.dart';
-import '../services/supabase_service.dart';
 import '../utils/paste_button.dart';
 import '../widgets/external_link.dart';
 import 'about_encryption_screen.dart';
@@ -334,61 +333,25 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   // -----------------------------------------------------------------
-  // Forgot password (Supabase Auth)
+  // Forgot password (admin-assisted — this deployment sends no email)
   // -----------------------------------------------------------------
 
   Future<void> _showForgotPasswordDialog(BuildContext ctx) async {
-    final emailCtrl = TextEditingController();
-    await showDialog<bool>(
+    await showDialog<void>(
       context: ctx,
-      builder: (_) => AlertDialog(
-        title: Text(ctx.t('Reset Password')),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              ctx.t("Enter your email address. We'll send a password reset link."),
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: emailCtrl,
-              decoration: InputDecoration(
-                labelText: ctx.t('Email'),
-                border: const OutlineInputBorder(),
-                prefixIcon: const Icon(Icons.email_outlined),
-              ),
-            ),
-          ],
+      builder: (dialogContext) => AlertDialog(
+        title: Text(dialogContext.t('Reset Password')),
+        content: Text(
+          dialogContext.t(
+            'Password resets are handled by your administrator, who can issue a '
+            'new temporary password. Your encryption passphrase is separate and '
+            'never changes.',
+          ),
         ),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: Text(ctx.t('Cancel')),
-          ),
           FilledButton(
-            onPressed: () async {
-              final email = emailCtrl.text.trim();
-              if (email.isEmpty) return;
-              try {
-                await SupabaseService.instance.client.auth
-                    .resetPasswordForEmail(email);
-                if (ctx.mounted) {
-                  Navigator.pop(ctx);
-                  ScaffoldMessenger.of(ctx).showSnackBar(
-                    SnackBar(
-                      content: Text(ctx.t('Check your email for the reset link.')),
-                    ),
-                  );
-                }
-              } catch (e) {
-                if (ctx.mounted) {
-                  ScaffoldMessenger.of(ctx).showSnackBar(
-                    SnackBar(content: Text(ctx.t('Error: {error}', {'error': e}))),
-                  );
-                }
-              }
-            },
-            child: Text(ctx.t('Send Reset Link')),
+            onPressed: () => Navigator.pop(dialogContext),
+            child: Text(dialogContext.t('Got it')),
           ),
         ],
       ),

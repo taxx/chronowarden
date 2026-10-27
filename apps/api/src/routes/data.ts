@@ -47,6 +47,17 @@ dataRoutes.get('/time-logs', requireAuth, async (c) => {
   return c.json(rows);
 });
 
+dataRoutes.get('/time-logs/:id', requireAuth, async (c) => {
+  const userId = c.get('user').id;
+  const rows = await sql`
+    select ${sql.unsafe(LOG_COLUMNS)} from time_logs
+    where id = ${c.req.param('id')} and user_id = ${userId}
+    limit 1
+  `;
+  if (rows.length === 0) throw ApiError.notFound('Time log not found');
+  return c.json(rows[0]);
+});
+
 dataRoutes.post('/time-logs', requireAuth, async (c) => {
   const userId = c.get('user').id;
   const input = await json(c);
@@ -101,6 +112,17 @@ dataRoutes.get('/travel-presets', requireAuth, async (c) => {
     where user_id = ${userId} order by name
   `;
   return c.json(rows);
+});
+
+dataRoutes.get('/travel-presets/:id', requireAuth, async (c) => {
+  const userId = c.get('user').id;
+  const rows = await sql`
+    select ${sql.unsafe(PRESET_COLUMNS)} from travel_presets
+    where id = ${c.req.param('id')} and user_id = ${userId}
+    limit 1
+  `;
+  if (rows.length === 0) throw ApiError.notFound('Travel preset not found');
+  return c.json(rows[0]);
 });
 
 dataRoutes.post('/travel-presets', requireAuth, async (c) => {

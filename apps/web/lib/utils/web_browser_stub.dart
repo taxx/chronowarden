@@ -36,3 +36,9 @@ void onPageVisible(void Function() callback) {}
 
 /// Reload the current page (no-op off web).
 void reloadPage() {}
+
+/// Open a Server-Sent Events stream (no-op off web).
+void startEventStream(String url, void Function(String data) onData) {}
+
+/// Close a Server-Sent Events stream (no-op off web).
+void stopEventStream() {}

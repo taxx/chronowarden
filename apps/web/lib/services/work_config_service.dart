@@ -1,100 +1,72 @@
 import 'dart:convert';
 
 import 'package:cryptography/cryptography.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/work_config.dart';
+import 'api_client.dart';
 import 'auth_service.dart';
 import 'crypto_service.dart';
-import 'supabase_service.dart';
 
 /// Reads and writes the per-user work-time configuration.
 ///
-/// Data lives inside the `encrypted_data` column of `user_settings`,
+/// Data lives inside the `encrypted_data` of the single `user_settings` row,
 /// encrypted with the user's DEK.
 class WorkConfigService {
-  SupabaseClient get _client => SupabaseService.instance.client;
+  ApiClient get _api => ApiClient();
 
-  String? get _userId {
-    final session = _client.auth.currentSession;
-    return session?.user.id;
-  }
+  String? get _userId => AuthService().profile?.id;
 
   SecretKey? get _dek => AuthService().dek;
 
-  /// Fetch the current work config, or `null` if no row exists yet.
+  /// Fetch the current work config, or `null` if none exists yet.
   Future<WorkConfig?> get() async {
-    final userId = _userId;
     final dek = _dek;
-    if (userId == null) return null;
+    if (_userId == null) return null;
 
-    final resp = await _client
-        .from('user_settings')
-        .select('*')
-        .eq('user_id', userId)
-        .limit(1);
-    final rows = resp as List<dynamic>;
-    if (rows.isEmpty) return null;
-    final row = rows.first as Map<String, dynamic>;
-    final encrypted = row['encrypted_data'] as String?;
-
-    // No encrypted data or no DEK loaded — can't decrypt
-    if (encrypted == null || encrypted.isEmpty || dek == null) return null;
+    final settings = await _readEncryptedSettings(dek);
+    final ciphertext = settings['encrypted_data'] as String?;
+    if (ciphertext == null || ciphertext.isEmpty || dek == null) return null;
 
     try {
-      final plaintext = await CryptoService.decrypt(encrypted, dek);
-      final json = jsonDecode(plaintext) as Map<String, dynamic>;
-      json['user_id'] = userId;
+      final json =
+          jsonDecode(await CryptoService.decrypt(ciphertext, dek)) as Map<String, dynamic>;
+      json['user_id'] = _userId;
       return WorkConfig.fromJson(json);
     } catch (_) {
       return null;
     }
   }
 
-  /// Save (upsert) a work config for the current user.
-  ///
-  /// Reads the existing encrypted_data, merges in the new config fields,
-  /// re-encrypts, and stores.
+  /// Save (merge) a work config for the current user.
   Future<void> save(WorkConfig config) async {
-    final userId = _userId;
     final dek = _dek;
-    if (userId == null || dek == null) return;
+    if (_userId == null || dek == null) return;
 
-    final existing = await _readEncryptedSettings(userId, dek);
+    final existing = await _readDecryptedSettings(dek);
     existing.addAll(config.toJson());
     existing.remove('user_id');
     existing.remove('id');
 
-    final plaintext = jsonEncode(existing);
-    final ciphertext = await CryptoService.encrypt(plaintext, dek);
-
-    await _client.from('user_settings').upsert({
-      'user_id': userId,
-      'encrypted_data': ciphertext,
-    }, onConflict: 'user_id');
+    final ciphertext = await CryptoService.encrypt(jsonEncode(existing), dek);
+    await _api.patch('/settings', {'encrypted_data': ciphertext});
   }
 
-  /// Read all encrypted settings from user_settings, decrypted.
-  /// Falls back to plaintext columns if no encrypted data.
-  Future<Map<String, dynamic>> _readEncryptedSettings(
-    String userId,
-    SecretKey? dek,
-  ) async {
+  Future<Map<String, dynamic>> _readEncryptedSettings(SecretKey? dek) async {
     try {
-      final resp = await _client
-          .from('user_settings')
-          .select('encrypted_data')
-          .eq('user_id', userId)
-          .limit(1);
-      final rows = resp as List<dynamic>;
-      if (rows.isEmpty) return {};
-      final row = rows.first as Map<String, dynamic>;
-      final encrypted = row['encrypted_data'] as String?;
+      final resp = await _api.get('/settings');
+      if (resp is Map<String, dynamic>) return resp;
+      return {};
+    } catch (_) {
+      return {};
+    }
+  }
 
-      if (encrypted == null || encrypted.isEmpty || dek == null) return {};
-
-      final plaintext = await CryptoService.decrypt(encrypted, dek);
-      return jsonDecode(plaintext) as Map<String, dynamic>;
+  Future<Map<String, dynamic>> _readDecryptedSettings(SecretKey? dek) async {
+    try {
+      final row = await _readEncryptedSettings(dek);
+      final ciphertext = row['encrypted_data'] as String?;
+      if (ciphertext == null || ciphertext.isEmpty || dek == null) return {};
+      return jsonDecode(await CryptoService.decrypt(ciphertext, dek)) as Map<String, dynamic>;
     } catch (_) {
       return {};
     }

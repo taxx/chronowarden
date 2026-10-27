@@ -1,14 +1,16 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 
+import '../app_state.dart';
 import '../l10n/app_strings.dart';
 import '../services/auth_service.dart';
-import '../services/supabase_service.dart';
 import 'login_screen.dart';
 import 'signup_screen.dart';
 
-
-/// Shown when the Supabase tables are missing.
+/// Shown when the API cannot be reached (backend restarting, wrong URL, …).
+///
+/// The database schema is provisioned automatically by the API on startup, so
+/// there is nothing for the user to copy or paste anymore — this screen just
+/// explains the situation and offers a retry.
 class SetupScreen extends StatefulWidget {
   const SetupScreen({super.key});
 
@@ -18,205 +20,98 @@ class SetupScreen extends StatefulWidget {
 
 class _SetupScreenState extends State<SetupScreen> {
   bool _loading = false;
-  bool _copyingSchema = false;
   String? _error;
 
-  /// Canonical schema, loaded from the bundled `supabase_schema.sql` asset so
-  /// the Setup screen and the repo can never drift apart.
-  String _schemaSql = '';
-
-  @override
-  void initState() {
-    super.initState();
-    _loadSchema();
-  }
-
-  Future<void> _loadSchema() async {
-    final sql = await rootBundle.loadString('supabase_schema.sql');
+  Future<void> _retry() async {
     if (!mounted) return;
-    setState(() => _schemaSql = sql);
-  }
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
 
-  /// Probe tables directly — no auth required, just checks they exist.
-  Future<void> _verifyTables() async {
-    if (!mounted) return;
-    setState(() { _loading = true; _error = null; });
-
-    final client = SupabaseService.instance.client;
-    bool ok = false;
-    try {
-      // Probe all 5 tables with a simple select query.
-    final tables = ['profiles', 'invites', 'travel_presets', 'time_logs'];
-      for (final table in tables) {
-        await client.from(table).select('id').limit(1);
-      }
-      ok = true;
-    } catch (e) {
-      _error = e.toString();
-    }
+    final hasUsers = await AuthService().checkDatabaseState();
 
     if (!mounted) return;
     setState(() => _loading = false);
 
-    if (ok) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(context.t('✓ Tables verified'))),
-      );
-      // Navigate to the next step.
-      final hasProfiles = await AuthService().checkDatabaseState();
-      if (!mounted) return;
-      if (hasProfiles == true) {
-        // Tables exist but no profiles → first admin signup.
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => const SignupScreen(isFirstAdmin: true)),
-        );
-      } else {
-        // Tables exist with profiles → normal login.
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => const LoginScreen()),
-        );
-      }
+    if (hasUsers == null) {
+      setState(() => _error = context.t('The server is still unavailable.'));
+      return;
     }
-  }
 
-  Future<void> _copySchema() async {
-    await Clipboard.setData(ClipboardData(text: _schemaSql));
-    if (!mounted) return;
-    setState(() => _copyingSchema = true);
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(context.t('✓ SQL copied to clipboard'))),
+    // Already signed in: refreshing AppState makes main.dart swap this screen
+    // out for the main shell once the tables are ready.
+    if (AuthService().isAuthenticated) {
+      await AppState().refresh();
+      return;
+    }
+
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(
+        builder: (_) => hasUsers
+            ? const LoginScreen()
+            : const SignupScreen(isFirstAdmin: true),
+      ),
     );
-    await Future.delayed(const Duration(seconds: 1));
-    if (mounted) setState(() => _copyingSchema = false);
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-
     return Scaffold(
-      appBar: AppBar(title: Text(context.t('Database Setup'))),
-      body: CustomScrollView(
-        slivers: [
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    context.t('First-time setup'),
-                    style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
+      body: Center(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(24),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 420),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.cloud_off_outlined,
+                  size: 48,
+                  color: theme.colorScheme.primary,
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  context.t('Cannot reach the server'),
+                  style: theme.textTheme.titleLarge,
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  context.t(
+                    'ChronoWarden could not reach its backend. It may still be '
+                    'starting up. Check that the API and database containers are '
+                    'running, then try again.',
                   ),
+                  style: theme.textTheme.bodyMedium,
+                  textAlign: TextAlign.center,
+                ),
+                if (_error != null) ...[
                   const SizedBox(height: 12),
                   Text(
-                    context.t(
-                      'ChronoWarden needs several tables in your Supabase project.\n\n'
-                      '1. Open your Supabase dashboard → SQL Editor\n'
-                      '2. Copy the SQL below and paste it into the editor\n'
-                      '3. Click RUN\n'
-                      '4. Tap "Verify & Continue"\n\n'
-                      'This creates the profiles, invites, and data tables\n'
-                      'along with RLS policies and a signup trigger.',
-                    ),
-                    style: theme.textTheme.bodyLarge,
-                  ),
-                  if (_error != null) ...[
-                    const SizedBox(height: 12),
-                    Card(
-                      color: theme.colorScheme.errorContainer,
-                      child: Padding(
-                        padding: const EdgeInsets.all(12),
-                        child: Text(
-                          _error!,
-                          style: theme.textTheme.bodyMedium?.copyWith(
-                            color: theme.colorScheme.onErrorContainer,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                  const SizedBox(height: 16),
-                  FilledButton.icon(
-                    onPressed: _loading ? null : _verifyTables,
-                    icon: _loading
-                        ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
-                        : const Icon(Icons.check_circle),
-                    label: Text(context.t('Verify & Continue')),
+                    _error!,
+                    style: TextStyle(color: theme.colorScheme.error),
+                    textAlign: TextAlign.center,
                   ),
                 ],
-              ),
-            ),
-          ),
-          _SqlCard(
-            title: context.t('Complete Schema SQL'),
-            sql: _schemaSql,
-            copying: _copyingSchema,
-            onCopy: _copySchema,
-            theme: theme,
-          ),
-          const SliverPadding(padding: EdgeInsets.only(bottom: 32)),
-        ],
-      ),
-    );
-  }
-}
-
-class _SqlCard extends StatelessWidget {
-  final String title;
-  final String sql;
-  final bool copying;
-  final VoidCallback onCopy;
-  final ThemeData theme;
-
-  const _SqlCard({
-    required this.title,
-    required this.sql,
-    required this.copying,
-    required this.onCopy,
-    required this.theme,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return SliverToBoxAdapter(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(title, style: theme.textTheme.titleSmall),
-                OutlinedButton.icon(
-                  onPressed: copying ? null : onCopy,
-                  icon: Icon(copying ? Icons.check : Icons.content_copy, size: 18),
-                  label: Text(copying ? context.t('Copied!') : context.t('Copy'), style: const TextStyle(fontSize: 13)),
+                const SizedBox(height: 20),
+                FilledButton.icon(
+                  onPressed: _loading ? null : _retry,
+                  icon: _loading
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.refresh),
+                  label: Text(context.t('Try again')),
                 ),
               ],
             ),
-            const SizedBox(height: 4),
-            Card(
-              color: theme.colorScheme.surfaceContainerHighest,
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: SelectableText(
-                    sql,
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      fontFamily: 'monospace',
-                      fontSize: 12,
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ],
+          ),
         ),
       ),
     );

@@ -87,20 +87,7 @@ class _AdminScreenState extends State<AdminScreen> with SingleTickerProviderStat
         await _load();
         if (mounted) _snack(context.t('User deleted'));
       } catch (e) {
-        if (mounted) {
-          final msg = e.toString();
-          final longMsg = msg.contains('Supabase dashboard admin')
-              ? SnackBar(
-                  content: Text(msg),
-                  duration: const Duration(seconds: 8),
-                  action: SnackBarAction(
-                    label: context.t('Dismiss'),
-                    onPressed: () => ScaffoldMessenger.of(context).hideCurrentSnackBar(),
-                  ),
-                )
-              : SnackBar(content: Text(msg));
-          ScaffoldMessenger.of(context).showSnackBar(longMsg);
-        }
+        if (mounted) _snack(e.toString());
       }
     }
   }
@@ -115,7 +102,7 @@ class _AdminScreenState extends State<AdminScreen> with SingleTickerProviderStat
           controller: emailCtrl,
           keyboardType: TextInputType.emailAddress,
           decoration: InputDecoration(
-            labelText: context.t('Email (optional — for reference)'),
+            labelText: context.t('Email'),
             border: const OutlineInputBorder(),
           ),
         ),
@@ -126,8 +113,13 @@ class _AdminScreenState extends State<AdminScreen> with SingleTickerProviderStat
       ),
     );
     if (result == true) {
+      final email = emailCtrl.text.trim();
+      if (email.isEmpty) {
+        if (mounted) _snack(context.t('Enter an email address for the invite'));
+        return;
+      }
       try {
-        final token = await _profileSvc.createInvite(email: emailCtrl.text.isEmpty ? null : emailCtrl.text);
+        final invite = await _profileSvc.createInvite(email: email);
         await _load();
         if (mounted) {
           await showDialog(
@@ -148,7 +140,7 @@ class _AdminScreenState extends State<AdminScreen> with SingleTickerProviderStat
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Text(
-                      token,
+                      invite.token ?? '',
                       style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                         fontFamily: 'monospace',
                         fontWeight: FontWeight.bold,
@@ -162,7 +154,7 @@ class _AdminScreenState extends State<AdminScreen> with SingleTickerProviderStat
               actions: [
                 TextButton(
                   onPressed: () {
-                    Clipboard.setData(ClipboardData(text: token));
+                    Clipboard.setData(ClipboardData(text: invite.token ?? ''));
                     Navigator.pop(context);
                     _snack(context.t('Token copied to clipboard'));
                   },
@@ -328,11 +320,9 @@ class _AdminScreenState extends State<AdminScreen> with SingleTickerProviderStat
                       color: inv.isActive ? theme.colorScheme.primary : theme.colorScheme.onSurfaceVariant,
                     ),
                     title: Text(
-                      inv.token,
-                      style: const TextStyle(fontFamily: 'monospace', fontWeight: FontWeight.bold),
+                      inv.email ?? context.t('Invite'),
                       maxLines: 1,
                     ),
-                    subtitle: inv.email != null ? Text(inv.email!) : null,
                     trailing: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [

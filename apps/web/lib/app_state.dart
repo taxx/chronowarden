@@ -1,15 +1,16 @@
 import 'dart:async';
 
 import 'package:flutter/widgets.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'models/time_log.dart';
 import 'models/travel_preset.dart';
 import 'models/work_config.dart';
+import 'services/api_client.dart';
+import 'services/auth_service.dart';
+import 'services/realtime_service.dart';
 import 'services/time_log_service.dart';
 import 'services/travel_preset_service.dart';
 import 'services/work_config_service.dart';
-import 'services/supabase_service.dart';
 import 'services/transit_service.dart';
 import 'services/user_settings_service.dart';
 import 'models/transit_config.dart';
@@ -21,7 +22,7 @@ class AppState extends ChangeNotifier {
   static final AppState _instance = AppState._();
   factory AppState() => _instance;
 
-  // Lazily initialised — only accessed after Supabase is ready.
+  // Lazily initialised — only accessed once the API session is ready.
   TimeLogService? _logs;
   WorkConfigService? _config;
   TravelPresetService? _presets;
@@ -33,7 +34,6 @@ class AppState extends ChangeNotifier {
 
   // -- cached data ---------------------------------------------------
   TimeLog? _todayLog;
-  RealtimeChannel? _rtChannel;
   List<TimeLog> _allLogs = [];
   WorkConfig? _workConfig;
   List<TravelPreset> _presetsList = [];
@@ -278,14 +278,7 @@ class AppState extends ChangeNotifier {
         _observerAdded = true;
       }
     } catch (e) {
-      final msg = e.toString().toLowerCase();
-      if (msg.contains('could not find the table') || msg.contains('relation')) {
-        _tablesReady = false;
-      } else {
-        if (!_tablesReady) {
-          _lastError = e.toString();
-        }
-      }
+      _lastError = e is ApiException ? e.message : e.toString();
     }
     notifyListeners();
     return _tablesReady;
@@ -293,51 +286,23 @@ class AppState extends ChangeNotifier {
 
   // -- realtime sync ------------------------------------------------
 
-  /// Subscribe to changes on the user's time_logs via Supabase Realtime.
+  /// Subscribe to changes on the user's time_logs via the API's SSE stream.
   ///
-  /// When another device starts/stops a day, the subscription fires and
-  /// we re-fetch the affected row without needing a page reload.
+  /// When another device starts/stops a day, an event arrives and we re-fetch
+  /// the affected data without needing a page reload.
   void _subscribeRealtime() {
-    final session = SupabaseService.instance.client.auth.currentSession;
-    final userId = session?.user.id;
-    if (userId == null) return;
+    final token = ApiClient().token;
+    if (_getUserId() == null || token == null) return;
 
-    // Unsubscribe any existing channel before creating a new one
-    _unsubscribeRealtime();
-
-    final client = SupabaseService.instance.client;
-    _rtChannel = client.channel(
-      'public:time_logs',
-      opts: RealtimeChannelConfig(
-        ack: true,
-      ),
-    );
-
-    // Listen for INSERT, UPDATE, DELETE on time_logs filtered by user_id
-    _rtChannel!.onPostgresChanges(
-      event: PostgresChangeEvent.all,
-      schema: 'public',
-      table: 'time_logs',
-      filter: PostgresChangeFilter(
-        type: PostgresChangeFilterType.eq,
-        column: 'user_id',
-        value: userId,
-      ),
-      callback: (payload) {
-        _onRealtimeEvent(payload);
-      },
-    );
-
-    _rtChannel!.subscribe();
+    RealtimeService().start(token: token, onEvent: _onRealtimeEvent);
   }
 
-  /// Handle a Realtime event — re-fetch affected data so all views
+  /// Handle a realtime event — re-fetch affected data so all views
   /// (My Day, Overview, History) update without a page reload.
-  void _onRealtimeEvent(PostgresChangePayload payload) {
-    final newRecord = payload.newRecord;
-    if (newRecord.isEmpty) return;
+  void _onRealtimeEvent(RealtimeEvent event) {
+    if (event.table != 'time_logs') return;
 
-    final newDate = newRecord['date'] as String?;
+    final newDate = event.row['date'] as String?;
     final todayStr = _dateStr(DateTime.now());
 
     // Always re-fetch the full log list so Overview/History refresh
@@ -351,10 +316,9 @@ class AppState extends ChangeNotifier {
     });
   }
 
-  /// Unsubscribe from Realtime and release the channel.
+  /// Stop the realtime stream.
   void _unsubscribeRealtime() {
-    _rtChannel?.unsubscribe();
-    _rtChannel = null;
+    RealtimeService().stop();
   }
 
   /// Called when the user signs out — clean up the Realtime subscription.
@@ -668,10 +632,7 @@ class AppState extends ChangeNotifier {
     return result;
   }
 
-  String? _getUserId() {
-    final session = SupabaseService.instance.client.auth.currentSession;
-    return session?.user.id;
-  }
+  String? _getUserId() => AuthService().profile?.id;
 
   // -- stop today's workday ------------------------------------------
   Future<void> stopDay(String endTime, {int lunchMinutes = 0, int nonWorkMinutes = 0}) async {

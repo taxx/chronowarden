@@ -2,16 +2,15 @@ import 'dart:convert';
 
 import 'package:cryptography/cryptography.dart';
 import 'package:flutter/foundation.dart' show visibleForTesting;
-import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/journey_info.dart';
 import '../models/station_info.dart';
 import '../models/transit_config.dart';
 
+import 'api_client.dart';
 import 'auth_service.dart';
 import 'crypto_service.dart';
 import 'pinned_journey_store.dart';
-import 'supabase_service.dart';
 import 'transit_fetch_guard.dart';
 
 /// Manages transit integration with SL (Stockholm Public Transport).
@@ -23,7 +22,7 @@ import 'transit_fetch_guard.dart';
 ///    concurrent requests for the same route, and backs off exponentially
 ///    after failures — see [TransitFetchGuard])
 ///
-/// All API calls go through the sl-proxy Edge Function to avoid CORS issues.
+/// All API calls go through the API's `/sl/proxy` route (same origin).
 class TransitService {
   TransitService._({
     TransitFetchGuard? guard,
@@ -56,7 +55,7 @@ class TransitService {
   final DateTime Function() _now;
 
   // -----------------------------------------------------------------
-  // Supabase Edge Function proxy for SL API
+  // API proxy for the SL Journey Planner
   // -----------------------------------------------------------------
 
   /// Invoke the sl-proxy Edge Function with a given path.
@@ -68,42 +67,15 @@ class TransitService {
 
   Future<dynamic> _invokeProxy(String path) async {
     try {
-      final result = await _client.functions.invoke('sl-proxy', body: {
-        'path': path,
-      });
-      return result.data;
-    } on FunctionException catch (e) {
-      throw TransitApiException(
-        status: e.status,
-        message: _proxyMessage(e.details, e.status),
-        retryAfter: _proxyRetryAfter(e.details),
-      );
+      return await _api.post('/sl/proxy', {'path': path});
+    } on ApiException catch (e) {
+      throw TransitApiException(status: e.status, message: e.message);
     } catch (e) {
       throw TransitApiException(
         status: transitNetworkErrorStatus,
         message: e.toString(),
       );
     }
-  }
-
-  String _proxyMessage(dynamic details, int status) {
-    if (details is Map) {
-      final error = details['error'];
-      if (error is String && error.isNotEmpty) return error;
-    }
-    if (details is String && details.isNotEmpty) return details;
-    return 'Transit service error ($status)';
-  }
-
-  Duration? _proxyRetryAfter(dynamic details) {
-    if (details is! Map) return null;
-    final raw = details['retry_after'] ?? details['retryAfter'];
-    if (raw is num) return Duration(seconds: raw.round());
-    if (raw is String) {
-      final seconds = int.tryParse(raw);
-      if (seconds != null) return Duration(seconds: seconds);
-    }
-    return null;
   }
 
   // -----------------------------------------------------------------
@@ -175,12 +147,9 @@ class TransitService {
   TransitConfig get config =>
       _config ?? const TransitConfig(enabled: false);
 
-  SupabaseClient get _client => SupabaseService.instance.client;
+  ApiClient get _api => ApiClient();
 
-  String? get _userId {
-    final session = _client.auth.currentSession;
-    return session?.user.id;
-  }
+  String? get _userId => AuthService().profile?.id;
 
   SecretKey? get _dek => AuthService().dek;
 
@@ -194,18 +163,10 @@ class TransitService {
     }
 
     try {
-      final resp = await _client
-          .from('user_settings')
-          .select('encrypted_data')
-          .eq('user_id', userId)
-          .limit(1);
-      final rows = resp as List<dynamic>;
-      if (rows.isEmpty) {
-        _config = const TransitConfig(enabled: false);
-        return;
-      }
-      final row = rows.first as Map<String, dynamic>;
-      final encrypted = row['encrypted_data'] as String?;
+      final resp = await _api.get('/settings');
+      final encrypted = resp is Map<String, dynamic>
+          ? resp['encrypted_data'] as String?
+          : null;
 
       if (encrypted == null || encrypted.isEmpty) {
         _config = const TransitConfig(enabled: false);
@@ -245,19 +206,13 @@ class TransitService {
     if (userId == null || dek == null) return;
 
     try {
-      final resp = await _client
-          .from('user_settings')
-          .select('encrypted_data')
-          .eq('user_id', userId)
-          .limit(1);
-      final rows = resp as List<dynamic>;
+      final resp = await _api.get('/settings');
       Map<String, dynamic> existing = {};
-      if (rows.isNotEmpty) {
-        final row = rows.first as Map<String, dynamic>;
-        final encrypted = row['encrypted_data'] as String?;
+      if (resp is Map<String, dynamic>) {
+        final encrypted = resp['encrypted_data'] as String?;
         if (encrypted != null && encrypted.isNotEmpty) {
-          final plaintext = await CryptoService.decrypt(encrypted, dek);
-          existing = jsonDecode(plaintext) as Map<String, dynamic>;
+          existing = jsonDecode(await CryptoService.decrypt(encrypted, dek))
+              as Map<String, dynamic>;
         }
       }
 
@@ -265,13 +220,8 @@ class TransitService {
       _config = cfg;
       clearJourneyCache();
 
-      final plaintext = jsonEncode(existing);
-      final ciphertext = await CryptoService.encrypt(plaintext, dek);
-
-      await _client.from('user_settings').upsert({
-        'user_id': userId,
-        'encrypted_data': ciphertext,
-      }, onConflict: 'user_id');
+      final ciphertext = await CryptoService.encrypt(jsonEncode(existing), dek);
+      await _api.patch('/settings', {'encrypted_data': ciphertext});
     } catch (_) {}
   }
 

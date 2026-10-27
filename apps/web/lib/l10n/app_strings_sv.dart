@@ -40,7 +40,6 @@ const Map<String, String> svCatalog = <String, String>{
   'Car (coming soon)': 'Bil (kommer snart)',
   'Change commute pattern': 'Byt pendlingsmönster',
   'Check for updates': 'Sök efter uppdateringar',
-  'Check your email for the reset link.': 'Kolla din e-post för återställningslänken.',
   'Choose the language used across the app.': 'Välj språket som används i appen.',
   'Close': 'Stäng',
   'Commute overhead': 'Pendlingstid',
@@ -85,8 +84,6 @@ const Map<String, String> svCatalog = <String, String>{
   'Ended': 'Avslutad',
   'Ended: {time}': 'Avslutad: {time}',
   'Enter to unlock your encrypted data': 'Ange för att låsa upp dina krypterade data',
-  "Enter your email address. We'll send a password reset link.":
-      'Ange din e-postadress. Vi skickar en länk för att återställa lösenordet.',
   'Error: {error}': 'Fel: {error}',
   'Evening overhead (walking from office)': 'Kvällstid (gång från kontoret)',
   'Evening productive commute (train work)':
@@ -115,7 +112,6 @@ const Map<String, String> svCatalog = <String, String>{
   'Interval between slider ticks for lunch and flex time.':
       'Intervall mellan reglage-steg för lunch och flex-tid.',
   'Invalid or expired invite token': 'Ogiltig eller utgången inbjudningskod',
-  'Invite token (optional)': 'Inbjudningskod (valfritt)',
   'Journey planning between home and work stations.':
       'Reseplanering mellan hem- och arbetsstation.',
   'Language': 'Språk',
@@ -144,7 +140,6 @@ const Map<String, String> svCatalog = <String, String>{
   'Overtime': 'Övertid',
   'Overview': 'Översikt',
   'Password': 'Lösenord',
-  'Password (min 6 characters)': 'Lösenord (minst 6 tecken)',
   'Paste your CSV data below.': 'Klistra in dina CSV-data nedan.',
   'Permanently delete the entry for {date}? This cannot be undone.':
       'Radera posten för {date} permanent? Detta kan inte ångras.',
@@ -164,7 +159,6 @@ const Map<String, String> svCatalog = <String, String>{
       'Rapportera ett problem eller önska en funktion',
   'Reset Password': 'Återställ lösenord',
   'Save': 'Spara',
-  'Send Reset Link': 'Skicka återställningslänk',
   'Send test': 'Skicka test',
   'Settings': 'Inställningar',
   'Settings not loaded yet. Try again.':
@@ -218,8 +212,6 @@ const Map<String, String> svCatalog = <String, String>{
       'Helgdagar visas i historik och översikt.',
   'Weeks must be between 1 and 53': 'Veckorna måste vara mellan 1 och 53',
   "What's New": 'Nyheter',
-  'Without a token your account will need admin approval':
-      'Utan en kod behöver ditt konto godkännas av en admin',
   'Without this phrase, lost data is gone forever. No one — not even the admin — can recover it.':
       'Utan denna fras är förlorade data borta för alltid. Ingen – inte ens admin – kan återställa dem.',
   'Work Hours': 'Arbetstider',
@@ -289,16 +281,12 @@ const Map<String, String> svCatalog = <String, String>{
   'CSV Format Guide': 'Guide för CSV-format',
   'Check status': 'Kontrollera status',
   'Check your station settings or try again later.': 'Kontrollera dina stationsinställningar eller försök igen senare.',
-  'ChronoWarden needs several tables in your Supabase project.\n\n1. Open your Supabase dashboard → SQL Editor\n2. Copy the SQL below and paste it into the editor\n3. Click RUN\n4. Tap "Verify & Continue"\n\nThis creates the profiles, invites, and data tables\nalong with RLS policies and a signup trigger.':
-      'ChronoWarden behöver flera tabeller i ditt Supabase-projekt.\n\n1. Öppna din Supabase-panel → SQL Editor\n2. Kopiera SQL:en nedan och klistra in den i editorn\n3. Klicka på RUN\n4. Tryck på "Verifiera & fortsätt"\n\nDetta skapar tabellerna profiles, invites och data\nsamt RLS-policyer och en registreringstrigger.',
   'ChronoWarden uses a zero-knowledge encryption model. Your data is encrypted on your device before it ever reaches the server. The server stores only ciphertext — it cannot read your actual data. Even the app administrator cannot decrypt your information.':
       'ChronoWarden använder en zero-knowledge-krypteringsmodell. Dina data krypteras på din enhet innan de når servern. Servern lagrar bara chiffertext – den kan inte läsa dina faktiska data. Inte ens appadministratören kan dekryptera din information.',
   'Ciphertext only — server cannot read plaintext': 'Endast chiffertext – servern kan inte läsa klartext',
-  'Complete Schema SQL': 'Fullständig schema-SQL',
   'Configure your stations in Settings.': 'Konfigurera dina stationer i Inställningarna.',
   'Confirm passphrase': 'Bekräfta fras',
   'Continue to App': 'Fortsätt till appen',
-  'Copied!': 'Kopierat!',
   'Could not load the changelog.': 'Kunde inte ladda ändringsloggen.',
   'Could not open {url}': 'Kunde inte öppna {url}',
   'Create': 'Skapa',
@@ -310,7 +298,6 @@ const Map<String, String> svCatalog = <String, String>{
       'Daglig övertid i förhållande till din tidbank – gröna staplar betyder att du tjänade in tid.',
   'Daily overview': 'Daglig översikt',
   'Data Encryption Key (DEK)': 'Data Encryption Key (DEK)',
-  'Database Setup': 'Databasinställning',
   'Date': 'Datum',
   'Days logged': 'Loggade dagar',
   'Delete user': 'Ta bort användare',
@@ -321,7 +308,6 @@ const Map<String, String> svCatalog = <String, String>{
   'Dismiss for today': 'Stäng för idag',
   'Done': 'Klar',
   'Edit Day': 'Redigera dag',
-  'Email (optional — for reference)': 'E-post (valfritt – för referens)',
   'Enable it in Settings to see journey options.': 'Aktivera det i Inställningarna för att se resealternativ.',
   'Encrypted Data': 'Krypterade data',
   'Encrypting your data ({percent}%)...': 'Krypterar dina data ({percent}%)...',
@@ -338,7 +324,6 @@ const Map<String, String> svCatalog = <String, String>{
   'Expected work': 'Förväntat arbete',
   'Expired': 'Utgången',
   'Failed to save day: {error}': 'Kunde inte spara dagen: {error}',
-  'First-time setup': 'Första gången',
   'Flex time (banked overtime)': 'Flex-tid (sparad övertid)',
   'For convenience, the unwrapped DEK is cached in browser localStorage. This means refreshing the page (F5) and reopening the browser tab do not require re-entering your passphrase. The cache is cleared when you sign out.':
       'För enkelhets skull cachelagras den upplindade DEK i webbläsarens localStorage. Det innebär att du inte behöver ange din fras igen när du laddar om sidan (F5) eller öppnar fliken på nytt. Cachen rensas när du loggar ut.',
@@ -440,7 +425,6 @@ const Map<String, String> svCatalog = <String, String>{
   'User rejected': 'Användare avvisad',
   'Users': 'Användare',
   'Using Multiple Devices': 'Använda flera enheter',
-  'Verify & Continue': 'Verifiera & fortsätt',
   'Version {version}': 'Version {version}',
   'View changelog': 'Visa ändringslogg',
   'Week': 'Vecka',
@@ -491,8 +475,6 @@ const Map<String, String> svCatalog = <String, String>{
   '— not set —': '— ej angiven —',
   '⏰ {time} left — wrap up and head out!': '⏰ {time} kvar – avrunda och gå hem!',
   '⚠️ Critical Warning': '⚠️ Kritisk varning',
-  '✓ SQL copied to clipboard': '✓ SQL kopierad till urklipp',
-  '✓ Tables verified': '✓ Tabeller verifierade',
   '✓ exactly on target': '✓ exakt på mål',
   '🚨 {minutes} min past your time — finish up and stop the day!': '🚨 {minutes} min över din tid – avsluta och stoppa dagen!',
   'Commute scenarios with overhead buffer': 'Pendlingsscenarier med overheadbuffert',
@@ -545,8 +527,6 @@ const Map<String, String> svCatalog = <String, String>{
   '→ {dest} · {minutes} min': '→ {dest} · {minutes} min',
   'No stations matching "{query}"': 'Inga stationer matchar "{query}"',
   'Updated {time}': 'Uppdaterad {time}',
-  'Supabase credentials not found.\n\nCopy secrets.json.template → secrets.json, fill in your SUPABASE_URL and SUPABASE_ANON_KEY, then run:\n\nflutter run --dart-define-from-file=secrets.json':
-      'Supabase-uppgifter saknas.\n\nKopiera secrets.json.template → secrets.json, fyll i din SUPABASE_URL och SUPABASE_ANON_KEY och kör sedan:\n\nflutter run --dart-define-from-file=secrets.json',
   'Jan': 'jan',
   'Feb': 'feb',
   'Mar': 'mar',
@@ -567,4 +547,20 @@ const Map<String, String> svCatalog = <String, String>{
       'Spåra tid för ärenden eller andra aktiviteter som inte är arbete. Räknas som icke-arbetstid, precis som lunch.',
   '{actual} min total · {lunch} min lunch · {nonWork} min non-work · {net} min net':
       '{actual} min totalt · {lunch} min lunch · {nonWork} min icke-arbete · {net} min netto',
+  // Self-hosted API messaging
+  'An invite token is required to create an account':
+      'En inbjudningskod krävs för att skapa ett konto',
+  'Ask your administrator for an invite token':
+      'Be din administratör om en inbjudningskod',
+  'Cannot reach the server': 'Kan inte nå servern',
+  'ChronoWarden could not reach its backend. It may still be starting up. Check that the API and database containers are running, then try again.':
+      'ChronoWarden kunde inte nå sin backend. Den kanske fortfarande startar. Kontrollera att API- och databascontainrarna körs och försök igen.',
+  'Enter an email address for the invite':
+      'Ange en e-postadress för inbjudan',
+  'Invite': 'Inbjudan',
+  'Invite token': 'Inbjudningskod',
+  'Password (min 10 characters)': 'Lösenord (minst 10 tecken)',
+  'Password resets are handled by your administrator, who can issue a new temporary password. Your encryption passphrase is separate and never changes.':
+      'Lösenordsåterställning hanteras av din administratör, som kan utfärda ett nytt tillfälligt lösenord. Din krypteringsfras är separat och ändras aldrig.',
+  'The server is still unavailable.': 'Servern är fortfarande otillgänglig.',
 };

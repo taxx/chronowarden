@@ -2,34 +2,35 @@ import 'dart:convert';
 
 import 'package:cryptography/cryptography.dart';
 import 'package:flutter/foundation.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
-import '../models/invite.dart';
 import '../models/user_profile.dart';
+import 'api_client.dart';
 import 'crypto_service.dart';
-import 'supabase_service.dart';
 
 /// Handles sign-in, sign-up, sign-out, and session state.
 ///
+/// Backed by the self-hosted API (see [ApiClient]); the public surface is
+/// unchanged so screens don't care which backend is behind it.
+///
 /// Also manages the envelope encryption lifecycle:
 ///   - Holds the unwrapped DEK in memory during the session
-///   - Caches DEK in sessionStorage for page-refresh survival
+///   - Caches the DEK in localStorage for page-refresh survival
 ///   - Detects when a user needs to migrate (no encrypted_dek)
 class AuthService extends ChangeNotifier {
   AuthService._();
   static final AuthService _instance = AuthService._();
   factory AuthService() => _instance;
 
-  SupabaseClient get _client => SupabaseService.instance.client;
+  ApiClient get _api => ApiClient();
 
   UserProfile? _profile;
-  SecretKey? _dek;          // unwrapped DEK, held in memory for the session
+  SecretKey? _dek; // unwrapped DEK, held in memory for the session
   bool _isAuthenticated = false;
   bool _isInitializing = true;
   bool _needsMigration = false;
   bool _needsPassphrase = false;
   bool _hasEnvelope = false;
-  String? _pendingRecoveryPhrase;  // shown once after signup, then cleared
+  String? _pendingRecoveryPhrase; // shown once after signup, then cleared
   String? _error;
 
   UserProfile? get profile => _profile;
@@ -43,46 +44,42 @@ class AuthService extends ChangeNotifier {
   String? get error => _error;
 
   // -----------------------------------------------------------------
-  // Init — tries sessionStorage cache first
+  // Init — tries the cached token first
   // -----------------------------------------------------------------
 
-  /// Check for an existing session and load (or create) the profile.
-  ///
-  /// On page load, tries the localStorage cache first so the user doesn't
-  /// need to re-enter their encryption passphrase every time they open the app.
-  /// If no cached DEK but a session exists, detects the encryption envelope
-  /// and prompts for passphrase.
+  /// Restores a cached session, loads the profile, and detects whether the
+  /// encryption envelope still needs a passphrase (or a migration).
   Future<void> init() async {
     try {
-      // Try localStorage cache first
+      await _api.init();
       final cachedDek = await CryptoService.loadDekFromLocal();
       if (cachedDek != null) {
         _dek = cachedDek;
       }
 
-      final session = _client.auth.currentSession;
-      if (session != null) {
-        _isAuthenticated = true;
-        _profile = await _fetchProfile(session.user.id);
-        if (_profile == null) {
-          await _ensureProfile(session.user);
-          _profile = await _fetchProfile(session.user.id);
-          if (_profile == null) {
-            await _client.auth.signOut();
-            _isAuthenticated = false;
-          }
-        }
+      if (_api.isAuthenticated) {
+        try {
+          final resp = await _api.get('/me') as Map<String, dynamic>;
+          _profile = UserProfile.fromJson(resp);
+          _isAuthenticated = true;
 
-        // If we have a session but no cached DEK, check for envelope
-        if (_dek == null && _profile != null) {
-          final wrappedB64 = await _fetchEncryptedDek(session.user.id);
-          if (wrappedB64 != null && wrappedB64.isNotEmpty) {
-            // Envelope exists — user must enter passphrase
-            _hasEnvelope = true;
-            _needsPassphrase = true;
+          if (_dek == null && _profile != null) {
+            final envelope = await _fetchSettings();
+            final wrapped = envelope?['encrypted_dek'] as String?;
+            if (wrapped != null && wrapped.isNotEmpty) {
+              _hasEnvelope = true;
+              _needsPassphrase = true;
+            } else {
+              _needsMigration = true;
+            }
+          }
+        } on ApiException catch (e) {
+          // Stale/invalid token — drop it.
+          if (e.status == 401) {
+            _api.setToken(null);
+            _isAuthenticated = false;
           } else {
-            // No envelope — user needs to migrate
-            _needsMigration = true;
+            _error = e.message;
           }
         }
       }
@@ -100,9 +97,8 @@ class AuthService extends ChangeNotifier {
 
   /// Sign in with email/password + encryption passphrase.
   ///
-  /// The [encryptionPassphrase] is used to derive the Master Key (KEK),
-  /// which unwraps the DEK from user_settings. The DEK is then held in
-  /// memory and cached in sessionStorage.
+  /// The [encryptionPassphrase] derives the Master Key (KEK), which unwraps
+  /// the DEK from user settings. The DEK is then held in memory and cached.
   Future<void> signIn({
     required String email,
     required String password,
@@ -112,30 +108,16 @@ class AuthService extends ChangeNotifier {
     _needsMigration = false;
     notifyListeners();
     try {
-      final response = await _client.auth.signInWithPassword(
-        email: email.trim().toLowerCase(),
-        password: password,
-      );
-      if (response.user == null) throw Exception('Sign in failed');
-      _isAuthenticated = true;
-      _profile = await _fetchProfile(response.user!.id);
-      if (_profile == null) {
-        await _ensureProfile(response.user!);
-        _profile = await _fetchProfile(response.user!.id);
-      }
-
-      // Load or detect missing encryption envelope
-      await _loadOrDetectEnvelope(encryptionPassphrase, response.user!.id);
-    } on AuthException catch (e) {
-      _error = _userFriendlyError(e);
+      await _login(email, password);
+      await _loadOrDetectEnvelope(encryptionPassphrase);
     } catch (e) {
-      _error = e.toString();
+      _error = _messageOf(e);
     }
     notifyListeners();
   }
 
-  /// Sign in WITHOUT encryption passphrase — for users who haven't set up
-  /// encryption yet. Detects if migration is needed or if passphrase is required.
+  /// Sign in WITHOUT the encryption passphrase — for users who haven't set up
+  /// encryption yet. Detects whether migration or unlock is required.
   Future<void> signInWithoutEncryption({
     required String email,
     required String password,
@@ -146,45 +128,42 @@ class AuthService extends ChangeNotifier {
     _hasEnvelope = false;
     notifyListeners();
     try {
-      final response = await _client.auth.signInWithPassword(
-        email: email.trim().toLowerCase(),
-        password: password,
-      );
-      if (response.user == null) throw Exception('Sign in failed');
-      _isAuthenticated = true;
-      _profile = await _fetchProfile(response.user!.id);
-      if (_profile == null) {
-        await _ensureProfile(response.user!);
-        _profile = await _fetchProfile(response.user!.id);
-      }
+      await _login(email, password);
 
-      // Detect if user has an encryption envelope
-      final userId = response.user!.id;
-      final wrappedB64 = await _fetchEncryptedDek(userId);
-      if (wrappedB64 == null || wrappedB64.isEmpty) {
-        // No envelope — user needs to migrate
+      final envelope = await _fetchSettings();
+      final wrapped = envelope?['encrypted_dek'] as String?;
+      if (wrapped == null || wrapped.isEmpty) {
         _needsMigration = true;
       } else {
-        // Envelope exists — user must enter their passphrase to unlock
         _hasEnvelope = true;
         _needsPassphrase = true;
       }
-    } on AuthException catch (e) {
-      _error = _userFriendlyError(e);
     } catch (e) {
-      _error = e.toString();
+      _error = _messageOf(e);
     }
     notifyListeners();
+  }
+
+  Future<void> _login(String email, String password) async {
+    final resp = await _api.post('/auth/login', {
+      'email': email.trim().toLowerCase(),
+      'password': password,
+    }) as Map<String, dynamic>;
+
+    _api.setToken(resp['token'] as String?);
+    _profile = UserProfile.fromJson(resp['user'] as Map<String, dynamic>);
+    _isAuthenticated = true;
   }
 
   // -----------------------------------------------------------------
   // Sign up
   // -----------------------------------------------------------------
 
-  /// Sign up a new user with encryption setup.
+  /// Sign up with encryption setup.
   ///
-  /// Generates a DEK, wraps it with the Master Key (derived from
-  /// [encryptionPassphrase]), and stores the envelope in user_settings.
+  /// [isFirstAdmin] creates the initial administrator (only while the database
+  /// is empty). Otherwise an [inviteToken] is required — invites are bound to
+  /// the email address and grant access immediately.
   Future<void> signUp({
     required String email,
     required String password,
@@ -196,38 +175,32 @@ class AuthService extends ChangeNotifier {
     _error = null;
     notifyListeners();
     try {
-      final response = await _client.auth.signUp(
-        email: email.trim().toLowerCase(),
-        password: password,
-        data: {
-          'full_name': fullName,
-          'role': isFirstAdmin ? 'admin' : 'user',
-          'status': (isFirstAdmin || inviteToken != null) ? 'approved' : 'pending',
-        },
-      );
-
-      if (response.user != null) {
-        _isAuthenticated = true;
-        await Future.delayed(const Duration(milliseconds: 500));
-        _profile = await _fetchProfile(response.user!.id);
-        if (_profile == null) {
-          await _ensureProfile(response.user!);
-          _profile = await _fetchProfile(response.user!.id);
-        }
-
-        // Create encryption envelope for the new user
-        final phrase = await _createEnvelope(encryptionPassphrase, response.user!.id);
-        // Store recovery phrase so the UI can show it
-        _pendingRecoveryPhrase = phrase;
+      if (!isFirstAdmin && (inviteToken == null || inviteToken.isEmpty)) {
+        throw const ApiException(400, 'INVITE_REQUIRED', 'An invitation is required to register');
       }
 
-      if (inviteToken != null && response.user != null) {
-        await _markInviteUsed(inviteToken.trim().toLowerCase());
-      }
-    } on AuthException catch (e) {
-      _error = _userFriendlyError(e);
+      final resp = isFirstAdmin
+          ? await _api.post('/auth/setup', {
+              'email': email.trim().toLowerCase(),
+              'password': password,
+              'fullName': fullName,
+            })
+          : await _api.post('/auth/register', {
+              'email': email.trim().toLowerCase(),
+              'password': password,
+              'fullName': fullName,
+              'inviteToken': inviteToken!.trim(),
+            }) as Map<String, dynamic>;
+
+      final map = resp as Map<String, dynamic>;
+      _api.setToken(map['token'] as String?);
+      _profile = UserProfile.fromJson(map['user'] as Map<String, dynamic>);
+      _isAuthenticated = true;
+
+      // Create the encryption envelope for the new user.
+      _pendingRecoveryPhrase = await _createEnvelope(encryptionPassphrase);
     } catch (e) {
-      _error = e.toString();
+      _error = _messageOf(e);
     }
     notifyListeners();
   }
@@ -243,11 +216,16 @@ class AuthService extends ChangeNotifier {
   }
 
   Future<void> signOut() async {
+    try {
+      await _api.post('/auth/logout');
+    } catch (_) {
+      // Best effort — the local session is cleared regardless.
+    }
     CryptoService.clearLocalCache();
+    _api.setToken(null);
     _dek = null;
     _needsMigration = false;
     _pendingRecoveryPhrase = null;
-    await _client.auth.signOut();
     _isAuthenticated = false;
     _profile = null;
     _error = null;
@@ -269,16 +247,13 @@ class AuthService extends ChangeNotifier {
   /// Recover from a mnemonic phrase (forgot passphrase).
   Future<void> recoverWithMnemonic(String phrase) async {
     _dek = await CryptoService.mnemonicToDek(phrase);
-    // Verify against stored recovery_hash
-    final userId = _profile?.id;
-    if (userId != null) {
-      final expectedHash = await _fetchRecoveryHash(userId);
-      if (expectedHash != null) {
-        final actualHash = CryptoService.hashRecoveryPhrase(phrase);
-        if (actualHash != expectedHash) {
-          _dek = null;
-          throw Exception('Recovery phrase is incorrect');
-        }
+    final envelope = await _fetchSettings();
+    final expectedHash = envelope?['recovery_hash'] as String?;
+    if (expectedHash != null) {
+      final actualHash = CryptoService.hashRecoveryPhrase(phrase);
+      if (actualHash != expectedHash) {
+        _dek = null;
+        throw Exception('Recovery phrase is incorrect');
       }
     }
     CryptoService.cacheDekLocally(_dek!);
@@ -287,14 +262,12 @@ class AuthService extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Unlock encryption with a passphrase (user already logged in,
-  /// has an envelope, but hasn't entered their passphrase yet).
+  /// Unlock encryption with a passphrase (user already logged in, has an
+  /// envelope, but hasn't entered their passphrase yet).
   Future<void> unlockEncryption(String encryptionPassphrase) async {
-    final userId = _profile?.id;
-    if (userId == null) throw Exception('Not authenticated');
-
-    final salt = await _fetchSalt(userId);
-    final wrappedB64 = await _fetchEncryptedDek(userId);
+    final envelope = await _fetchSettings();
+    final salt = envelope?['kek_salt'] as String?;
+    final wrappedB64 = envelope?['encrypted_dek'] as String?;
     if (salt == null || wrappedB64 == null || wrappedB64.isEmpty) {
       throw Exception('No encryption envelope found');
     }
@@ -312,23 +285,12 @@ class AuthService extends ChangeNotifier {
   // -----------------------------------------------------------------
 
   /// Recover the DEK from a mnemonic phrase and set a new encryption passphrase.
-  ///
-  /// Steps:
-  /// 1. Verify recovery phrase against stored hash
-  /// 2. Derive DEK from phrase
-  /// 3. Derive new KEK from new passphrase
-  /// 4. Re-wrap DEK with new KEK
-  /// 5. Update DB with new encrypted_dek, kek_salt, kek_iterations
-  /// 6. Cache DEK in localStorage
   Future<void> recoverAndSetNewPassphrase(
     String recoveryPhrase,
     String newPassphrase,
   ) async {
-    final userId = _profile?.id;
-    if (userId == null) throw Exception('Not authenticated');
-
-    // 1. Verify recovery phrase
-    final expectedHash = await _fetchRecoveryHash(userId);
+    final envelope = await _fetchSettings();
+    final expectedHash = envelope?['recovery_hash'] as String?;
     if (expectedHash != null) {
       final actualHash = CryptoService.hashRecoveryPhrase(recoveryPhrase);
       if (actualHash != expectedHash) {
@@ -336,24 +298,15 @@ class AuthService extends ChangeNotifier {
       }
     }
 
-    // 2. Derive DEK from phrase
     _dek = await CryptoService.mnemonicToDek(recoveryPhrase);
+    final wrapResult = await CryptoService.wrapDekWithPassphrase(_dek!, newPassphrase);
 
-    // 3–4. Wrap DEK with new passphrase
-    final wrapResult = await CryptoService.wrapDekWithPassphrase(
-      _dek!,
-      newPassphrase,
-    );
-
-    // 5. Update DB
-    await _client.from('user_settings').upsert({
-      'user_id': userId,
+    await _api.patch('/settings', {
       'encrypted_dek': wrapResult['wrapped_b64'],
       'kek_salt': wrapResult['salt_b64'],
       'kek_iterations': wrapResult['iterations'],
-    }, onConflict: 'user_id');
+    });
 
-    // 6. Cache DEK
     CryptoService.cacheDekLocally(_dek!);
     _needsPassphrase = false;
     _needsMigration = false;
@@ -361,76 +314,93 @@ class AuthService extends ChangeNotifier {
   }
 
   // -----------------------------------------------------------------
-  // Database state checks (unchanged)
+  // Database state checks
   // -----------------------------------------------------------------
 
+  /// Returns `true` when the database has no users yet (first-admin setup).
+  /// Returns `null` when the backend cannot be reached.
   Future<bool?> checkDatabaseState() async {
     try {
-      final hasProfiles = await _client.rpc('has_profiles');
-      if (hasProfiles) return false;
-      return true;
+      final resp = await _api.get('/state') as Map<String, dynamic>;
+      return (resp['has_users'] as bool? ?? true) ? false : true;
     } catch (_) {
       return null;
     }
   }
 
-  Future<bool> validateInviteToken(String token) async {
+  /// Validates an invite token. Returns the invited email when valid.
+  Future<String?> validateInvite(String token) async {
     try {
-      final resp = await _client
-          .from('invites')
-          .select()
-          .eq('token', token.trim().toLowerCase())
-          .eq('used', false)
-          .limit(1);
-      final invites = resp as List;
-      if (invites.isEmpty) return false;
-      final invite = Invite.fromJson(invites.first as Map<String, dynamic>);
-      return invite.isActive;
+      final resp = await _api.post('/invites/validate', {
+        'token': token.trim(),
+      }) as Map<String, dynamic>;
+      if (resp['valid'] == true) return resp['email'] as String?;
+      return null;
     } catch (_) {
-      return false;
+      return null;
     }
   }
 
+  /// Backwards-compatible boolean form used by the signup screen.
+  Future<bool> validateInviteToken(String token) async =>
+      (await validateInvite(token)) != null;
+
   Future<void> refreshProfile() async {
-    final session = _client.auth.currentSession;
-    if (session != null) {
-      _profile = await _fetchProfile(session.user.id);
+    try {
+      final resp = await _api.get('/me') as Map<String, dynamic>;
+      _profile = UserProfile.fromJson(resp);
       notifyListeners();
-    }
+    } catch (_) {}
+  }
+
+  /// Change the account password (requires the current one).
+  Future<void> changePassword({
+    required String currentPassword,
+    required String newPassword,
+  }) async {
+    await _api.patch('/me/password', {
+      'currentPassword': currentPassword,
+      'newPassword': newPassword,
+    });
   }
 
   // -----------------------------------------------------------------
   // Encryption envelope helpers
   // -----------------------------------------------------------------
 
-  /// Check if user_settings has an encrypted_dek.
-  /// If yes, unwrap it and cache the DEK.
-  /// If no, set [_needsMigration] = true.
-  Future<void> _loadOrDetectEnvelope(String passphrase, String userId) async {
-    final salt = await _fetchSalt(userId);
-    final wrappedB64 = await _fetchEncryptedDek(userId);
+  /// Read the user's settings row (envelope + encrypted payload), or null.
+  Future<Map<String, dynamic>?> _fetchSettings() async {
+    try {
+      final resp = await _api.get('/settings');
+      if (resp is Map<String, dynamic>) return resp;
+      return null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Unwrap the cached DEK from the stored envelope, or flag a migration.
+  Future<void> _loadOrDetectEnvelope(String passphrase) async {
+    final envelope = await _fetchSettings();
+    final salt = envelope?['kek_salt'] as String?;
+    final wrappedB64 = envelope?['encrypted_dek'] as String?;
 
     if (salt == null || wrappedB64 == null || wrappedB64.isEmpty) {
-      // No envelope exists — user needs to migrate
       _needsMigration = true;
       _hasEnvelope = false;
       return;
     }
 
     _hasEnvelope = true;
-
-    // Derive Master Key and unwrap DEK
     final saltBytes = _saltFromBase64(salt);
     final masterKey = await CryptoService.deriveMasterKey(passphrase, saltBytes);
     _dek = await CryptoService.unwrapDekBase64(wrappedB64, masterKey);
-
-    // Cache in sessionStorage for page-refresh survival
     CryptoService.cacheDekLocally(_dek!);
   }
 
   /// Create a fresh encryption envelope for a new user.
   /// Returns the recovery phrase that should be shown to the user once.
-  Future<String> _createEnvelope(String passphrase, String userId) async {
+  Future<String> _createEnvelope(String passphrase) async {
     final salt = CryptoService.generateSalt();
     final masterKey = await CryptoService.deriveMasterKey(passphrase, salt);
     final dek = await CryptoService.generateDek();
@@ -438,133 +408,25 @@ class AuthService extends ChangeNotifier {
     final recoveryPhrase = await CryptoService.dekToMnemonic(dek);
     final recoveryHash = CryptoService.hashRecoveryPhrase(recoveryPhrase);
 
-    // Store envelope in user_settings
-    await _client.from('user_settings').upsert({
-      'user_id': userId,
+    await _api.patch('/settings', {
       'encrypted_dek': wrappedB64,
       'kek_salt': _saltToBase64(salt),
       'kek_iterations': CryptoService.kekIterations,
       'recovery_hash': recoveryHash,
-    }, onConflict: 'user_id');
+    });
 
     _dek = dek;
     CryptoService.cacheDekLocally(dek);
     return recoveryPhrase;
   }
 
-  /// Fetch the salt from user_settings (base64 string or null).
-  Future<String?> _fetchSalt(String userId) async {
-    try {
-      final resp = await _client
-          .from('user_settings')
-          .select('kek_salt')
-          .eq('user_id', userId)
-          .limit(1);
-      final rows = resp as List<dynamic>;
-      if (rows.isEmpty) return null;
-      return (rows.first as Map<String, dynamic>)['kek_salt'] as String?;
-    } catch (_) {
-      return null;
-    }
-  }
-
-  /// Fetch the encrypted DEK from user_settings (base64 string or null).
-  Future<String?> _fetchEncryptedDek(String userId) async {
-    try {
-      final resp = await _client
-          .from('user_settings')
-          .select('encrypted_dek')
-          .eq('user_id', userId)
-          .limit(1);
-      final rows = resp as List<dynamic>;
-      if (rows.isEmpty) return null;
-      return (rows.first as Map<String, dynamic>)['encrypted_dek'] as String?;
-    } catch (_) {
-      return null;
-    }
-  }
-
-  /// Fetch the recovery hash from user_settings.
-  Future<String?> _fetchRecoveryHash(String userId) async {
-    try {
-      final resp = await _client
-          .from('user_settings')
-          .select('recovery_hash')
-          .eq('user_id', userId)
-          .limit(1);
-      final rows = resp as List<dynamic>;
-      if (rows.isEmpty) return null;
-      return (rows.first as Map<String, dynamic>)['recovery_hash'] as String?;
-    } catch (_) {
-      return null;
-    }
-  }
-
-  // -----------------------------------------------------------------
-  // Profile helpers (unchanged)
-  // -----------------------------------------------------------------
-
-  Future<UserProfile?> _fetchProfile(String userId) async {
-    try {
-      final resp = await _client
-          .from('profiles')
-          .select()
-          .eq('id', userId)
-          .single();
-      return UserProfile.fromJson(resp);
-    } catch (_) {
-      return null;
-    }
-  }
-
-  Future<void> _ensureProfile(User user) async {
-    try {
-      final fullName = user.userMetadata?['full_name'] as String?;
-      final storedRole = user.userMetadata?['role'] as String?;
-      final storedStatus = user.userMetadata?['status'] as String?;
-
-      bool isFirstUser = false;
-      try {
-        final hasProfiles = await _client.rpc('has_profiles');
-        isFirstUser = !hasProfiles;
-      } catch (_) {
-        isFirstUser = true;
-      }
-
-      await _client.from('profiles').upsert({
-        'id': user.id,
-        'email': user.email,
-        'full_name': fullName,
-        'role': isFirstUser || storedRole == 'admin' ? 'admin' : 'user',
-        'status': (isFirstUser || storedStatus == 'approved') ? 'approved' : 'pending',
-      }, onConflict: 'id');
-    } catch (_) {}
-  }
-
-  Future<void> _markInviteUsed(String token) async {
-    try {
-      await _client
-          .from('invites')
-          .update({'used': true})
-          .eq('token', token);
-    } catch (_) {}
-  }
-
-  String _userFriendlyError(AuthException e) {
-    final msg = e.message.toLowerCase();
-    if (msg.contains('invalid login credentials')) return 'Invalid email or password';
-    if (msg.contains('user already registered')) return 'An account with this email already exists';
-    if (msg.contains('email not confirmed')) return 'Please confirm your email address';
-    return e.message;
-  }
+  String _messageOf(Object e) => e is ApiException ? e.message : e.toString();
 
   // -----------------------------------------------------------------
   // Encoding helpers
   // -----------------------------------------------------------------
 
-  static String _saltToBase64(Uint8List salt) =>
-      base64.encode(salt);
+  static String _saltToBase64(Uint8List salt) => base64.encode(salt);
 
-  static Uint8List _saltFromBase64(String b64) =>
-      Uint8List.fromList(base64.decode(b64));
+  static Uint8List _saltFromBase64(String b64) => Uint8List.fromList(base64.decode(b64));
 }

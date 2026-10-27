@@ -28,13 +28,9 @@ COPY apps/web/ ./
 # CHANGELOG.md and build_info.json are generated on the host by tool/*.sh as
 # part of the release routine, then committed — the Docker build consumes the
 # committed copies (the build context has no .git history).
-ARG SUPABASE_URL
-ARG SUPABASE_ANON_KEY
-RUN printf '{"SUPABASE_URL":"%s","SUPABASE_ANON_KEY":"%s"}' \
-    "$SUPABASE_URL" "$SUPABASE_ANON_KEY" \
-    > /tmp/secrets.json \
-    && flutter build web --release --dart-define-from-file=/tmp/secrets.json \
-    && rm -f /tmp/secrets.json
+# The API base URL defaults to same-origin /api/v1 (see api_client.dart), so
+# no secrets are baked into the web bundle anymore.
+RUN flutter build web --release --dart-define=API_URL=
 
 # Stage 2: Serve
 FROM nginx:alpine AS runner

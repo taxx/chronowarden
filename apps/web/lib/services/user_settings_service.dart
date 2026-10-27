@@ -1,134 +1,83 @@
 import 'dart:convert';
 
 import 'package:cryptography/cryptography.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
+import 'api_client.dart';
 import 'auth_service.dart';
 import 'crypto_service.dart';
-import 'supabase_service.dart';
 
-/// Reads and writes per-user settings from the `encrypted_data` column
-/// of [user_settings].
+/// Reads and writes per-user settings from the `encrypted_data` of the single
+/// `user_settings` row.
 ///
-/// The envelope columns (encrypted_dek, kek_salt, etc.) live in the same
-/// table but are managed by [AuthService] — this service only touches
-/// the encrypted settings payload.
+/// The envelope columns (encrypted_dek, kek_salt, …) live in the same row but
+/// are managed by [AuthService] — this service only touches the encrypted
+/// settings payload.
 class UserSettingsService {
-  SupabaseClient get _client => SupabaseService.instance.client;
+  ApiClient get _api => ApiClient();
 
-  String? get _userId {
-    final session = _client.auth.currentSession;
-    return session?.user.id;
-  }
+  String? get _userId => AuthService().profile?.id;
 
   SecretKey? get _dek => AuthService().dek;
 
   Future<int> getDefaultFlexMinutes() async {
-    final userId = _userId;
-    final dek = _dek;
-    if (userId == null || dek == null) return 0;
-
-    final settings = await _readSettings(userId, dek);
+    final settings = await _readSettings();
     return (settings['default_flex_minutes'] as int?) ?? 0;
   }
 
   Future<void> setDefaultFlexMinutes(int minutes) async {
-    final userId = _userId;
-    final dek = _dek;
-    if (userId == null || dek == null) return;
-
-    final settings = await _readSettings(userId, dek);
+    final settings = await _readSettings();
     settings['default_flex_minutes'] = minutes;
-
-    final plaintext = jsonEncode(settings);
-    final ciphertext = await CryptoService.encrypt(plaintext, dek);
-
-    await _client.from('user_settings').upsert({
-      'user_id': userId,
-      'encrypted_data': ciphertext,
-    }, onConflict: 'user_id');
+    await _writeSettings(settings);
   }
 
   /// UI language code stored in the encrypted settings (e.g. "en", "sv").
   Future<String?> getLanguage() async {
-    final userId = _userId;
-    final dek = _dek;
-    if (userId == null || dek == null) return null;
-
-    final settings = await _readSettings(userId, dek);
+    final settings = await _readSettings();
     return settings['language'] as String?;
   }
 
   Future<void> setLanguage(String code) async {
-    final userId = _userId;
-    final dek = _dek;
-    if (userId == null || dek == null) return;
-
-    final settings = await _readSettings(userId, dek);
+    final settings = await _readSettings();
     settings['language'] = code;
-
-    final plaintext = jsonEncode(settings);
-    final ciphertext = await CryptoService.encrypt(plaintext, dek);
-
-    await _client.from('user_settings').upsert({
-      'user_id': userId,
-      'encrypted_data': ciphertext,
-    }, onConflict: 'user_id');
+    await _writeSettings(settings);
   }
 
-  /// Whether the non-work-time feature is enabled. Defaults to `true` so the
-  /// feature is on for existing users who never set it.
+  /// Whether the non-work-time feature is enabled. Defaults to `true`.
   Future<bool> getNonWorkEnabled() async {
-    final userId = _userId;
-    final dek = _dek;
-    if (userId == null || dek == null) return true;
-
-    final settings = await _readSettings(userId, dek);
+    final settings = await _readSettings();
     return (settings['non_work_enabled'] as bool?) ?? true;
   }
 
   Future<void> setNonWorkEnabled(bool enabled) async {
-    final userId = _userId;
-    final dek = _dek;
-    if (userId == null || dek == null) return;
-
-    final settings = await _readSettings(userId, dek);
+    final settings = await _readSettings();
     settings['non_work_enabled'] = enabled;
-
-    final plaintext = jsonEncode(settings);
-    final ciphertext = await CryptoService.encrypt(plaintext, dek);
-
-    await _client.from('user_settings').upsert({
-      'user_id': userId,
-      'encrypted_data': ciphertext,
-    }, onConflict: 'user_id');
+    await _writeSettings(settings);
   }
 
   // -----------------------------------------------------------------
   // Helpers
   // -----------------------------------------------------------------
 
-  Future<Map<String, dynamic>> _readSettings(
-    String userId,
-    SecretKey? dek,
-  ) async {
+  Future<Map<String, dynamic>> _readSettings() async {
+    final dek = _dek;
+    if (_userId == null || dek == null) return {};
+
     try {
-      final resp = await _client
-          .from('user_settings')
-          .select('encrypted_data')
-          .eq('user_id', userId)
-          .limit(1);
-      final rows = resp as List<dynamic>;
-      if (rows.isEmpty) return {};
-      final row = rows.first as Map<String, dynamic>;
-      final encrypted = row['encrypted_data'] as String?;
-
-      if (encrypted == null || encrypted.isEmpty || dek == null) return {};
-
-      final plaintext = await CryptoService.decrypt(encrypted, dek);
-      return jsonDecode(plaintext) as Map<String, dynamic>;
+      final resp = await _api.get('/settings');
+      if (resp is! Map<String, dynamic>) return {};
+      final encrypted = resp['encrypted_data'] as String?;
+      if (encrypted == null || encrypted.isEmpty) return {};
+      return jsonDecode(await CryptoService.decrypt(encrypted, dek)) as Map<String, dynamic>;
     } catch (_) {
       return {};
     }
+  }
+
+  Future<void> _writeSettings(Map<String, dynamic> settings) async {
+    final dek = _dek;
+    if (_userId == null || dek == null) return;
+
+    final ciphertext = await CryptoService.encrypt(jsonEncode(settings), dek);
+    await _api.patch('/settings', {'encrypted_data': ciphertext});
   }
 }
