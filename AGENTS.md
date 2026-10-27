@@ -413,18 +413,56 @@ the transit integration is enabled and stops are configured. (An earlier fix,
 commit `3edc3f0`, dropped this check for the globally enabled flag; it was
 restored with profile matching instead of a per-device preset id.)
 
+### Failure back-off & rate limiting
+
+The app must never hammer SL. A failing proxy/API previously caused a fetch
+on every widget rebuild (~1/second), which is what triggered the upstream
+403. That is now impossible by design:
+
+- **`TransitFetchGuard`** (`lib/services/transit_fetch_guard.dart`) is a pure,
+  clock-injected retry policy. Exponential back-off with equal jitter
+  (base 15s → cap 15min), honoring `Retry-After` from the server. A
+  non-retryable status (400/401/403) or `maxFailures` consecutive retryable
+  failures puts it into a **give-up** state: no background traffic until the
+  user explicitly retries (`TransitService.retryNow()`).
+- **`TransitService.fetchJourneys()`** checks the guard *before* the network
+  call and returns stale cache (or null) while backing off. Failures are
+  translated into guard state inside `_runFetch`, which never rejects — so
+  coalesced callers (`_pendingJourneyFetch`) can never observe an unhandled
+  `FunctionException` (that was the source of the "uncaught … status: 403"
+  console error).
+- **UI never fetches from `build()`.** `MyDayTab._maybeRefreshTransit()` is
+  called from its 1-second ticker and on app resume; the service's TTL/guard
+  make it a cheap no-op the rest of the time. `TransitScreen`'s 30-second
+  auto-refresh also skips while backing off, and its pull-to-refresh/Refresh
+  button call `retryNow()` (a deliberate, user-initiated extra attempt).
+- **User-visible state:** when there is no data, `TransitUnavailableCard`
+  (`lib/widgets/transit_unavailable_card.dart`) shows either a retry
+  countdown (backing off) or the give-up message, plus a **Try again** button.
+- **`sl-proxy` hardening:** a 30s in-memory cache keyed by request path, a
+  token-bucket limit on `/v2/trips` (429 + `Retry-After`), forwarding SL's
+  own `Retry-After` on 429/503 (also as `retry_after` in the JSON body, which
+  `TransitService` parses), a descriptive `User-Agent`, and optional
+  `SL_API_KEY` support from Edge Function secrets. Cache + limiter are
+  per-isolate and best-effort — the client back-off is the real protection.
+
+Unit tests: `test/transit_fetch_guard_test.dart` (guard timings, 403 give-up,
+Retry-After, coalescing, no-throw failure, TTL).
+
 ### Key files
 | File | Purpose |
 |------|---------|
 | `lib/models/transit_config.dart` | TransitConfig model (encrypted settings) |
 | `lib/models/journey_info.dart` | Slimmed journey + leg data models |
 | `lib/models/station_info.dart` | Station model (global IDs + site IDs) |
-| `lib/services/transit_service.dart` | Config CRUD + journey planner fetcher + caching |
+| `lib/services/transit_service.dart` | Config CRUD + journey planner fetcher + caching + back-off integration |
+| `lib/services/transit_fetch_guard.dart` | Pure exponential back-off / give-up policy |
+| `lib/widgets/transit_unavailable_card.dart` | "Transit info unavailable" card + manual retry |
 | `lib/widgets/station_picker.dart` | Reusable autocomplete with debounce |
 | `lib/screens/transit_screen.dart` | Transit tab UI with journey cards |
 | `lib/screens/settings_screen.dart` | Transit config card (Work/Home pickers) |
 | `lib/screens/main_shell.dart` | Conditional Transit nav item |
-| `supabase/functions/sl-proxy/index.ts` | Edge Function: CORS proxy + response slimming |
+| `supabase/functions/sl-proxy/index.ts` | Edge Function: CORS proxy + slimming + caching + rate limit |
 
 ### Pinned (committed) journey
 

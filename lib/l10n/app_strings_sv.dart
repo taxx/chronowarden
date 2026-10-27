@@ -158,6 +158,7 @@ const Map<String, String> svCatalog = <String, String>{
   'Reduced period (optional — e.g. summer time)':
       'Reducerad period (valfritt – t.ex. sommartid)',
   'Remaining': 'Återstår',
+  'Retrying in about {seconds}s.': 'Försöker igen om cirka {seconds} s.',
   'Report an issue': 'Rapportera ett problem',
   'Report an issue or request a feature':
       'Rapportera ett problem eller önska en funktion',
@@ -192,13 +193,17 @@ const Map<String, String> svCatalog = <String, String>{
   "Test alert — you'd be notified here!":
       'Testnotis – här skulle du bli notifierad!',
   'Time Bank': 'Tidbank',
+  'The transit service is unavailable right now. Try again in a while.':
+      'Kollektivtrafik-tjänsten är inte tillgänglig just nu. Försök igen om en stund.',
   'Time taken from your bank as personal time. This moves your projected leave time earlier.':
       'Tid som tas från din bank som egen tid. Detta flyttar din beräknade sluttid tidigare.',
   'Today has not started': 'Dagen har inte startat',
   'Total': 'Totalt',
   'Transit': 'Kollektivtrafik',
   'Transit Integration': 'Kollektivtrafikintegration',
+  'Transit info unavailable': 'Kollektivtrafik-info är inte tillgänglig',
   'Transit — {direction}': 'Kollektivtrafik – {direction}',
+  'Try again': 'Försök igen',
   'Type to search SL stations...': 'Skriv för att söka SL-stationer...',
   'Undertime': 'Underskott',
   'Update check unavailable.': 'Uppdateringskontrollen är inte tillgänglig.',

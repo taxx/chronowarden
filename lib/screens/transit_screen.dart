@@ -7,9 +7,11 @@ import '../l10n/app_strings.dart';
 import '../models/journey_info.dart';
 import '../models/transit_config.dart';
 import '../services/pinned_journey_store.dart';
+import '../services/transit_fetch_guard.dart';
 import '../services/transit_service.dart';
 import '../widgets/journey_card.dart';
 import '../widgets/stat_row.dart';
+import '../widgets/transit_unavailable_card.dart';
 
 /// Transit tab — shows journey options between home ↔ work stations.
 ///
@@ -106,10 +108,17 @@ class _TransitScreenState extends State<TransitScreen>
     }
   }
 
+  /// User-initiated refresh: clears any back-off/give-up and always tries the
+  /// network once.
+  Future<void> _manualRefresh() async {
+    _transit.retryNow();
+    await _refresh();
+  }
+
   void _startAutoRefresh() {
     _refreshTimer?.cancel();
     _refreshTimer = Timer.periodic(const Duration(seconds: 30), (_) {
-      if (_isVisible && _cfg?.enabled == true) {
+      if (_isVisible && _cfg?.enabled == true && _transit.canAttempt) {
         _isMorning = _timeIsMorning();
         _refresh();
       }
@@ -195,7 +204,7 @@ class _TransitScreenState extends State<TransitScreen>
         .toList();
 
     return RefreshIndicator(
-      onRefresh: _refresh,
+      onRefresh: _manualRefresh,
       child: ListView(
         padding: const EdgeInsets.all(16),
         children: [
@@ -258,31 +267,38 @@ class _TransitScreenState extends State<TransitScreen>
           // -- Empty state --
           if (pinned == null && (_journeys == null || _journeys!.isEmpty)) ...[
             const SizedBox(height: 32),
-            Center(
-              child: Column(
-                children: [
-                  Icon(Icons.search_off, size: 48,
-                      color: theme.colorScheme.onSurfaceVariant),
-                  const SizedBox(height: 16),
-                  Text(context.t('No journeys found'),
-                      style: theme.textTheme.titleMedium),
-                  const SizedBox(height: 8),
-                  Text(
-                    context.t('Check your station settings or try again later.'),
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
+            if (_transit.availability != TransitAvailability.ok)
+              TransitUnavailableCard(
+                availability: _transit.availability,
+                remaining: _transit.backoffRemaining,
+                onRetry: _manualRefresh,
+              )
+            else
+              Center(
+                child: Column(
+                  children: [
+                    Icon(Icons.search_off, size: 48,
+                        color: theme.colorScheme.onSurfaceVariant),
+                    const SizedBox(height: 16),
+                    Text(context.t('No journeys found'),
+                        style: theme.textTheme.titleMedium),
+                    const SizedBox(height: 8),
+                    Text(
+                      context.t('Check your station settings or try again later.'),
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
           ],
 
           // -- Refresh + timestamp --
           const SizedBox(height: 16),
           Center(
             child: OutlinedButton.icon(
-              onPressed: _refresh,
+              onPressed: _manualRefresh,
               icon: const Icon(Icons.refresh, size: 18),
               label: Text(context.t('Refresh')),
             ),

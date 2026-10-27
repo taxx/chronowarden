@@ -11,6 +11,7 @@ import '../models/transit_config.dart';
 import '../services/notification_service.dart';
 import '../services/pinned_journey_store.dart';
 import '../services/preferences_service.dart';
+import '../services/transit_fetch_guard.dart';
 import '../services/transit_service.dart';
 import '../services/user_settings_service.dart';
 import '../utils/format.dart';
@@ -19,6 +20,7 @@ import '../widgets/break_timer_section.dart';
 import '../widgets/journey_tile.dart';
 import '../widgets/start_stop_day_dialogs.dart';
 import '../widgets/stat_row.dart';
+import '../widgets/transit_unavailable_card.dart';
 
 /// Whether the pre-start My Day transit card ("morning planning") should be
 /// shown on [now]'s weekday.
@@ -82,6 +84,7 @@ class _MyDayTabState extends State<MyDayTab>
     _ticker = Timer.periodic(const Duration(seconds: 1), (_) {
       if (mounted) {
         _checkNotification();
+        _maybeRefreshTransit();
         setState(() {});
       }
     });
@@ -102,6 +105,7 @@ class _MyDayTabState extends State<MyDayTab>
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed && mounted) {
       _checkNotification();
+      _maybeRefreshTransit();
       setState(() {});
     }
   }
@@ -175,6 +179,49 @@ class _MyDayTabState extends State<MyDayTab>
     return _presetById(_selectedPresetId)?.usesTransit ?? true;
   }
 
+  /// Fetch/refresh the transit card's journey data.
+  ///
+  /// Called from the per-second ticker and on app resume — never from
+  /// `build()`. [TransitService] enforces the cache TTL and the failure
+  /// back-off, so most calls are cheap no-ops.
+  void _maybeRefreshTransit() {
+    final cfg = _transit.config;
+    if (!cfg.enabled || !cfg.hasWork || !cfg.hasHome) return;
+
+    final todayLog = _state.todayLog;
+    if (todayLog != null && todayLog.endTime != null) return;
+
+    final hasActiveDay = todayLog != null && todayLog.endTime == null;
+    if (!hasActiveDay &&
+        !shouldShowTransitPlanning(
+          now: DateTime.now(),
+          showWeekends: PreferencesService().showWeekends.value,
+        )) {
+      return;
+    }
+    if (!_commuteUsesTransit(hasActiveDay)) return;
+
+    final isMorning = hasActiveDay ? false : DateTime.now().hour < 11;
+    final originId = cfg.originStopId(isMorning);
+    final destId = cfg.destStopId(isMorning);
+    final walkOffset = cfg.walkMinutes(isMorning);
+
+    if (!_transit.canAttempt) return;
+    if (!_transit.shouldRefreshJourneys(originId, destId, walkOffset)) {
+      return;
+    }
+
+    _transit
+        .fetchJourneys(
+          originId: originId,
+          destId: destId,
+          walkOffsetMinutes: walkOffset,
+        )
+        .then((_) {
+      if (mounted) setState(() {});
+    });
+  }
+
   Widget _buildTransitCard(ThemeData theme) {
     _transitCfg = _transit.config;
 
@@ -224,31 +271,23 @@ class _MyDayTabState extends State<MyDayTab>
     final originId = _transitCfg!.originStopId(isMorning);
     final destId = _transitCfg!.destStopId(isMorning);
 
-    final walkOffset = _transitCfg!.walkMinutes(isMorning);
-
-    // Fetch journey data if cache is stale, missing, or for wrong route
+    // Rendering only — fetching happens in the ticker via
+    // [_maybeRefreshTransit], so a rebuild can never hit the network.
     _transitJourneys = _transit.cachedJourneys;
-    if (_transitJourneys == null) {
-      _transit.fetchJourneys(
-        originId: originId,
-        destId: destId,
-        walkOffsetMinutes: walkOffset,
-      ).then((_) {
-        if (mounted) setState(() {});
-      });
-      _transitCardShown = false;
-      return const SizedBox.shrink();
-    }
 
-    // Refresh if cache is stale (> 60s) or for a different route
-    if (_transit.shouldRefreshJourneys(originId, destId, walkOffset)) {
-      _transit.fetchJourneys(
-        originId: originId,
-        destId: destId,
-        walkOffsetMinutes: walkOffset,
-      ).then((_) {
-        if (mounted) setState(() {});
-      });
+    final availability = _transit.availability;
+    final hasData = _transitJourneys != null && _transitJourneys!.isNotEmpty;
+    if (!hasData && availability != TransitAvailability.ok) {
+      _transitCardShown = true;
+      return TransitUnavailableCard(
+        availability: availability,
+        remaining: _transit.backoffRemaining,
+        onRetry: () {
+          _transit.retryNow();
+          _maybeRefreshTransit();
+          setState(() {});
+        },
+      );
     }
 
     // Filter to catchable journeys (departure within reasonable time)

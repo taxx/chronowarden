@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:cryptography/cryptography.dart';
+import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/journey_info.dart';
@@ -11,6 +12,7 @@ import 'auth_service.dart';
 import 'crypto_service.dart';
 import 'pinned_journey_store.dart';
 import 'supabase_service.dart';
+import 'transit_fetch_guard.dart';
 
 /// Manages transit integration with SL (Stockholm Public Transport).
 ///
@@ -18,24 +20,90 @@ import 'supabase_service.dart';
 /// 1. Read/write [TransitConfig] from encrypted [user_settings]
 /// 2. Fetch SL journey planner stops from /v2/stop-finder (per-query, no cache)
 /// 3. Fetch journey plans from /v2/trips (cached 60s per route, coalesces
-///    concurrent requests for the same route)
+///    concurrent requests for the same route, and backs off exponentially
+///    after failures — see [TransitFetchGuard])
 ///
 /// All API calls go through the sl-proxy Edge Function to avoid CORS issues.
 class TransitService {
-  TransitService._();
+  TransitService._({
+    TransitFetchGuard? guard,
+    this.proxyOverride,
+    DateTime Function()? now,
+  })  : _guard = guard ?? TransitFetchGuard(),
+        _now = now ?? DateTime.now;
+
   static final TransitService _instance = TransitService._();
   factory TransitService() => _instance;
+
+  /// Test seam: a non-singleton instance backed by a fake proxy and clock.
+  @visibleForTesting
+  static TransitService createForTest({
+    TransitFetchGuard? guard,
+    Future<dynamic> Function(String path)? proxyOverride,
+    DateTime Function()? now,
+  }) =>
+      TransitService._(
+        guard: guard,
+        proxyOverride: proxyOverride,
+        now: now,
+      );
+
+  final TransitFetchGuard _guard;
+
+  /// Test seam: replaces the real Edge Function call. Null in production.
+  final Future<dynamic> Function(String path)? proxyOverride;
+
+  final DateTime Function() _now;
 
   // -----------------------------------------------------------------
   // Supabase Edge Function proxy for SL API
   // -----------------------------------------------------------------
 
   /// Invoke the sl-proxy Edge Function with a given path.
-  Future<dynamic> _slProxy(String path) async {
-    final result = await _client.functions.invoke('sl-proxy', body: {
-      'path': path,
-    });
-    return result.data;
+  Future<dynamic> _slProxy(String path) {
+    final override = proxyOverride;
+    if (override != null) return override(path);
+    return _invokeProxy(path);
+  }
+
+  Future<dynamic> _invokeProxy(String path) async {
+    try {
+      final result = await _client.functions.invoke('sl-proxy', body: {
+        'path': path,
+      });
+      return result.data;
+    } on FunctionException catch (e) {
+      throw TransitApiException(
+        status: e.status,
+        message: _proxyMessage(e.details, e.status),
+        retryAfter: _proxyRetryAfter(e.details),
+      );
+    } catch (e) {
+      throw TransitApiException(
+        status: transitNetworkErrorStatus,
+        message: e.toString(),
+      );
+    }
+  }
+
+  String _proxyMessage(dynamic details, int status) {
+    if (details is Map) {
+      final error = details['error'];
+      if (error is String && error.isNotEmpty) return error;
+    }
+    if (details is String && details.isNotEmpty) return details;
+    return 'Transit service error ($status)';
+  }
+
+  Duration? _proxyRetryAfter(dynamic details) {
+    if (details is! Map) return null;
+    final raw = details['retry_after'] ?? details['retryAfter'];
+    if (raw is num) return Duration(seconds: raw.round());
+    if (raw is String) {
+      final seconds = int.tryParse(raw);
+      if (seconds != null) return Duration(seconds: seconds);
+    }
+    return null;
   }
 
   // -----------------------------------------------------------------
@@ -51,6 +119,31 @@ class TransitService {
 
   /// Public read-only access to cached journeys.
   List<JourneyInfo>? get cachedJourneys => _cachedJourneys;
+
+  /// Current transit availability, derived from the retry guard.
+  TransitAvailability get availability => _guard.availability(_now());
+
+  /// Whether the service may hit the network right now.
+  bool get canAttempt => _guard.canAttempt(_now());
+
+  /// Time left before the next automatic retry (zero when not backing off).
+  Duration get backoffRemaining => _guard.remaining(_now());
+
+  /// When the next automatic attempt will happen (null when not backing off).
+  DateTime? get nextRetryAt => _guard.backoffUntil;
+
+  /// Whether the service has given up until an explicit retry.
+  bool get hasGivenUp => _guard.hasGivenUp;
+
+  /// Last failure message, if any.
+  String? get lastErrorMessage => _guard.lastErrorMessage;
+
+  /// Explicit user retry: clear back-off/give-up and drop the cache so the
+  /// next fetch actually hits the network.
+  void retryNow() {
+    _guard.reset();
+    clearJourneyCache();
+  }
 
   /// Whether the journey cache needs refreshing (stale > 60s or wrong route).
   bool shouldRefreshJourneys(String originId, String destId, int walkOffset) {
@@ -241,49 +334,77 @@ class TransitService {
     if (_cachedJourneys != null &&
         _journeysFetchedAt != null &&
         _lastJourneyCacheKey == key) {
-      final age = DateTime.now().difference(_journeysFetchedAt!);
+      final age = _now().difference(_journeysFetchedAt!);
       if (age < _journeysCacheTtl) return _cachedJourneys;
     }
 
-    // Coalesce: if a fetch for this key is already in-flight, reuse it
-    if (_pendingJourneyFetch != null && _lastJourneyCacheKey == key) {
-      return _pendingJourneyFetch;
+    // Coalesce: if a fetch for this key is already in-flight, reuse it. The
+    // pending future never rejects (see [_runFetch]), so this is safe for
+    // every caller.
+    final pending = _pendingJourneyFetch;
+    if (pending != null && _lastJourneyCacheKey == key) {
+      return pending;
     }
 
+    // Respect back-off / give-up: return stale data without touching the
+    // network. This is what stops a failing proxy from being hammered once
+    // per widget rebuild.
+    if (!_guard.canAttempt(_now())) {
+      return _lastJourneyCacheKey == key ? _cachedJourneys : null;
+    }
+
+    final now = _now();
+
+    // Offset the query time by walk minutes so the API gives us
+    // journeys we can actually catch
+    final queryTime = now.add(Duration(minutes: walkOffsetMinutes));
+    final itdTime = '${queryTime.hour.toString().padLeft(2, '0')}'
+        '${queryTime.minute.toString().padLeft(2, '0')}';
+    final itdDate =
+        '${now.year.toString().padLeft(4, '0')}'
+        '${now.month.toString().padLeft(2, '0')}'
+        '${now.day.toString().padLeft(2, '0')}';
+
+    // Request 3 journeys
+    final path = '/v2/trips'
+        '?type_origin=any&name_origin=$originId'
+        '&type_destination=any&name_destination=$destId'
+        '&itd_date=$itdDate&itd_time=$itdTime'
+        '&calc_number_of_trips=3'
+        '&calc_one_direction=true';
+
+    _lastJourneyCacheKey = key;
+    final safe = _runFetch(path, key);
+    _pendingJourneyFetch = safe;
     try {
-      final now = DateTime.now();
-
-      // Offset the query time by walk minutes so the API gives us
-      // journeys we can actually catch
-      final queryTime = now.add(Duration(minutes: walkOffsetMinutes));
-      final itdTime = '${queryTime.hour.toString().padLeft(2, '0')}'
-          '${queryTime.minute.toString().padLeft(2, '0')}';
-      final itdDate =
-          '${now.year.toString().padLeft(4, '0')}'
-          '${now.month.toString().padLeft(2, '0')}'
-          '${now.day.toString().padLeft(2, '0')}';
-
-      // Request 3 journeys
-      final path = '/v2/trips'
-          '?type_origin=any&name_origin=$originId'
-          '&type_destination=any&name_destination=$destId'
-          '&itd_date=$itdDate&itd_time=$itdTime'
-          '&calc_number_of_trips=3'
-          '&calc_one_direction=true';
-
-      // Store the pending fetch to coalesce concurrent calls
-      final pending = _performFetch(path);
-      _pendingJourneyFetch = pending;
-      _lastJourneyCacheKey = key;
-
-      final journeys = await pending;
+      return await safe;
+    } finally {
       _pendingJourneyFetch = null;
+    }
+  }
+
+  /// Run a fetch, translating any failure into guard state and a resulting
+  /// value so coalesced callers can never observe an unhandled error.
+  Future<List<JourneyInfo>?> _runFetch(String path, String key) async {
+    try {
+      final journeys = await _performFetch(path);
+      _guard.recordSuccess();
       return journeys;
-    } catch (_) {
-      _pendingJourneyFetch = null;
-      // Return stale cache on error if we have one for same route
-      if (_lastJourneyCacheKey == key) return _cachedJourneys;
-      return null;
+    } on TransitApiException catch (e) {
+      _guard.recordFailure(
+        _now(),
+        status: e.status,
+        message: e.message,
+        retryAfter: e.retryAfter,
+      );
+      return _lastJourneyCacheKey == key ? _cachedJourneys : null;
+    } catch (e) {
+      _guard.recordFailure(
+        _now(),
+        status: transitNetworkErrorStatus,
+        message: e.toString(),
+      );
+      return _lastJourneyCacheKey == key ? _cachedJourneys : null;
     }
   }
 
@@ -303,7 +424,7 @@ class TransitService {
     journeys.sort((a, b) => a.departureTime.compareTo(b.departureTime));
 
     _cachedJourneys = journeys;
-    _journeysFetchedAt = DateTime.now();
+    _journeysFetchedAt = _now();
     return journeys;
   }
 
@@ -313,6 +434,7 @@ class TransitService {
 
   void onLogout() {
     _config = null;
+    _guard.reset();
     clearJourneyCache();
   }
 }

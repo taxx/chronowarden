@@ -10,8 +10,17 @@
 //   POST /functions/v1/sl-proxy
 //   Body: { "path": "/v2/trips?name_origin=...&name_destination=..." }
 //
-// The function forwards the request and returns JSON with CORS headers.
-// For /v2/trips, the response is slimmed down to essential fields.
+// Protections against hammering the upstream SL API:
+//   1. Short in-memory cache per parsed path (CACHE_TTL_MS) — identical requests
+//      from multiple tabs/devices within the window hit SL once.
+//   2. A token bucket rate limit on /v2/trips. Exceeding it returns 429 with a
+//      `Retry-After` (seconds), which the Flutter client honors.
+//   3. Upstream 429/503 `Retry-After` is forwarded to the client both as a
+//      header and as `retry_after` in the JSON body.
+//
+// The cache and rate limiter are per-isolate and therefore best-effort: a cold
+// isolate starts with a full bucket and an empty cache. The client-side
+// exponential back-off in `TransitService` is the primary protection.
 
 interface SlimmedJourney {
   departure_time: string;
@@ -32,6 +41,64 @@ interface SlimmedLeg {
   departure_platform?: string;
   occupancy?: string;
   delay_minutes?: number;
+}
+
+interface CacheEntry {
+  body: string;
+  expires: number;
+}
+
+const CACHE_TTL_MS = 30_000;
+const CACHE_MAX_ENTRIES = 50;
+const cache = new Map<string, CacheEntry>();
+
+// Token bucket for /v2/trips: up to MAX_TOKENS burst, refilling one token per
+// REFILL_MS. This caps sustained upstream traffic regardless of client bugs.
+const MAX_TOKENS = 10;
+const REFILL_MS = 1_000;
+let tokens = MAX_TOKENS;
+let lastRefill = Date.now();
+
+function cacheGet(key: string): string | null {
+  const entry = cache.get(key);
+  if (!entry) return null;
+  if (Date.now() >= entry.expires) {
+    cache.delete(key);
+    return null;
+  }
+  return entry.body;
+}
+
+function cacheSet(key: string, body: string, ttlMs: number): void {
+  if (cache.size >= CACHE_MAX_ENTRIES) {
+    // Evict the oldest entry (Map preserves insertion order).
+    const oldest = cache.keys().next().value;
+    if (oldest !== undefined) cache.delete(oldest);
+  }
+  cache.set(key, { body, expires: Date.now() + ttlMs });
+}
+
+function takeToken(): { ok: boolean; retryAfterSeconds: number } {
+  const now = Date.now();
+  const elapsed = now - lastRefill;
+  if (elapsed > 0) {
+    tokens = Math.min(MAX_TOKENS, tokens + elapsed / REFILL_MS);
+    lastRefill = now;
+  }
+  if (tokens >= 1) {
+    tokens -= 1;
+    return { ok: true, retryAfterSeconds: 0 };
+  }
+  const waitMs = (1 - tokens) * REFILL_MS;
+  return { ok: false, retryAfterSeconds: Math.max(1, Math.ceil(waitMs / 1000)) };
+}
+
+/// Parse a `Retry-After` header (delta-seconds form) into seconds.
+function parseRetryAfter(header: string | null): number | null {
+  if (!header) return null;
+  const seconds = Number.parseInt(header.trim(), 10);
+  if (Number.isFinite(seconds) && seconds > 0) return seconds;
+  return null;
 }
 
 Deno.serve(async (req: Request) => {
@@ -68,29 +135,82 @@ Deno.serve(async (req: Request) => {
       );
     }
 
+    // Serve from cache before touching the upstream API.
+    const cached = cacheGet(path);
+    if (cached !== null) {
+      return new Response(cached, {
+        status: 200,
+        headers: {
+          ...corsHeaders(),
+          'Content-Type': 'application/json',
+          'Cache-Control': 'no-cache',
+          'X-Cache': 'HIT',
+        },
+      });
+    }
+
+    // Rate-limit the journey planner (the endpoint that gets polled). The
+    // stop-finder is user-driven and debounced on the client.
+    if (path.startsWith('/v2/trips')) {
+      const token = takeToken();
+      if (!token.ok) {
+        return new Response(
+          JSON.stringify({
+            error: 'Transit rate limit reached',
+            status: 429,
+            retry_after: token.retryAfterSeconds,
+          }),
+          {
+            status: 429,
+            headers: {
+              ...corsHeaders(),
+              'Content-Type': 'application/json',
+              'Retry-After': String(token.retryAfterSeconds),
+            },
+          },
+        );
+      }
+    }
+
     // All paths go to the SL Journey Planner API
     const baseUrl = 'https://journeyplanner.integration.sl.se';
-    const targetUrl = `${baseUrl}${path}`;
+    let targetUrl = `${baseUrl}${path}`;
+
+    // Optional subscription key (SL/Trafiklab). Only appended when configured,
+    // so self-hosted instances without one keep working.
+    const apiKey = Deno.env.get('SL_API_KEY');
+    if (apiKey && !/[?&]key=/.test(targetUrl)) {
+      targetUrl += `${targetUrl.includes('?') ? '&' : '?'}key=${apiKey}`;
+    }
 
     // Forward the request to SL API
     const slResponse = await fetch(targetUrl, {
       method: 'GET',
       headers: {
         'Accept': 'application/json',
+        'User-Agent': 'ChronoWarden/1.0 (+https://chronowarden.slumpen.com)',
       },
     });
 
     if (!slResponse.ok) {
       const slBody = await slResponse.text();
+      const retryAfter = parseRetryAfter(slResponse.headers.get('retry-after'));
+      const headers: Record<string, string> = {
+        ...corsHeaders(),
+        'Content-Type': 'application/json',
+      };
+      if (retryAfter !== null) headers['Retry-After'] = String(retryAfter);
+
       return new Response(
         JSON.stringify({
           error: `SL API returned ${slResponse.status}`,
           status: slResponse.status,
+          ...(retryAfter !== null ? { retry_after: retryAfter } : {}),
           detail: slBody.substring(0, 500),
         }),
         {
           status: slResponse.status,
-          headers: { ...corsHeaders(), 'Content-Type': 'application/json' },
+          headers,
         },
       );
     }
@@ -101,7 +221,9 @@ Deno.serve(async (req: Request) => {
     if (path.startsWith('/v2/trips')) {
       try {
         const slimmed = slimTripsResponse(slBody);
-        return new Response(JSON.stringify(slimmed), {
+        const result = JSON.stringify(slimmed);
+        cacheSet(path, result, CACHE_TTL_MS);
+        return new Response(result, {
           status: 200,
           headers: {
             ...corsHeaders(),
@@ -115,6 +237,7 @@ Deno.serve(async (req: Request) => {
     }
 
     // For stop-finder and other endpoints, return as-is
+    cacheSet(path, slBody, CACHE_TTL_MS);
     return new Response(slBody, {
       status: 200,
       headers: {

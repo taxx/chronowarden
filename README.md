@@ -238,6 +238,27 @@ SL Journey Planner API doesn't set CORS headers. The `sl-proxy` Edge
 Function adds CORS headers and **slims** the verbose `/v2/trips`
 response (~220KB for 3 journeys) to essential fields (~2KB).
 
+### Rate limiting & failure back-off
+The client and the proxy both protect the upstream SL API:
+
+- **Client** (`TransitService` + `TransitFetchGuard`): journey requests are
+  cached 60s, concurrent requests for the same route are coalesced, and
+  failures trigger exponential back-off with equal jitter (15s → 15min).
+  A non-retryable status (403/401/400) or too many consecutive failures
+  makes the service **give up** and stop background traffic until the user
+  presses **Try again** / pull-to-refresh. The "My Day" transit card never
+  fetches from `build()`; its per-second ticker only triggers a fetch when
+  the service allows it.
+- **Edge Function** (`sl-proxy`): serves identical `/v2/trips` (and
+  stop-finder) paths from a 30s in-memory cache, enforces a token-bucket
+  rate limit on `/v2/trips` (429 + `Retry-After`), and forwards SL's own
+  `Retry-After` on 429/503. The cache/limiter are per-isolate and
+  best-effort; the client back-off is the primary protection.
+
+When transit data cannot be loaded, the UI shows a `TransitUnavailableCard`
+("Transit info unavailable") with the retry countdown or a give-up message
+and a manual retry button.
+
 ### Transit tab visibility
 The Transit nav item only appears when enabled in Settings.
 Disabled users never see it.
@@ -317,6 +338,7 @@ lib/
 │   ├── time_log_service.dart
 │   ├── travel_preset_service.dart
 │   ├── transit_service.dart # Transit config + journey planner fetcher + caching
+│   ├── transit_fetch_guard.dart # Exponential back-off / give-up for transit failures
 │   ├── work_config_service.dart # Work config (default/reduced expected minutes)
 │   ├── crypto_service.dart  # Encryption / decryption
 │   ├── migration_service.dart # One-time plaintext → encrypted migration
@@ -368,6 +390,7 @@ lib/
 │   ├── log_card.dart
 │   ├── import_dialog.dart
 │   ├── transit_config_section.dart
+│   ├── transit_unavailable_card.dart # "Transit info unavailable" + retry
 │   ├── encryption_settings_section.dart
 │   ├── about_app_section.dart # Open-source links card (Settings)
 │   ├── external_link.dart   # Reusable link text/button (url_launcher)
@@ -392,7 +415,7 @@ lib/
 supabase/
 └── functions/
     └── sl-proxy/
-        └── index.ts         # Edge Function: CORS proxy + response slimming
+        └── index.ts         # Edge Function: CORS proxy + slimming + caching + rate limit
 tool/
 ├── generate_changelog.sh    # CHANGELOG.md from git log
 └── generate_build_info.sh   # build_info.json + web/version.json
