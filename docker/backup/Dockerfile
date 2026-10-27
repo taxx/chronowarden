@@ -1,8 +1,7 @@
 # Backup job container: runs pg_dump on a cron schedule.
-# Alpine 3.22 + PostgreSQL 17 client (matches the Supabase PG 17 server) + busybox cron.
-FROM alpine:3.22
-
-RUN apk add --no-cache postgresql17-client
+# PostgreSQL 18 base image, so the client matches the server version exactly;
+# busybox cron is included in the Alpine base.
+FROM postgres:18-alpine
 
 COPY backup.sh /usr/local/bin/backup.sh
 COPY entrypoint.sh /usr/local/bin/entrypoint.sh

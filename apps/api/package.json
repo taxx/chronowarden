@@ -1,0 +1,26 @@
+{
+  "name": "chronowarden-api",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Self-hosted API for ChronoWarden: auth, encrypted data CRUD, SSE sync and the SL journey proxy.",
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "bun": ">=1.1"
+  },
+  "scripts": {
+    "dev": "bun --hot run src/index.ts",
+    "start": "bun run src/index.ts",
+    "migrate": "bun run src/migrate.ts",
+    "test": "bun test",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "hono": "^4.6.14",
+    "postgres": "^3.4.5"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.1.14",
+    "typescript": "^5.7.2"
+  }
+}
