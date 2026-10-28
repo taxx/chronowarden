@@ -275,7 +275,7 @@ IDs are omitted — the new server assigns them.
 run on the current Supabase build (it reads Supabase rows). Add
 "Settings → Data → Export backup" to the current client, deploy it, and let
 users download their bundle. (Admin can also run this server-side for all
-three users using `.env.db`.)
+three users using direct database access.)
 
 **Phase B — New stack deployed to a parallel port** (e.g. `8982`) with a fresh
 Postgres and no shared data. Smoke test with a throwaway account.
@@ -327,13 +327,13 @@ services:
 
   db:
     image: postgres:18-alpine            # current major; pin minor via tag if desired
-    env_file: [ .env.db ]                # POSTGRES_PASSWORD, POSTGRES_DB
+    env_file: [ .env ]                   # POSTGRES_PASSWORD, POSTGRES_DB
     volumes: [ pgdata:/var/lib/postgresql/data ]
     restart: unless-stopped
 
   backup:                    # existing backup container, repointed at db
     build: { context: ./src/backup }
-    env_file: [ .env.db ]
+    env_file: [ .env ]                   # same POSTGRES_* credentials
     restart: unless-stopped
 
 volumes: { pgdata: {} }

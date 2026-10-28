@@ -5,6 +5,7 @@
 
 ## 2026-10-28
 
+- Update docs for the self-hosted stack (README, AGENTS, AUTH, docs/) (`7500aec`)
 - Remove Supabase-era artifacts and references (`74b9df7`)
 
 ## 2026-10-27

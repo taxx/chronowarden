@@ -112,7 +112,6 @@ docker/
   backup/              pg_dump cron container
 docker-compose.yaml
 .env.example           compose configuration template
-.env.db.sample         DB credentials template (backup container / tooling)
 ```
 
 ---
@@ -150,6 +149,7 @@ Postgres unique violation maps to 409.
 
 ChronoWarden uses invite-only registration with local accounts. Admins manage
 users but cannot read their data — each user operates on an isolated "island".
+See [`docs/AUTH.md`](docs/AUTH.md) for the full reference.
 
 ### Roles & statuses (`users` table)
 
@@ -247,8 +247,8 @@ Passphrase → PBKDF2(310k) → Master Key (KEK)
 
 ## Configuration & Environment
 
-Secrets are loaded by Docker Compose from `.env` / `.env.db` (both gitignored).
-Templates: `.env.example`, `.env.db.sample`.
+Secrets are loaded by Docker Compose from a single, gitignored `.env`.
+Template: `.env.example`.
 
 `.env` keys:
 
@@ -267,17 +267,15 @@ local development it accepts `--dart-define=API_URL=http://localhost:8080/api/v1
 
 ### Database access (AI agent tooling)
 
-Credentials live in `.env.db`:
+Credentials live in `.env` (`POSTGRES_USER` / `POSTGRES_PASSWORD` /
+`POSTGRES_DB`). Run SQL through the container:
 
-```
-DB_CONNECTION_STRING="postgresql://chronowarden:PASSWORD@db:5432/chronowarden"
-DB_PASSWORD="PASSWORD"
+```bash
+docker compose exec db psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"
 ```
 
-`db` resolves inside the compose network (used by the backup container). For
-host-side tooling use `docker compose exec db psql …`, or the host's `psql`
-with the service exposed temporarily. Always pass the password via
-`PGPASSWORD` rather than inlining it.
+The database port is not published on the host. Always pass the password via
+`PGPASSWORD` (or the compose environment) rather than inlining it.
 
 ---
 
@@ -300,7 +298,6 @@ Run:
 
 ```bash
 cp .env.example .env        # fill in a strong POSTGRES_PASSWORD
-cp .env.db.sample .env.db   # same password + the db connection string
 docker compose up --build -d
 ```
 
@@ -359,7 +356,6 @@ ssh tobbe@192.168.1.50 "cd /opt/appdata/chronowarden && docker compose ps"
 ```
 /opt/appdata/chronowarden/
 ├── .env                     # compose secrets (gitignored)
-├── .env.db                  # DB creds for the backup container (gitignored)
 ├── docker-compose.yaml      # symlink -> src/docker-compose.yaml
 ├── data/postgres/           # Postgres data volume
 ├── backup/                  # daily pg_dump archives
@@ -381,7 +377,7 @@ prunes old ones.
 | **Cron** | daily `0 2 * * *` (`CRON_SCHEDULE`) |
 | **Retention** | `RETENTION_DAYS` (default 62) |
 | **Host dir** | `/opt/appdata/chronowarden/backup` (`BACKUP_VOLUME`) |
-| **Credentials** | `env_file: .env.db` |
+| **Credentials** | the same `POSTGRES_*` from `.env`, exposed as `PG*` |
 | **Format** | `pg_dump --format=tar --no-owner` → `gzip -9` |
 
 Files: `docker/backup/{Dockerfile,backup.sh,entrypoint.sh}`. Logs:

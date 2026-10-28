@@ -20,7 +20,7 @@ server via Docker Compose, with no third-party services.
 | 📖 Self-hosting guide | this file (see [Running it](#running-it)) |
 | 🏗️ Architecture & deployment notes | [`AGENTS.md`](AGENTS.md) |
 | 🔐 Encryption architecture | [`docs/ENCRYPTION.md`](docs/ENCRYPTION.md) |
-| 👥 Auth architecture | [`AUTH.md`](AUTH.md) |
+| 👥 Auth architecture | [`docs/AUTH.md`](docs/AUTH.md) |
 | ⚖️ License | [MIT](LICENSE) |
 
 ---
@@ -100,7 +100,7 @@ ChronoWarden supports multiple users with role-based access:
 - There is **no email delivery**: invites are shared out-of-band, and password
   resets are admin-assisted.
 
-See [`AUTH.md`](AUTH.md) for the full authentication architecture.
+See [`docs/AUTH.md`](docs/AUTH.md) for the full authentication architecture.
 
 ## Core Logic & Features
 
@@ -149,7 +149,6 @@ Everything runs from `docker-compose.yaml`:
 ```bash
 # 1. Configure secrets
 cp .env.example .env          # set a strong POSTGRES_PASSWORD
-cp .env.db.sample .env.db     # same password + the db connection string
 
 # 2. Build and start
 docker compose up --build -d
@@ -264,7 +263,7 @@ A `backup` container runs `pg_dump` on a cron schedule and prunes old archives:
 - Daily at 02:00 (`CRON_SCHEDULE`), retained for `RETENTION_DAYS` (default 62).
 - Archives land in the host directory `BACKUP_VOLUME`
   (`/opt/appdata/chronowarden/backup` on the reference server).
-- Credentials come from `.env.db`.
+- Credentials come from the same `.env` (`POSTGRES_*`).
 
 ```bash
 docker compose logs backup                # see backup activity
@@ -274,8 +273,9 @@ ls -lh /opt/appdata/chronowarden/backup   # list archives
 Restore:
 
 ```bash
-source .env.db
-pg_restore --dbname="$DB_CONNECTION_STRING" --format=tar chronowarden_backup_YYYYMMDD_HHMMSS.tar
+source .env
+gunzip -c backup/chronowarden_backup_YYYYMMDD_HHMMSS.tar.gz \
+  | docker compose exec -T db pg_restore -U "$POSTGRES_USER" -d "$POSTGRES_DB" --format=tar
 ```
 
 ---

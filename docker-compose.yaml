@@ -65,16 +65,23 @@ services:
       - web
       - api
 
-  # Daily pg_dump backup, gzipped, with retention.
+  # Daily pg_dump backup, gzipped, with retention. Uses the same database
+  # credentials as the `db`/`api` services (from .env).
   backup:
     build:
       context: ./src/docker/backup
-    env_file:
-      - .env.db
     environment:
       BACKUP_DIR: /backups
       CRON_SCHEDULE: "${CRON_SCHEDULE:-0 2 * * *}"
       RETENTION_DAYS: "${RETENTION_DAYS:-62}"
+      PGHOST: db
+      PGPORT: "5432"
+      PGDATABASE: ${POSTGRES_DB:-chronowarden}
+      PGUSER: ${POSTGRES_USER:-chronowarden}
+      PGPASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set in .env}
+    depends_on:
+      db:
+        condition: service_healthy
     volumes:
       - "${BACKUP_VOLUME:-./backup}:/backups"
     restart: unless-stopped

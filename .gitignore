@@ -1,8 +1,6 @@
 # Secrets — never commit API credentials
 secrets.json
 .env
-.env.db
-.env.edge
 
 # Flutter / build output & dependencies (match at any depth so the apps/ layout works)
 **/.dart_tool/
