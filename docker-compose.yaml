@@ -11,8 +11,9 @@
 #   api    Bun + Hono API (auth, encrypted CRUD, SSE sync, SL proxy)
 #   db     PostgreSQL 18 (only reachable inside the compose network)
 #   backup daily pg_dump + retention
-name: chronowarden
-
+# The Compose project name is derived from the directory this file is invoked
+# from, so two instances (e.g. /opt/appdata/chronowarden and
+# /opt/appdata/chronowarden-beta) get separate containers and networks.
 services:
   db:
     image: postgres:18-alpine
