@@ -4,17 +4,15 @@ secrets.json
 .env.db
 .env.edge
 
-# Flutter build output
-.dart_tool/
-.flutter-plugins
-.flutter-plugins-dependencies
-build/
+# Flutter / build output & dependencies (match at any depth so the apps/ layout works)
+**/.dart_tool/
+**/.flutter-plugins
+**/.flutter-plugins-dependencies
+**/build/
+**/node_modules/
+**/dist/
 *.iml
-.metadata
-
-# API build output / deps
-node_modules/
-apps/api/dist/
+**/.metadata
 
 # IDE
 .idea/
@@ -26,18 +24,21 @@ apps/api/dist/
 .DS_Store
 
 # Android
-android/.gradle/
-android/app/src/main/assets/
-android/local.properties
-android/*.jks
-android/key.properties
+**/android/.gradle/
+**/android/app/src/main/assets/
+**/android/local.properties
+**/android/*.jks
+**/android/key.properties
 
 # iOS
-ios/Flutter/Generated.xcconfig
-ios/Flutter/ephemeral/
-ios/Flutter/ephemeral2/
-ios/Runner/GeneratedPluginRegistrant.*
-*.xcworkspace/
+**/ios/Flutter/Generated.xcconfig
+**/ios/Flutter/ephemeral/
+**/ios/Flutter/ephemeral2/
+**/ios/Flutter/Flutter.podspec
+**/ios/Flutter/flutter_export_environment.sh
+**/ios/Runner/GeneratedPluginRegistrant.*
+**/ios/Pods/
+**/*.xcworkspace/
 
 # Coverage
 coverage/

@@ -1,10 +1,9 @@
 /**
- * SL Journey Planner proxy + response slimming (ported from the Supabase
- * `sl-proxy` Edge Function).
+ * SL Journey Planner proxy + response slimming.
  *
- * Same-origin now, so no CORS handling is needed; only the slimming and an
- * optional API key remain. A small in-memory cache blunts repeated identical
- * queries.
+ * Served same-origin by the API, so no CORS handling is needed; only the
+ * slimming and an optional API key remain. A small in-memory cache blunts
+ * repeated identical queries.
  */
 export interface SlimmedLeg {
   type: 'transport' | 'walk';

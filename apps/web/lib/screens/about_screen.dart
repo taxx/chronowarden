@@ -121,7 +121,7 @@ class AboutScreen extends StatelessWidget {
                   _paragraph(
                     theme,
                     context.t(
-                      '{app} is designed to be self-hosted. The whole stack — Flutter web app, nginx container, Supabase schema, and the SL transit proxy — lives in the repository. Bring your own Supabase project and secrets, then build with Docker Compose.',
+                      '{app} is designed to be self-hosted. The whole stack — the Flutter web client, the Bun/Hono API, PostgreSQL 18, and the SL transit proxy — lives in the repository. Run it with Docker Compose.',
                       {'app': AppInfo.name},
                     ),
                   ),
@@ -178,7 +178,7 @@ class AboutScreen extends StatelessWidget {
 
                   Center(
                     child: Text(
-                      context.t('Made with Flutter & Supabase ❤️'),
+                      context.t('Made with Flutter & Bun ❤️'),
                       style: theme.textTheme.bodySmall?.copyWith(
                         color: theme.colorScheme.onSurfaceVariant,
                       ),

@@ -348,7 +348,7 @@ const Map<String, String> svCatalog = <String, String>{
   'Layer 3: Data Encryption Key (DEK)': 'Lager 3: Data Encryption Key (DEK)',
   'Layer 4: Encrypted Data': 'Lager 4: Krypterade data',
   'Lunch break': 'Lunchrast',
-  'Made with Flutter & Supabase ❤️': 'Byggd med Flutter & Supabase ❤️',
+  'Made with Flutter & Bun ❤️': 'Byggd med Flutter & Bun ❤️',
   'Master Key (KEK)': 'Huvudnyckel (KEK)',
   'Minutes to take from the bank each workday.\nTrend adjusts for your avg growth ({growth}/week).':
       'Minuter att ta från banken varje arbetsdag.\nTrenden justeras efter din genomsnittliga tillväxt ({growth}/vecka).',
@@ -459,8 +459,8 @@ const Map<String, String> svCatalog = <String, String>{
   'net work done at {time}': 'nettoarbete klart {time}',
   '{app} also runs as a convenience instance at {url}. It is maintained on a best-effort basis: there are no guarantees of availability, uptime, or data retention.':
       '{app} körs också som en bekvämlighetsinstans på {url}. Den underhålls i mån av tid: inga garantier ges för tillgänglighet, drifttid eller datalagring.',
-  '{app} is designed to be self-hosted. The whole stack — Flutter web app, nginx container, Supabase schema, and the SL transit proxy — lives in the repository. Bring your own Supabase project and secrets, then build with Docker Compose.':
-      '{app} är utformad för att driftsättas själv. Hela stacken – Flutter-webbappen, nginx-containern, Supabase-schemat och SL-transitproxyn – finns i repot. Ta med ditt eget Supabase-projekt och dina hemligheter och bygg med Docker Compose.',
+  '{app} is designed to be self-hosted. The whole stack — the Flutter web client, the Bun/Hono API, PostgreSQL 18, and the SL transit proxy — lives in the repository. Run it with Docker Compose.':
+      '{app} är utformad för att driftsättas själv. Hela stacken – Flutter-webbklienten, Bun/Hono-API:et, PostgreSQL 18 och SL-transitproxyn – finns i repot. Kör den med Docker Compose.',
   '{app} is free and open-source software, released under the {license}. You are free to use, study, modify, and redistribute it — including for your own self-hosted instance.':
       '{app} är fri programvara med öppen källkod, licensierad under {license}. Du får använda, studera, ändra och distribuera den – även för din egen driftade instans.',
   '{app} is released under the {license}. Anyone can read the code, verify that the encryption above works as described, self-host it, or contribute improvements.':

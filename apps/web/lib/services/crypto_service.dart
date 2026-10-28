@@ -199,7 +199,7 @@ class CryptoService {
   // Cleared on logout.
   //
   // Security: localStorage is accessible to same-origin JavaScript, but
-  // the DEK alone is useless without the encrypted data from Supabase
+  // the DEK alone is useless without the encrypted data from the server
   // (which requires the user's auth session).
 
   static const _dekStorageKey = 'cw_dek';

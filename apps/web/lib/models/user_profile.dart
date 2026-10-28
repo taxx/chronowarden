@@ -1,4 +1,4 @@
-/// Lightweight profile extending auth.users. Maps to the [profiles] table.
+/// A ChronoWarden account. Maps to the API's `users` table.
 class UserProfile {
   final String id;
   final String email;

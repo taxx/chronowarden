@@ -18,9 +18,8 @@ class RealtimeEvent {
 
 /// Streams cross-device changes for the signed-in user.
 ///
-/// Replaces Supabase Realtime: the API publishes an event whenever one of the
-/// user's rows changes, and the app re-fetches the affected data — the same
-/// behaviour the app had before, just without a third-party service.
+/// The API publishes an event over Server-Sent Events whenever one of the
+/// user's rows changes, and the app re-fetches the affected data.
 class RealtimeService {
   RealtimeService._();
   static final RealtimeService _instance = RealtimeService._();

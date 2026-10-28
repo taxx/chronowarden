@@ -1,11 +1,11 @@
 -- ============================================================
 -- ChronoWarden — self-hosted canonical schema (Postgres 18)
 --
--- Replaces the Supabase project: `profiles` is merged into `users`
--- (there is no separate `auth.users`), and Row Level Security is
--- intentionally absent because the database is only ever reached by
--- the API container, which scopes every query to the authenticated
--- user. The database is not published on the host.
+-- User accounts live directly in `users` (there is no separate auth
+-- service), and Row Level Security is intentionally absent because the
+-- database is only ever reached by the API container, which scopes every
+-- query to the authenticated user. The database is not published on the
+-- host.
 --
 -- Zero-knowledge model is unchanged: all user content lives in
 -- `encrypted_data` (AES-256-GCM, client-side). Only `user_id`, `date`
