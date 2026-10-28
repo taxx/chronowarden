@@ -19,7 +19,7 @@
                                                                                                                                                                                                       
  ### 2. AppState import method — lib/app_state.dart
                                                                                                                                                                                                       
- - importDaysFromCsv(String csv) — parses CSV, recalculates overtime per row, inserts each valid log into Supabase, then refreshes all cached data                                                    
+ - importDaysFromCsv(String csv) — parses CSV, recalculates overtime per row, inserts each valid log into the API, then refreshes all cached data                                                    
  - Uses _getUserId() to scope to the authenticated user                                                                                                                                               
  - Existing dates are automatically skipped (no accidental overwrites)                                                                                                                                
                                                                                                                                                                                                       

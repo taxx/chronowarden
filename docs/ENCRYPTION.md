@@ -1,23 +1,27 @@
-# Data Encryption Options — ChronoWarden
+# Encryption Architecture — ChronoWarden
+
+> Design reference. Code paths below are relative to `apps/web/` (the Flutter
+> client); the server is the self-hosted Bun/Hono API backed by PostgreSQL. The
+> encryption design did not change when the app moved off a hosted backend.
 
 ## The Problem
 
-Currently, data flows like this:
+Without client-side encryption, data flows like this:
 
 ```
-User → Flutter App → Supabase Client (anon key) → PostgreSQL (RLS: auth.uid() = user_id)
-                                                    ↑
-                                            Supabase Dashboard (service_role key)
-                                            bypasses RLS — sees ALL rows
+User → Flutter App → API (bearer session) → PostgreSQL
+                                             ↑
+                                   Server operator / database access
+                                   can read every row
 ```
 
-Even though RLS prevents an admin user from querying other users' data via the app,
-anyone with access to the Supabase project dashboard (i.e., you) can see every row
-in every table using the service role key. That is the gap we want to close.
+The API scopes each query to its owner, but that does not protect data at rest:
+anyone with database or backup access can read every row. That is the gap we
+want to close.
 
 ## Goal
 
-**Zero-knowledge architecture** — the server (Supabase) stores only ciphertext.
+**Zero-knowledge architecture** — the server stores only ciphertext.
 The encryption keys live exclusively on the user's device. Even the database
 administrator cannot read user data. Must work across multiple devices.
 
@@ -71,7 +75,7 @@ Since data is unrecoverable without the passphrase, offer a **recovery key**:
 
 ### How it works (recommended variant)
 
-Use a **dedicated encryption passphrase** independent of the Supabase Auth password.
+Use a **dedicated encryption passphrase** independent of the account authentication password.
 
 #### Setup flow (first login)
 
@@ -107,10 +111,10 @@ Page loads → check sessionStorage for cached DEK
 
 ```
 WRITE:
-Model.toJson() → JSON bytes → AES-GCM encrypt with DEK → base64 → Supabase
+Model.toJson() → JSON bytes → AES-GCM encrypt with DEK → base64 → the server
 
 READ:
-Supabase → base64 → AES-GCM decrypt with DEK → JSON bytes → Model.fromJson()
+the server → base64 → AES-GCM decrypt with DEK → JSON bytes → Model.fromJson()
 ```
 
 #### Passphrase change
@@ -134,34 +138,33 @@ Recovery verified against stored SHA-256(recovery_key) in user_settings
 
 ---
 
-## Option B — Envelope Encryption Using Supabase Auth Password
+## Option B — Envelope Encryption Using the Account Password
 
-Same key hierarchy as Option A, but the Master Key is derived from the **Supabase
+Same key hierarchy as Option A, but the Master Key is derived from the **account
 login password** instead of a separate passphrase.
 
 ### Key difference
 
-- User remembers only one password (their Supabase login password)
+- User remembers only one password (their account login password)
 - Master Key = PBKDF2(login password, salt, 310k)
 - Encrypted DEK stored in `user_settings`
 
 ### Problem
 
-Supabase Auth hashes the password **before** storing it (bcrypt). We capture the
-plaintext password during `signIn` / `signUp`, derive the Master Key from it, then
-send it to Supabase Auth. This works — but:
+The server hashes the password **before** storing it (argon2id). We would have
+to capture the plaintext password during `signIn` / `signUp`, derive the Master
+Key from it, then send it to the server. This works — but:
 
-- **Password reset** via Supabase (e.g., forgot password email link) cannot be
-  intercepted by the app, so the user would lose their encryption key unless
-  they also have a recovery key.
-- Changing password via Supabase UI means we lose access to the old plaintext
+- **Password reset** cannot be intercepted by the app, so the user would lose
+  their encryption key unless they also have a recovery key.
+- Changing the password outside the app means losing access to the old plaintext
   password (needed to decrypt the DEK).
 
 ### Verdict
 
 More fragile than Option A because password-reset flows break the encryption.
-Only viable if the app handles ALL password changes internally (no Supabase
-magic-link resets) AND captures the old password before changing it.
+Only viable if the app handles ALL password changes internally AND captures the
+old password before changing it.
 
 ---
 
@@ -232,7 +235,7 @@ if (cached != null) {
 **Security note**: sessionStorage is isolated per browser origin and per tab.
 It is accessible to JavaScript running in the same origin (including extensions),
 but this is the same threat model as the rest of the app. The DEK alone is useless
-without the encrypted data from Supabase (which requires the user's auth session).
+without the encrypted data from the server (which requires the user's auth session).
 
 **Optional UX**: Add a toggle "Require passphrase on every page load" for
 paranoid users. When enabled, skip sessionStorage cache and always prompt.
@@ -374,7 +377,7 @@ Keeping `date` as a plaintext index column allows the server to filter
 ### Implementation sketch
 
 ```
-lib/services/
+apps/web/lib/services/
 ├── crypto_service.dart          # NEW: key derivation, AES-GCM wrap/unwrap, mnemonic
 ├── auth_service.dart            # MODIFIED: capture passphrase, derive KEK, cache DEK in sessionStorage
 ├── time_log_service.dart        # MODIFIED: encrypt/decrypt via CryptoService
@@ -383,11 +386,11 @@ lib/services/
 ├── user_settings_service.dart   # MODIFIED: store/load encrypted DEK + salt
 ├── preferences_service.dart     # Unchanged (local preferences only)
 
-lib/models/
+apps/web/lib/models/
 ├── time_log.dart                # Unchanged (model stays the same)
 ├── encrypted_envelope.dart      # NEW: holds encrypted_data + nonce + tag
 
-lib/screens/
+apps/web/lib/screens/
 ├── login_screen.dart            # MODIFIED: add passphrase field
 ├── signup_screen.dart           # MODIFIED: add passphrase + confirm passphrase
 ├── migration_screen.dart        # NEW: one-time setup for existing users
@@ -463,7 +466,7 @@ class AuthService extends ChangeNotifier {
     required String password,
     required String encryptionPassphrase,
   }) async {
-    // 1. Log in to Supabase Auth (existing flow)
+    // 1. Log in to account authentication (existing flow)
     await _client.auth.signInWithPassword(email: email, password: password);
 
     // 2. Derive Master Key from encryption passphrase
@@ -599,35 +602,36 @@ All code has been implemented and passes `flutter analyze` with zero errors.
 ### Files created (7)
 | File | Lines | Purpose |
 |------|-------|---------|
-| `lib/services/crypto_service.dart` | ~550 | PBKDF2, AES-256-GCM, key wrap, BIP39 mnemonic, sessionStorage |
-| `lib/models/encrypted_envelope.dart` | 40 | Encrypted row data model |
-| `lib/services/migration_service.dart` | 140 | One-time migration: encrypt all existing rows |
-| `lib/screens/migration_screen.dart` | 420 | Migration UI: passphrase setup + progress + recovery display |
-| `lib/screens/about_encryption_screen.dart` | 310 | Full encryption explainer with key hierarchy diagram |
+| `apps/web/lib/services/crypto_service.dart` | ~550 | PBKDF2, AES-256-GCM, key wrap, BIP39 mnemonic, sessionStorage |
+| `apps/web/lib/models/encrypted_envelope.dart` | 40 | Encrypted row data model |
+| `apps/web/lib/services/migration_service.dart` | 140 | One-time migration: encrypt all existing rows |
+| `apps/web/lib/screens/migration_screen.dart` | 420 | Migration UI: passphrase setup + progress + recovery display |
+| `apps/web/lib/screens/about_encryption_screen.dart` | 310 | Full encryption explainer with key hierarchy diagram |
 | `migration_encryption.sql` | 40 | SQL to add `encrypted_data`, `encrypted_dek`, `kek_salt`, etc. |
 
 ### Files modified (9)
 | File | Change |
 |------|--------|
 | `pubspec.yaml` | Added `cryptography`, `crypto` packages |
-| `lib/main.dart` | Added `needsMigration` routing → `MigrationScreen` |
-| `lib/services/auth_service.dart` | DEK lifecycle, session cache, migration detection |
-| `lib/services/time_log_service.dart` | Encrypt/decrypt all data with DEK |
-| `lib/services/travel_preset_service.dart` | Same encryption pattern |
-| `lib/services/work_config_service.dart` | Settings in encrypted_data column |
-| `lib/services/user_settings_service.dart` | Flex minutes in encrypted payload |
-| `lib/screens/login_screen.dart` | Encryption passphrase toggle + migration redirect |
-| `lib/screens/signup_screen.dart` | Encryption passphrase + confirm with warnings |
-| `lib/screens/settings_screen.dart` | Encryption status card + recovery phrase display |
+| `apps/web/lib/main.dart` | Added `needsMigration` routing → `MigrationScreen` |
+| `apps/web/lib/services/auth_service.dart` | DEK lifecycle, session cache, migration detection |
+| `apps/web/lib/services/time_log_service.dart` | Encrypt/decrypt all data with DEK |
+| `apps/web/lib/services/travel_preset_service.dart` | Same encryption pattern |
+| `apps/web/lib/services/work_config_service.dart` | Settings in encrypted_data column |
+| `apps/web/lib/services/user_settings_service.dart` | Flex minutes in encrypted payload |
+| `apps/web/lib/screens/login_screen.dart` | Encryption passphrase toggle + migration redirect |
+| `apps/web/lib/screens/signup_screen.dart` | Encryption passphrase + confirm with warnings |
+| `apps/web/lib/screens/settings_screen.dart` | Encryption status card + recovery phrase display |
 
 ### Deployment checklist
 
-1. Run `migration_encryption.sql` in Supabase SQL Editor
+1. Apply migrations — the API does this automatically on startup from
+   `apps/api/migrations/`
 2. Build and deploy: `docker compose up --build -d`
 3. **New users** (signing up after deploy): set encryption passphrase at signup → data encrypted from day one
 4. **Existing users** (signed up before deploy): login → migration screen detects no envelope → set passphrase → all historical data encrypted → recovery phrase shown once
 5. **All users**: encryption is per-user, independent, and zero-knowledge — even the admin cannot read another user's data
-6. Verify: check Supabase dashboard — `encrypted_data` columns show base64 ciphertext only
+6. Verify: check the database — `encrypted_data` columns show base64 ciphertext only
 
 ---
 

@@ -1,8 +1,21 @@
 # ChronoWarden — Self-Hosting Migration Plan
 
-> Status: **plan / proposal**, nothing implemented yet.
-> Goal: run ChronoWarden 100 % self-hosted on the existing Docker Compose
-> server, with **no Supabase dependency** (cloud or self-hosted).
+> Status: **implemented** on the `feat/selfhost` branch. The stack now runs as a
+> self-hosted Docker Compose deployment with **no Supabase dependency**. This
+> document is kept as the design record; see `AGENTS.md` and `README.md` for the
+> current architecture, and `AUTH.md` for the auth model.
+>
+> Deviations from the original plan:
+> - Auth uses **opaque session tokens** (hashed in `sessions`) rather than JWTs —
+>   simpler for the client and instantly revocable.
+> - Registration is **invite-only**: an admin issues an email-bound token and the
+>   user sets their own password (mirroring the openmash flow).
+> - Cross-device sync is **SSE** published by the API on every write, not a
+>   Postgres logical-replication bridge.
+> - The SL proxy + response slimming moved into the API
+>   (`POST /api/v1/sl/proxy`).
+> - Data portability uses a full encrypted **backup bundle** (Settings → Backup
+>   & Restore) in addition to the existing CSV import/export.
 
 ---
 
