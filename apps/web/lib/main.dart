@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/semantics.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 
 import 'l10n/app_strings.dart';
@@ -17,8 +18,20 @@ import 'services/preferences_service.dart';
 import 'services/theme_service.dart';
 import 'app_state.dart';
 
+/// Kept alive for the lifetime of the app when semantics are force-enabled:
+/// disposing the handle would switch the accessibility tree back off.
+// ignore: unused_element
+SemanticsHandle? _semanticsHandle;
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // End-to-end tests (Playwright) drive the app through the accessibility
+  // semantics tree, which Flutter only materialises in the DOM when enabled.
+  // Off by default so production builds are unaffected.
+  if (const bool.fromEnvironment('ENABLE_SEMANTICS')) {
+    _semanticsHandle = SemanticsBinding.instance.ensureSemantics();
+  }
 
   // The API base URL defaults to the same-origin `/api/v1`. Local development
   // can override it with --dart-define=API_URL=http://localhost:8080/api/v1.

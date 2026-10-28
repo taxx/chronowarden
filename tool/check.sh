@@ -2,9 +2,14 @@
 #
 # One-command feedback loop: typecheck + tests for the API and the web client.
 #
-#   tool/check.sh            # everything
+#   tool/check.sh            # fast loop: API + web
 #   tool/check.sh api        # API only (typecheck + unit + integration)
 #   tool/check.sh web        # web only (analyze + tests)
+#   tool/check.sh e2e        # browser end-to-end (Playwright; builds the web app)
+#
+# `e2e` is intentionally not part of the default run: it builds the Flutter web
+# bundle and drives a real browser, so it is slower. Run it before merging/
+# deploying.
 #
 # The API integration tests start their own throwaway Postgres (using local
 # binaries), or use $TEST_DATABASE_URL when set (e.g. CI).
@@ -45,6 +50,11 @@ if [ "$TARGET" = "all" ] || [ "$TARGET" = "web" ]; then
 
   step "Web · flutter test"
   run bash -c "cd '$ROOT/apps/web' && flutter test"
+fi
+
+if [ "$TARGET" = "e2e" ]; then
+  step "E2E · Playwright (builds the web app, starts a throwaway API + Postgres)"
+  run bash -c "cd '$ROOT/e2e' && npm install --silent && npx playwright test"
 fi
 
 if [ "$FAILED" -ne 0 ]; then

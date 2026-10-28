@@ -1,0 +1,14 @@
+{
+  "name": "chronowarden-e2e",
+  "private": true,
+  "type": "module",
+  "description": "End-to-end browser tests for the ChronoWarden web client.",
+  "scripts": {
+    "test": "playwright test",
+    "test:headed": "playwright test --headed",
+    "install-browser": "playwright install chromium"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.49.1"
+  }
+}

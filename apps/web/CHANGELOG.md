@@ -5,6 +5,7 @@
 
 ## 2026-10-28
 
+- Add API integration tests, one-command check script and CI (`4a27676`)
 - Derive the compose project name from the directory (allow parallel instances) (`7c43573`)
 - Consolidate secrets into .env, move AUTH.md to docs, drop TODO.md (`55ce0ca`)
 - Update docs for the self-hosted stack (README, AGENTS, AUTH, docs/) (`7500aec`)

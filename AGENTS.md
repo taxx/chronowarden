@@ -43,6 +43,27 @@ talks to a Bun/Hono API backed by PostgreSQL, all run with Docker Compose.
 
 ---
 
+## Testing & CI
+
+- **`tool/check.sh`** is the feedback loop: API typecheck + unit + integration
+  tests, then Flutter analyze + tests. Sub-targets: `tool/check.sh api|web|e2e`.
+- **API unit tests** live in `apps/api/test/unit`; **integration tests** in
+  `apps/api/test/integration`. The latter start a throwaway Postgres (via
+  `test/helpers/postgres.ts`) or use `TEST_DATABASE_URL`, run the real
+  migrations, and drive the real Hono app in-process: bootstrap/auth, invites,
+  admin ops, cross-user isolation, CRUD, export/import, SSE and a pg_dump
+  round-trip.
+- **Web tests** live in `apps/web/test` (including the `app_strings_test.dart`
+  localization guard).
+- **Browser E2E** (`e2e/`, Playwright) builds the web app with
+  `ENABLE_SEMANTICS` and drives it against a real API on one origin; run with
+  `tool/check.sh e2e`. Flutter renders to canvas, so it locates widgets through
+  the accessibility semantics tree (see `e2e/README.md`).
+- **CI** (`.github/workflows/ci.yml`) runs all three on push/PR. The e2e job
+  installs Chromium; the API job uses a Postgres service.
+
+---
+
 ## Architecture Overview
 
 ```

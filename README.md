@@ -188,12 +188,25 @@ flutter run -d chrome --dart-define=API_URL=http://localhost:8080/api/v1
 Run the API with `CORS_ORIGIN=http://localhost:<flutter-port>` so the browser can
 call it cross-origin during development.
 
-### Checks
+### Tests
+
+The whole suite runs through one script:
 
 ```bash
-flutter analyze && flutter test        # in apps/web
-bunx tsc --noEmit && bun test          # in apps/api
+./tool/check.sh          # API typecheck/unit/integration + Flutter analyze/tests
+./tool/check.sh api      # API only
+./tool/check.sh web      # web only
+./tool/check.sh e2e      # browser end-to-end (Playwright; builds the web app)
 ```
+
+- **API integration tests** (`apps/api/test/integration`) start their own
+  throwaway Postgres (or use `TEST_DATABASE_URL`) and cover auth, invites,
+  admin ops, **cross-user isolation**, CRUD, export/import, SSE and a `pg_dump`
+  round-trip.
+- **Browser E2E** (`e2e/`) drives the real Flutter app against a real API in a
+  throwaway stack — see [`e2e/README.md`](e2e/README.md).
+- CI (`.github/workflows/ci.yml`) runs all of the above on push and pull
+  requests.
 
 ### Generated metadata
 
