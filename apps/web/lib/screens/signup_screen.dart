@@ -133,10 +133,15 @@ class _SignupScreenState extends State<SignupScreen> {
       return;
     }
 
-    // Approved user: show recovery phrase if one was generated
+    // Approved user: show the recovery phrase if one was generated.
+    //
+    // Push (not pushReplacement): the authenticated root becomes the main
+    // shell underneath, and "Continue to App" pops back to it. Replacing the
+    // first route would leave the onboarding screen as the only route, so
+    // popUntil(isFirst) could never dismiss it.
     final phrase = _auth.pendingRecoveryPhrase;
     if (phrase != null && phrase.isNotEmpty) {
-      Navigator.pushReplacement(
+      Navigator.push(
         context,
         MaterialPageRoute(
           builder: (_) => RecoveryOnboardingScreen(phrase: phrase),

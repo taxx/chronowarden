@@ -80,6 +80,18 @@ class _ChronoWardenAppState extends State<ChronoWardenApp> {
 
   bool _audioPrimed = false;
 
+  /// Cached first-run probe for the unauthenticated screen.
+  ///
+  /// A `FutureBuilder` whose `future` changes resets to `waiting` and rebuilds
+  /// its child. `AuthService.signUp()` notifies listeners before its network
+  /// calls, so re-creating this future on every rebuild used to unmount the
+  /// signup screen mid-flow — which silently skipped the recovery-phrase
+  /// onboarding. Cache it; reset it on sign-out.
+  Future<bool?>? _databaseStateFuture;
+
+  Future<bool?> _databaseState() =>
+      _databaseStateFuture ??= _auth.checkDatabaseState();
+
   /// Unlock the alert audio on the first user gesture — browsers keep the
   /// Web Audio context suspended otherwise, making the alert beep silent.
   void _primeAudioOnce() {
@@ -94,8 +106,12 @@ class _ChronoWardenAppState extends State<ChronoWardenApp> {
     super.dispose();
   }
 
+  bool _wasAuthenticated = false;
+
   void _onAuthChanged() {
-    if (_auth.isAuthenticated && _auth.profile?.isApproved == true) {
+    final isAuthenticated = _auth.isAuthenticated;
+
+    if (isAuthenticated && _auth.profile?.isApproved == true) {
       _state.refresh();
       // Passphrase unlock may have happened after startup — pull the
       // cross-device language now that the DEK is available.
@@ -105,6 +121,15 @@ class _ChronoWardenAppState extends State<ChronoWardenApp> {
       NotificationService().resetForToday();
       _state.onSignOut();
     }
+
+    // Only re-probe the backend on an actual sign-out. Resetting on every
+    // non-authenticated notification would recreate the future mid-signup
+    // (AuthService notifies before its network calls) and unmount the signup
+    // screen before it can show the recovery phrase.
+    if (_wasAuthenticated && !isAuthenticated) {
+      _databaseStateFuture = null;
+    }
+    _wasAuthenticated = isAuthenticated;
   }
 
   @override
@@ -198,7 +223,7 @@ class _ChronoWardenAppState extends State<ChronoWardenApp> {
 
   Widget _buildUnauthenticated() {
     return FutureBuilder<bool?>(
-      future: _auth.checkDatabaseState(),
+      future: _databaseState(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());

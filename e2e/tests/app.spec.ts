@@ -67,13 +67,14 @@ test.describe.serial('ChronoWarden end-to-end', () => {
 
     await createAdmin.click();
 
-    // Recovery phrase onboarding is shown when the flow manages to push it;
-    // the app shell is the other possible landing spot. Accept either.
-    await page.waitForTimeout(1500);
+    // The user MUST land on the recovery-phrase onboarding: skipping it would
+    // leave them without the only way to recover their encryption key.
+    // Regression guard: the signup screen used to be unmounted mid-flow, so
+    // this route was never pushed.
     const continueToApp = page.getByRole('button', { name: 'Continue to App' });
-    if (await continueToApp.isVisible().catch(() => false)) {
-      await continueToApp.click();
-    }
+    await expect(continueToApp).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByText('Your Recovery Phrase')).toBeVisible();
+    await continueToApp.click();
 
     await expect(page.getByRole('button', { name: 'Sign out' })).toBeVisible({ timeout: 30_000 });
   });

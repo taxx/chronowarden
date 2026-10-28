@@ -43,10 +43,16 @@ port. Traces for failures land in `e2e/test-results/`.
 - Backup: opens Settings and downloads a full backup, asserting the bundle
   envelope and structure.
 
-## Known findings
+## Regression coverage
 
-The first-run test accepts either the recovery-phrase onboarding screen or the
-app shell, because the app was observed jumping straight to the shell after
-signup (the signup screen can be unmounted before it pushes the onboarding
-route). Worth fixing — a brand-new user should always be shown their recovery
-phrase.
+The first-run test asserts that a new user **must** land on the recovery-phrase
+onboarding and can dismiss it. Two bugs used to hide or trap that screen:
+
+1. The signup screen was unmounted mid-flow — a rebuild recreated the
+   `checkDatabaseState()` future, resetting the `FutureBuilder` — so the
+   onboarding route was never pushed and the app fell through to the main shell.
+2. The onboarding was pushed with `pushReplacement`, making it the *first*
+   route, so "Continue to App" (`popUntil(isFirst)`) could never dismiss it.
+
+The future is now cached in `main.dart` (reset only on a real sign-out) and the
+route is pushed on top of the shell. This test guards both.
