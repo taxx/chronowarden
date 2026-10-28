@@ -367,12 +367,19 @@ apps/
     │   ├── sl.ts            SL fetch + slimming
     │   └── routes/          auth, admin, data, backup, sl, events
     ├── migrations/          numbered SQL (001_init.sql …)
-    ├── test/                bun:test unit tests
+    ├── test/                unit + integration tests (throwaway Postgres)
     └── Dockerfile
+e2e/                         Playwright browser tests
+├── tests/app.spec.ts        signup, sign-in, backup download
+├── server.ts                API + static web on one origin
+├── global-setup.ts          builds the web bundle, boots the stack
+└── README.md
+tool/check.sh                one-command feedback loop (api | web | e2e)
 docker/
 ├── proxy/nginx.conf         front door
 └── backup/                  pg_dump cron container
 docker-compose.yaml
+.github/workflows/ci.yml     CI: api, web, e2e jobs
 ```
 
 ---
@@ -384,9 +391,9 @@ Contributions are welcome — bug reports, feature ideas, docs, and pull request
 - **Bugs / ideas:** open an issue at
   <https://github.com/taxx/chronowarden/issues> with steps to reproduce, expected
   vs. actual behaviour, and platform.
-- **Before a PR:** run `flutter analyze && flutter test` (in `apps/web`) and
-  `bunx tsc --noEmit && bun test` (in `apps/api`). Keep changes small and
-  consistent with the KISS approach.
+- **Before a PR:** run `./tool/check.sh` (API typecheck + unit + integration,
+  Flutter analyze + tests) and `./tool/check.sh e2e` for the browser suite. Keep
+  changes small and consistent with the KISS approach.
 - **UI text is localized:** wrap new strings in `context.t('…')` and add the
   Swedish entry to `apps/web/lib/l10n/app_strings_sv.dart` in the same commit —
   `test/app_strings_test.dart` fails otherwise.

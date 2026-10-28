@@ -53,6 +53,24 @@ The `users` table holds both the account and the profile (there is no separate
 Invites are single-use and expire (default 14 days, maximum 90). Creating a new
 invite for an email replaces any unused invite for that address.
 
+### Encryption setup at signup
+
+Immediately after `setup`/`register`, the client creates the encryption envelope
+(wrapped DEK) and shows the **recovery phrase** once on
+`RecoveryOnboardingScreen` (`apps/web/lib/screens/recovery_onboarding_screen.dart`).
+That screen must always appear: it is the user's only way to recover the DEK if
+they forget the passphrase.
+
+Two regressions used to hide it, both now fixed and guarded by the first-run E2E
+test (`e2e/tests/app.spec.ts`):
+
+1. `main.dart` rebuilt the unauthenticated screen's `checkDatabaseState()`
+   future, so the signup screen was unmounted mid-flow and never pushed the
+   onboarding route. The future is now cached (reset only on sign-out).
+2. The onboarding was pushed with `pushReplacement`, making it the first route,
+   so "Continue to App" could never dismiss it. It is now pushed on top of the
+   shell.
+
 ### Login / logout
 
 - `POST /api/v1/auth/login` (`{ email, password }`) verifies the password and

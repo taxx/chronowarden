@@ -126,13 +126,24 @@ apps/
       sl.ts            SL Journey Planner fetch + response slimming
       routes/          auth, admin, data, backup, sl, events
     migrations/        001_init.sql … (applied on startup)
-    test/              bun:test unit tests
+    test/
+      unit/            fast unit tests (`bun test test/unit`)
+      integration/     full-stack API tests against a throwaway Postgres
+      helpers/         ephemeral Postgres helper (postgres.ts)
     Dockerfile
+e2e/                   Playwright browser tests
+  tests/app.spec.ts    signup + recovery phrase, sign-in, backup download
+  server.ts            API + static web on one origin (throwaway stack)
+  global-setup.ts      builds the web bundle, boots the stack
+  README.md            how the harness works / selectors
+  playwright.config.ts
+tool/check.sh          one-command feedback loop (api | web | e2e)
 docker/
   proxy/nginx.conf     front door (web + /api)
   backup/              pg_dump cron container
 docker-compose.yaml
 .env.example           compose configuration template
+.github/workflows/     CI: api, web, e2e jobs
 ```
 
 ---
@@ -348,6 +359,17 @@ flutter run -d chrome --dart-define=API_URL=http://localhost:8080/api/v1
 | **Git remote** | `origin` → `github.com:taxx/chronowarden.git` |
 | **Branch** | `main` |
 | **Front door** | the `proxy` container on `${WEB_PORT}` (host HAProxy does TLS) |
+
+### Environments (during the self-hosting migration)
+
+| Environment | URL | Port | Host path | Branch |
+|---|---|---|---|---|
+| Production | https://chronowarden.slumpen.com | 8981 | `/opt/appdata/chronowarden` | `main` |
+| Beta (self-hosted) | https://chronowarden-beta.slumpen.com | 8982 | `/opt/appdata/chronowarden-beta` | `feat/selfhost` |
+
+Both sit behind HAProxy and each has its own Compose project (derived from the
+directory name, so containers/networks never collide). The beta clone becomes
+production at cutover — switch it to `main` and point HAProxy at it.
 
 ### Step 1 — regenerate metadata, commit, push
 
