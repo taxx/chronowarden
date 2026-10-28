@@ -567,4 +567,10 @@ const Map<String, String> svCatalog = <String, String>{
       'Spåra tid för ärenden eller andra aktiviteter som inte är arbete. Räknas som icke-arbetstid, precis som lunch.',
   '{actual} min total · {lunch} min lunch · {nonWork} min non-work · {net} min net':
       '{actual} min totalt · {lunch} min lunch · {nonWork} min icke-arbete · {net} min netto',
+  // Full backup export
+  'Full backup': 'Fullständig säkerhetskopia',
+  'Download a complete, encrypted backup of all your data (time logs, presets and settings). Keep it safe — it is the key to moving your data to another ChronoWarden instance.':
+      'Ladda ner en komplett, krypterad säkerhetskopia av all din data (tidsloggar, presets och inställningar). Förvara den säkert — den är nyckeln till att flytta din data till en annan ChronoWarden-instans.',
+  'Download backup': 'Ladda ner säkerhetskopia',
+  'Backup downloaded': 'Säkerhetskopia nedladdad',
 };

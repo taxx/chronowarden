@@ -12,6 +12,19 @@ secrets.json
 *.iml
 .metadata
 
+# The apps/ monorepo layout (apps/web + apps/api) is developed on the
+# selfhost branch. Ignore it here so switching branches can't accidentally
+# stage the new tree; drop this rule when that branch is merged into main.
+/apps/
+
+# Build output & dependencies (any depth)
+**/node_modules/
+**/dist/
+**/.dart_tool/
+**/build/
+**/.flutter-plugins-dependencies
+**/.metadata
+
 # IDE
 .idea/
 .vscode/
@@ -22,18 +35,21 @@ secrets.json
 .DS_Store
 
 # Android
-android/.gradle/
-android/app/src/main/assets/
-android/local.properties
-android/*.jks
-android/key.properties
+**/android/.gradle/
+**/android/app/src/main/assets/
+**/android/local.properties
+**/android/*.jks
+**/android/key.properties
 
 # iOS
-ios/Flutter/Generated.xcconfig
-ios/Flutter/ephemeral/
-ios/Flutter/ephemeral2/
-ios/Runner/GeneratedPluginRegistrant.*
-*.xcworkspace/
+**/ios/Flutter/Generated.xcconfig
+**/ios/Flutter/ephemeral/
+**/ios/Flutter/ephemeral2/
+**/ios/Flutter/Flutter.podspec
+**/ios/Flutter/flutter_export_environment.sh
+**/ios/Runner/GeneratedPluginRegistrant.*
+**/ios/Pods/
+**/*.xcworkspace/
 
 # Coverage
 coverage/
