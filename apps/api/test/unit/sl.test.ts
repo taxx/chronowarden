@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { mapProductClass, slimTripsResponse } from '../src/sl.ts';
+import { mapProductClass, slimTripsResponse } from '../../src/sl.ts';
 
 const sample = {
   systemMessages: [{ message: 'hello' }],

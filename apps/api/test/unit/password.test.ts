@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
-import { hashPassword, validatePasswordStrength, verifyPassword } from '../src/password.ts';
-import { generateToken, hashToken } from '../src/tokens.ts';
+import { hashPassword, validatePasswordStrength, verifyPassword } from '../../src/password.ts';
+import { generateToken, hashToken } from '../../src/tokens.ts';
 
 describe('password', () => {
   test('hashes and verifies argon2id', async () => {

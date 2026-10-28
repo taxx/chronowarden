@@ -97,7 +97,8 @@ dataRoutes.delete('/time-logs/:id', requireAuth, async (c) => {
     delete from time_logs where id = ${id} and user_id = ${userId}
     returning ${sql.unsafe(LOG_COLUMNS)}
   `;
-  if (rows.length > 0) publish(userId, { table: 'time_logs', type: 'DELETE', row: rows[0]! });
+  if (rows.length === 0) throw ApiError.notFound('Time log not found');
+  publish(userId, { table: 'time_logs', type: 'DELETE', row: rows[0]! });
   return c.body(null, 204);
 });
 
@@ -167,7 +168,8 @@ dataRoutes.delete('/travel-presets/:id', requireAuth, async (c) => {
     delete from travel_presets where id = ${id} and user_id = ${userId}
     returning ${sql.unsafe(PRESET_COLUMNS)}
   `;
-  if (rows.length > 0) publish(userId, { table: 'travel_presets', type: 'DELETE', row: rows[0]! });
+  if (rows.length === 0) throw ApiError.notFound('Travel preset not found');
+  publish(userId, { table: 'travel_presets', type: 'DELETE', row: rows[0]! });
   return c.body(null, 204);
 });
 

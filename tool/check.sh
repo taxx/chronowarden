@@ -1,0 +1,54 @@
+#!/usr/bin/env bash
+#
+# One-command feedback loop: typecheck + tests for the API and the web client.
+#
+#   tool/check.sh            # everything
+#   tool/check.sh api        # API only (typecheck + unit + integration)
+#   tool/check.sh web        # web only (analyze + tests)
+#
+# The API integration tests start their own throwaway Postgres (using local
+# binaries), or use $TEST_DATABASE_URL when set (e.g. CI).
+set -euo pipefail
+
+cd "$(dirname "$0")/.."
+ROOT="$PWD"
+
+# Make sure bun is on PATH (installed via https://bun.sh).
+if ! command -v bun >/dev/null 2>&1 && [ -x "$HOME/.bun/bin/bun" ]; then
+  export PATH="$HOME/.bun/bin:$PATH"
+fi
+if ! command -v bun >/dev/null 2>&1; then
+  echo "error: bun is not installed (https://bun.sh)" >&2
+  exit 1
+fi
+
+TARGET="${1:-all}"
+FAILED=0
+
+step() { printf '\n\033[1m==> %s\033[0m\n' "$1"; }
+run() { if ! "$@"; then FAILED=1; fi; }
+
+if [ "$TARGET" = "all" ] || [ "$TARGET" = "api" ]; then
+  step "API · typecheck"
+  run bash -c "cd '$ROOT/apps/api' && bunx tsc --noEmit"
+
+  step "API · unit tests"
+  run bash -c "cd '$ROOT/apps/api' && bun test test/unit"
+
+  step "API · integration tests (throwaway Postgres)"
+  run bash -c "cd '$ROOT/apps/api' && bun test test/integration"
+fi
+
+if [ "$TARGET" = "all" ] || [ "$TARGET" = "web" ]; then
+  step "Web · flutter analyze"
+  run bash -c "cd '$ROOT/apps/web' && flutter analyze"
+
+  step "Web · flutter test"
+  run bash -c "cd '$ROOT/apps/web' && flutter test"
+fi
+
+if [ "$FAILED" -ne 0 ]; then
+  printf '\n\033[31m✗ checks failed\033[0m\n'
+  exit 1
+fi
+printf '\n\033[32m✓ all checks passed\033[0m\n'

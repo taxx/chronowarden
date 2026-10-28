@@ -1,0 +1,75 @@
+name: CI
+
+on:
+  push:
+    branches: [main, feat/selfhost]
+  pull_request:
+
+jobs:
+  api:
+    name: API (typecheck + tests)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: chronowarden_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Postgres client (for the pg_dump backup test)
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        working-directory: apps/api
+        run: bun install --frozen-lockfile
+
+      - name: Typecheck
+        working-directory: apps/api
+        run: bunx tsc --noEmit
+
+      - name: Unit tests
+        working-directory: apps/api
+        run: bun test test/unit
+
+      - name: Integration tests
+        working-directory: apps/api
+        env:
+          TEST_DATABASE_URL: postgres://postgres:postgres@localhost:5432/chronowarden_test
+        run: bun test test/integration
+
+  web:
+    name: Web (analyze + tests)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Dependencies
+        working-directory: apps/web
+        run: flutter pub get
+
+      - name: Analyze
+        working-directory: apps/web
+        run: flutter analyze
+
+      - name: Tests
+        working-directory: apps/web
+        run: flutter test

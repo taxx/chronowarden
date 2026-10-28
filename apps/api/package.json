@@ -12,7 +12,9 @@
     "dev": "bun --hot run src/index.ts",
     "start": "bun run src/index.ts",
     "migrate": "bun run src/migrate.ts",
-    "test": "bun test",
+    "test": "bun test test/unit",
+    "test:integration": "bun test test/integration",
+    "test:all": "bun test",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
