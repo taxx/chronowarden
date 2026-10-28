@@ -3,6 +3,13 @@
 > Design reference. Code paths below are relative to `apps/web/` (the Flutter
 > client); the server is the self-hosted Bun/Hono API backed by PostgreSQL. The
 > encryption design did not change when the app moved off a hosted backend.
+>
+> Deltas from the original design, for accuracy:
+> - The DEK is cached in **`localStorage`** (`cw_dek`), not `sessionStorage`, so
+>   it survives closing/reopening the tab — see AGENTS → "LocalStorage DEK Cache".
+> - There is **no Row Level Security**: the API scopes every query to the
+>   authenticated user (see `docs/AUTH.md`).
+> - The `profiles` table was merged into `users`.
 
 ## The Problem
 

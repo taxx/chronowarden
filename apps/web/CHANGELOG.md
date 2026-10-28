@@ -5,6 +5,7 @@
 
 ## 2026-10-28
 
+- Docs: document e2e/tooling layout, recovery-phrase flow and environments (`6b4a581`)
 - Fix recovery-phrase onboarding being skipped after signup; guard it with E2E (`b6dd269`)
 - Add Playwright end-to-end tests, semantics build flag and CI e2e job (`d59fd10`)
 - Add API integration tests, one-command check script and CI (`4a27676`)
