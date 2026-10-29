@@ -2,9 +2,10 @@
 #
 # One-command feedback loop: typecheck + tests for the API and the web client.
 #
-#   tool/check.sh            # fast loop: API + web
+#   tool/check.sh            # fast loop: API + web + web-next
 #   tool/check.sh api        # API only (typecheck + unit + integration)
-#   tool/check.sh web        # web only (analyze + tests)
+#   tool/check.sh web        # Flutter web only (analyze + tests)
+#   tool/check.sh web-next   # React client (typecheck + tests + build)
 #   tool/check.sh e2e        # browser end-to-end (Playwright; builds the web app)
 #
 # `e2e` is intentionally not part of the default run: it builds the Flutter web
@@ -50,6 +51,22 @@ if [ "$TARGET" = "all" ] || [ "$TARGET" = "web" ]; then
 
   step "Web · flutter test"
   run bash -c "cd '$ROOT/apps/web' && flutter test"
+fi
+
+if [ "$TARGET" = "all" ] || [ "$TARGET" = "web-next" ]; then
+  # The React client needs Node 26 LTS (see apps/web-next/.nvmrc).
+  if [ -x "$HOME/.nodejs/v26.13.0/bin/node" ]; then
+    export PATH="$HOME/.nodejs/v26.13.0/bin:$PATH"
+  fi
+
+  step "Web-next · typecheck"
+  run bash -c "cd '$ROOT/apps/web-next' && npm run typecheck"
+
+  step "Web-next · tests"
+  run bash -c "cd '$ROOT/apps/web-next' && npm test"
+
+  step "Web-next · build"
+  run bash -c "cd '$ROOT/apps/web-next' && npm run build"
 fi
 
 if [ "$TARGET" = "e2e" ]; then
