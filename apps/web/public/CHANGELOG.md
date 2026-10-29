@@ -5,6 +5,7 @@
 
 ## 2026-10-29
 
+- web: adopt shadcn/ui (Radix dialog, tabs, switch; cva variants; components.json + @ alias) (`41d2136`)
 - feature parity: admin password reset, encryption explainer, notifications test, CSV guide, diagnostics + update check (`3f79642`)
 - web: time-warding colours (green=kept time), editable Overview + remembered period, three-state theme (`980ee2f`)
 - docs: UI gap analysis + framework options; e2e selectors for the new day dialogs (`7ddeccf`)
@@ -441,4 +442,3 @@
 
 - slider again (`41d7b2a`)
 - editable (`7cc2717`)
-- fix: RLS policies must use 'for all' to allow UPDATE/DELETE for anon (`7909adc`)
