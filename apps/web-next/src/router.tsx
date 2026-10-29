@@ -7,6 +7,7 @@ import {
 } from '@tanstack/react-router';
 
 import { AppShell } from './components/AppShell';
+import { AdminPage } from './screens/AdminPage';
 import { HistoryPage } from './screens/HistoryPage';
 import { LoginScreen } from './screens/LoginScreen';
 import { MyDayPage } from './screens/MyDayPage';
@@ -128,7 +129,7 @@ const transitRoute = createRoute({
 const adminRoute = createRoute({
   getParentRoute: () => appRoute,
   path: '/admin',
-  component: placeholder('Admin'),
+  component: AdminPage,
   beforeLoad: () => {
     if (useAuthStore.getState().user?.role !== 'admin') throw redirect({ to: '/' });
   },
