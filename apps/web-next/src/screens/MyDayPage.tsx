@@ -14,6 +14,7 @@ import {
 import { formatDurationMinutes, formatSignedMinutes } from '../lib/format';
 import { useWorkConfig } from '../queries/settings';
 import { useCreateTimeLog, useTimeLogs, useTodayLog, useUpdateTimeLog } from '../queries/time-logs';
+import { useTravelPresets } from '../queries/travel-presets';
 import { useNotificationsStore } from '../state/notifications';
 
 const DEFAULT_CONFIG: WorkConfig = { defaultExpectedMinutes: 480 };
@@ -40,16 +41,22 @@ export function MyDayPage() {
   const workConfigQuery = useWorkConfig();
   const createLog = useCreateTimeLog();
   const updateLog = useUpdateTimeLog();
+  const presetsQuery = useTravelPresets();
   const checkNotifications = useNotificationsStore((state) => state.check);
 
   const [error, setError] = useState<string | null>(null);
   const [showFlex, setShowFlex] = useState(false);
   const [flexInput, setFlexInput] = useState('');
+  const [selectedPresetId, setSelectedPresetId] = useState('');
 
   const today = todayQuery.data ?? null;
   const logs = logsQuery.data ?? [];
   const config = workConfigQuery.data ?? DEFAULT_CONFIG;
   const timeBank = logs.reduce((sum, log) => sum + log.overtimeMinutes, 0);
+
+  const presets = presetsQuery.data ?? [];
+  const selectedPreset =
+    presets.find((preset) => preset.id === selectedPresetId) ?? presets[0] ?? null;
 
   // Live leave time, accounting for a break that is still running.
   const lunchActive =
@@ -99,10 +106,10 @@ export function MyDayPage() {
         lunchMinutes: 0,
         nonWorkMinutes: 0,
         flexMinutes: 0,
-        morningOverheadMinutes: 0,
-        morningProductiveCommuteMinutes: 0,
-        eveningOverheadMinutes: 0,
-        eveningProductiveCommuteMinutes: 0,
+        morningOverheadMinutes: selectedPreset?.morningOverheadMinutes ?? 0,
+        morningProductiveCommuteMinutes: selectedPreset?.morningProductiveCommuteMinutes ?? 0,
+        eveningOverheadMinutes: selectedPreset?.eveningOverheadMinutes ?? 0,
+        eveningProductiveCommuteMinutes: selectedPreset?.eveningProductiveCommuteMinutes ?? 0,
         overtimeMinutes: 0,
       }),
     );
@@ -141,6 +148,25 @@ export function MyDayPage() {
           <p className="mt-1 text-sm text-slate-400">
             {t('Expected today')}: {formatDurationMinutes(expectedMinutesForDate(config, now))}
           </p>
+          {presets.length > 0 ? (
+            <div className="mt-4 max-w-xs space-y-1.5">
+              <label htmlFor="preset" className="block text-sm font-medium text-slate-300">
+                {t('Preset')}
+              </label>
+              <select
+                id="preset"
+                className="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100"
+                value={selectedPreset?.id ?? ''}
+                onChange={(event) => setSelectedPresetId(event.target.value)}
+              >
+                {presets.map((preset) => (
+                  <option key={preset.id ?? preset.name} value={preset.id ?? ''}>
+                    {preset.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          ) : null}
           <Button className="mt-5" onClick={startDay} disabled={createLog.isPending}>
             {t('Start Day')}
           </Button>

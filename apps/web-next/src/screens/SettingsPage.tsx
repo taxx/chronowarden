@@ -5,6 +5,7 @@ import { BackupCard } from '../components/BackupCard';
 import { NotificationSettingsCard } from '../components/NotificationSettingsCard';
 import { PreferencesCard } from '../components/PreferencesCard';
 import { RecoveryPhraseCard } from '../components/RecoveryPhraseCard';
+import { TravelPresetsCard } from '../components/TravelPresetsCard';
 import { Button, Card } from '../components/ui';
 import { WorkConfigCard } from '../components/WorkConfigCard';
 import { useLocaleStore, useT, type Locale } from '../i18n';
@@ -32,6 +33,7 @@ export function SettingsPage() {
   return (
     <div className="space-y-4">
       <WorkConfigCard />
+      <TravelPresetsCard />
       <NotificationSettingsCard />
       <PreferencesCard />
       <RecoveryPhraseCard />

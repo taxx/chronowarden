@@ -6,6 +6,7 @@ import type { TimeLog } from '../lib/domain/time-log';
 import { MyDayPage } from './MyDayPage';
 import { useCreateTimeLog, useTimeLogs, useTodayLog, useUpdateTimeLog } from '../queries/time-logs';
 import { useWorkConfig } from '../queries/settings';
+import { useTravelPresets } from '../queries/travel-presets';
 
 vi.mock('../queries/time-logs', () => ({
   useTodayLog: vi.fn(),
@@ -15,6 +16,9 @@ vi.mock('../queries/time-logs', () => ({
 }));
 vi.mock('../queries/settings', () => ({
   useWorkConfig: vi.fn(),
+}));
+vi.mock('../queries/travel-presets', () => ({
+  useTravelPresets: vi.fn(),
 }));
 
 const mocked = {
@@ -46,6 +50,7 @@ beforeEach(() => {
   mocked.useWorkConfig.mockReturnValue({
     data: { defaultExpectedMinutes: 480 },
   } as never);
+  vi.mocked(useTravelPresets).mockReturnValue({ data: [], isLoading: false } as never);
   mocked.useCreateTimeLog.mockReturnValue({
     mutateAsync: vi.fn().mockResolvedValue({}),
     isPending: false,

@@ -4,6 +4,7 @@ import { useT } from '../i18n';
 import { useAuthStore } from '../state/auth';
 import { AlertBanner } from './AlertBanner';
 import { RealtimeBridge } from './RealtimeBridge';
+import { UpdateBanner } from './UpdateBanner';
 import { Button } from './ui';
 
 const linkClass = 'rounded-lg px-3 py-1.5 text-slate-300 hover:bg-slate-800 hover:text-white';
@@ -57,6 +58,7 @@ export function AppShell() {
       </header>
       <main className="mx-auto max-w-5xl px-4 py-6">
         <RealtimeBridge />
+        <UpdateBanner />
         <AlertBanner />
         <Outlet />
       </main>
