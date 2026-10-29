@@ -47,10 +47,13 @@ test.describe.serial('ChronoWarden web', () => {
     await signIn(page);
 
     await page.getByRole('button', { name: 'Start Day' }).click();
+    // The start dialog opens with the same label; submit it.
+    await page.getByRole('button', { name: 'Start Day' }).last().click();
     await expect(page.getByText('Leave time')).toBeVisible();
 
-    await page.getByRole('button', { name: 'Stop Day' }).click();
-    await expect(page.getByText('Day complete')).toBeVisible();
+    await page.getByRole('button', { name: 'Stop Day' }).first().click();
+    await page.getByRole('button', { name: 'Stop Day' }).last().click();
+    await expect(page.getByText('Day completed')).toBeVisible();
   });
 
   test('adds a day in History which updates the time bank', async ({ page }) => {

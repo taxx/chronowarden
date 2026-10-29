@@ -105,16 +105,6 @@ export function MyDayPage() {
   const presets = presetsQuery.data ?? [];
   const selectedPreset = presets.find((preset) => preset.id === selectedPresetId) ?? presets[0] ?? null;
 
-  if (todayQuery.isLoading) {
-    return (
-      <Card>
-        <CardContent className="grid place-items-center py-10">
-          <div className="h-6 w-6 animate-spin rounded-full border-2 border-border border-t-primary" />
-        </CardContent>
-      </Card>
-    );
-  }
-
   const lunchActive =
     today?.lunchStartedAt != null
       ? Math.max(today.lunchMinutes, minutesSince(today.lunchStartedAt, now))
@@ -129,10 +119,22 @@ export function MyDayPage() {
     : null;
 
   // Feed the leave-time alert evaluator once a second while the day is active.
+  // (Must run before any early return so the hook order stays stable.)
   useEffect(() => {
     if (!today || today.endTime != null || !leave) return;
     checkNotifications((leave.getTime() - now.getTime()) / 60_000, now);
   }, [now, today, leave, checkNotifications]);
+
+  if (todayQuery.isLoading) {
+    return (
+      <Card>
+        <CardContent className="grid place-items-center py-10">
+          <div className="h-6 w-6 animate-spin rounded-full border-2 border-border border-t-primary" />
+        </CardContent>
+      </Card>
+    );
+  }
+
 
   async function run(action: () => Promise<unknown>, successMessage?: string) {
     try {

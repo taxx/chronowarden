@@ -194,7 +194,8 @@ export function HistoryPage() {
                   >
                     <div className="min-w-40 flex-1">
                       <div className="flex items-center gap-2">
-                        <p className="font-medium">{weekdayLabel(log.date)}</p>
+                        <p className="font-medium">{log.date}</p>
+                        <span className="text-xs text-muted-foreground">{weekdayLabel(log.date)}</span>
                         {log.note ? <NotebookPen className="h-3.5 w-3.5 text-muted-foreground" /> : null}
                       </div>
                       <p className="text-xs text-muted-foreground">
