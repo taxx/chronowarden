@@ -159,6 +159,9 @@ const sv: Record<string, string> = {
   Overhead: 'Overhead',
   Productive: 'Produktiv',
   Preset: 'Preset',
+  'A new version is available — reload to update.':
+      'En ny version finns tillgänglig – ladda om för att uppdatera.',
+  Reload: 'Ladda om',
   'Email': 'E-post',
   'Password': 'Lösenord',
   'Encryption passphrase': 'Krypteringsfras',
