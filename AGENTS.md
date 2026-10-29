@@ -365,11 +365,14 @@ Set `CORS_ORIGIN` on the API only if you bypass the Vite proxy.
 | Environment | URL | Port | Host path | Branch |
 |---|---|---|---|---|
 | Production | https://chronowarden.slumpen.com | 8981 | `/opt/appdata/chronowarden` | `main` |
-| Beta (self-hosted) | https://chronowarden-beta.slumpen.com | 8982 | `/opt/appdata/chronowarden-beta` | `feat/selfhost` |
+| Beta (React client) | https://chronowarden-beta.slumpen.com | 8982 | `/opt/appdata/chronowarden-beta` | `feat/ui-rewrite` |
+| Old (frozen Flutter instance) | https://chronowarden-old.slumpen.com | 8983 | `/opt/appdata/chronowarden-old` | `feat/selfhost` |
 
-Both sit behind HAProxy and each has its own Compose project (derived from the
-directory name, so containers/networks never collide). The beta clone becomes
-production at cutover.
+All three sit behind HAProxy and each has its own Compose project (derived from
+the directory name, so containers/networks never collide). `chronowarden-old` is
+a frozen copy of the self-hosted instance **with the real data** (a rollback
+reference); `chronowarden-beta` runs the React client against an identical copy
+of that data. Beta becomes production at cutover.
 
 ### Step 1 — regenerate metadata, commit, push
 

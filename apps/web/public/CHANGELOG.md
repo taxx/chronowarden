@@ -5,6 +5,8 @@
 
 ## 2026-10-29
 
+- e2e: drop the web-next naming (`96273a9`)
+- Cutover: replace the Flutter client with the React client; purge Flutter from docs (`7cbb6fd`)
 - docs: rewrite parity complete; add cutover checklist (`1fc4dd3`)
 - web-next: Overview week/year views, pinned journeys and What's New (`7e4d5d4`)
 - docs: mark the React rewrite feature-complete for v1 (`ae63965`)
@@ -440,8 +442,3 @@
 - fix: wrap screens in ListenableBuilder so they rebuild on state changes (`99bd9a3`)
 - fix: make user_id nullable + migration SQL for anon-key inserts (`b8ef7b6`)
 - fix: embed SQL in code, add anon RLS policies, fix setup verify flow (`51fb7a0`)
-- feat: auto-detect missing Supabase tables and show setup screen (`eccd7b3`)
-
-## 2026-06-08
-
-- fix: lazy-init services, fix API compat, clean analyzer + tests (`b4d3eae`)
