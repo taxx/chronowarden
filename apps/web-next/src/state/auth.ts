@@ -65,6 +65,8 @@ interface AuthState {
   recoverWithPhrase: (phrase: string) => Promise<void>;
   recoverAndSetPassphrase: (phrase: string, newPassphrase: string) => Promise<void>;
   logout: () => Promise<void>;
+  /** After a backup restore: drop the cached DEK and require the backup's passphrase. */
+  onBackupRestored: () => void;
   clearError: () => void;
   clearPendingRecoveryPhrase: () => void;
 }
@@ -247,6 +249,13 @@ export const useAuthStore = create<AuthState>((set) => ({
       pendingRecoveryPhrase: null,
       error: null,
     });
+  },
+
+  onBackupRestored: () => {
+    // The restored envelope carries a different DEK, so forget the current one
+    // and ask for the passphrase that belongs to the backup.
+    clearCachedDek();
+    set({ status: 'needs-passphrase', dek: null, error: null });
   },
 
   clearError: () => set({ error: null }),

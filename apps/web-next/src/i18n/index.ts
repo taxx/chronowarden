@@ -59,6 +59,17 @@ const sv: Record<string, string> = {
   Active: 'Aktiv',
   Used: 'Använd',
   Expired: 'Utgången',
+  'Backup & Restore': 'Backup & återställning',
+  'Download a complete, encrypted backup you can restore on any ChronoWarden instance.':
+      'Ladda ner en komplett, krypterad säkerhetskopia som du kan återställa på vilken ChronoWarden-instans som helst.',
+  'Download backup': 'Ladda ner säkerhetskopia',
+  'Restore backup': 'Återställ säkerhetskopia',
+  'Backup downloaded': 'Säkerhetskopia nedladdad',
+  'Invalid backup file': 'Ogiltig säkerhetskopia',
+  'Restoring replaces all data in this account. Use the encryption passphrase from the backup.':
+      'Återställning ersätter all data i detta konto. Använd krypteringsfrasen från säkerhetskopian.',
+  'Paste your backup JSON below.': 'Klistra in din säkerhetskopia (JSON) nedan.',
+  Restore: 'Återställ',
   Overview: 'Översikt',
   Projection: 'Prognos',
   History: 'Historik',
