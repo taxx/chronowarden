@@ -1,9 +1,13 @@
 import { useState } from 'react';
 
+import { CsvImportDialog } from '../components/CsvImportDialog';
 import { DayDialog, type DayFormValues } from '../components/DayDialog';
 import { Button, Card, Spinner } from '../components/ui';
 import { useT } from '../i18n';
+import { todayStr } from '../lib/date';
+import { timeLogsToCsv, type ImportResult } from '../lib/domain/csv';
 import { calculateOvertimeMinutes, copyWithTimeLog, type TimeLog } from '../lib/domain/time-log';
+import { downloadText } from '../lib/download';
 import { formatSignedMinutes } from '../lib/format';
 import { useWorkConfig } from '../queries/settings';
 import { useCreateTimeLog, useDeleteTimeLog, useTimeLogs, useUpdateTimeLog } from '../queries/time-logs';
@@ -19,6 +23,7 @@ export function HistoryPage() {
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<TimeLog | null>(null);
+  const [csvOpen, setCsvOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const logs = [...(logsQuery.data ?? [])].sort((a, b) => b.date.localeCompare(a.date));
@@ -81,6 +86,20 @@ export function HistoryPage() {
     }
   }
 
+  function exportCsv() {
+    downloadText(timeLogsToCsv(logs), `chronowarden_export_${todayStr()}.csv`, 'text/csv');
+  }
+
+  async function importCsv(result: ImportResult) {
+    setError(null);
+    for (const imported of result.imported) {
+      await createLog.mutateAsync({
+        ...imported,
+        overtimeMinutes: calculateOvertimeMinutes(imported),
+      });
+    }
+  }
+
   async function remove(log: TimeLog) {
     if (!log.id) return;
     if (!window.confirm(t('Delete this day?'))) return;
@@ -105,9 +124,17 @@ export function HistoryPage() {
   return (
     <>
       <Card>
-        <div className="flex items-center justify-between gap-4">
+        <div className="flex flex-wrap items-center justify-between gap-4">
           <h1 className="text-xl font-semibold text-white">{t('History')}</h1>
-          <Button onClick={openAdd}>{t('Add day')}</Button>
+          <div className="flex flex-wrap gap-2">
+            <Button variant="ghost" onClick={exportCsv}>
+              {t('Export CSV')}
+            </Button>
+            <Button variant="ghost" onClick={() => setCsvOpen(true)}>
+              {t('Import CSV')}
+            </Button>
+            <Button onClick={openAdd}>{t('Add day')}</Button>
+          </div>
         </div>
 
         {logs.length === 0 ? (
@@ -152,6 +179,13 @@ export function HistoryPage() {
         initial={editing}
         defaultExpectedMinutes={defaultExpected}
         onSubmit={submit}
+      />
+
+      <CsvImportDialog
+        open={csvOpen}
+        onClose={() => setCsvOpen(false)}
+        existingDates={new Set(logs.map((log) => log.date))}
+        onImport={importCsv}
       />
     </>
   );
