@@ -16,15 +16,15 @@ import {
 import { useT } from '../i18n';
 import { todayStr } from '../lib/date';
 import { timeLogsToCsv, type ImportResult } from '../lib/domain/csv';
-import { calculateOvertimeMinutes, copyWithTimeLog, type TimeLog } from '../lib/domain/time-log';
+import { calculateOvertimeMinutes, type TimeLog } from '../lib/domain/time-log';
 import { downloadText } from '../lib/download';
-import { formatDurationMinutes, formatSignedMinutes } from '../lib/format';
+import { formatDurationMinutes, formatSignedMinutes, overtimeBadgeVariant } from '../lib/format';
 import { usePreferences, useWorkConfig } from '../queries/settings';
+import { useSaveDay } from '../hooks/useSaveDay';
 import {
   useCreateTimeLog,
   useDeleteTimeLog,
   useTimeLogs,
-  useUpdateTimeLog,
 } from '../queries/time-logs';
 import { useToastStore } from '../state/toast';
 
@@ -40,9 +40,9 @@ export function HistoryPage() {
   const configQuery = useWorkConfig();
   const prefsQuery = usePreferences();
   const createLog = useCreateTimeLog();
-  const updateLog = useUpdateTimeLog();
   const deleteLog = useDeleteTimeLog();
   const pushToast = useToastStore((state) => state.push);
+  const { saveDay } = useSaveDay();
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<TimeLog | null>(null);
@@ -71,49 +71,7 @@ export function HistoryPage() {
 
   async function submit(values: DayFormValues) {
     try {
-      if (editing?.id) {
-        const endTime = values.endTime || null;
-        const next = copyWithTimeLog(editing, {
-          startTime: values.startTime,
-          endTime,
-          expectedMinutes: values.expectedMinutes,
-          lunchMinutes: values.lunchMinutes,
-          nonWorkMinutes: values.nonWorkMinutes,
-          note: values.note,
-        });
-        await updateLog.mutateAsync({
-          id: editing.id,
-          fields: {
-            start_time: values.startTime,
-            end_time: endTime,
-            expected_minutes: values.expectedMinutes,
-            lunch_minutes: values.lunchMinutes,
-            non_work_minutes: values.nonWorkMinutes,
-            note: values.note,
-            overtime_minutes: calculateOvertimeMinutes(next),
-          },
-        });
-      } else {
-        const log: TimeLog = {
-          date: values.date,
-          startTime: values.startTime,
-          endTime: values.endTime || null,
-          expectedMinutes: values.expectedMinutes,
-          lunchMinutes: values.lunchMinutes,
-          nonWorkMinutes: values.nonWorkMinutes,
-          flexMinutes: 0,
-          morningOverheadMinutes: 0,
-          morningProductiveCommuteMinutes: 0,
-          eveningOverheadMinutes: 0,
-          eveningProductiveCommuteMinutes: 0,
-          overtimeMinutes: 0,
-          note: values.note,
-        };
-        await createLog.mutateAsync({
-          ...log,
-          overtimeMinutes: calculateOvertimeMinutes(log),
-        });
-      }
+      await saveDay(values, editing);
       setDialogOpen(false);
       pushToast(t('Saved'), 'success');
     } catch {
@@ -207,7 +165,7 @@ export function HistoryPage() {
                           : ''}
                       </p>
                     </div>
-                    <Badge variant={overtime >= 0 ? 'success' : 'warning'}>
+                    <Badge variant={overtimeBadgeVariant(overtime)}>
                       {formatSignedMinutes(overtime)}
                     </Badge>
                     <div className="flex gap-1">

@@ -5,6 +5,9 @@ import {
   formatMins,
   formatOvertimeStatus,
   formatSignedMinutes,
+  overtimeBadgeVariant,
+  overtimeTextClass,
+  overtimeTone,
 } from './format';
 
 describe('formatMins', () => {
@@ -43,5 +46,22 @@ describe('formatOvertimeStatus', () => {
   test('uses a tick when exactly on target', () => {
     expect(formatOvertimeStatus(0)).toBe('✓');
     expect(formatOvertimeStatus(60)).toBe('+1h');
+  });
+});
+
+describe('overtime tone (time-warding semantics)', () => {
+  test('working less is good, working more is flagged', () => {
+    expect(overtimeTone(-30)).toBe('success');
+    expect(overtimeTone(30)).toBe('warning');
+    expect(overtimeTone(0)).toBe('neutral');
+  });
+
+  test('maps to text classes and badge variants', () => {
+    expect(overtimeTextClass(-30)).toBe('text-success');
+    expect(overtimeTextClass(30)).toBe('text-warning');
+    expect(overtimeTextClass(0)).toBe('text-muted-foreground');
+    expect(overtimeBadgeVariant(-30)).toBe('success');
+    expect(overtimeBadgeVariant(30)).toBe('warning');
+    expect(overtimeBadgeVariant(0)).toBe('secondary');
   });
 });

@@ -4,6 +4,7 @@ import {
   History,
   Home,
   LogOut,
+  Monitor,
   Moon,
   Settings as SettingsIcon,
   ShieldCheck,
@@ -14,12 +15,12 @@ import {
 
 import { useT } from '../i18n';
 import { useAuthStore } from '../state/auth';
-import { useThemeStore } from '../state/theme';
+import { useThemeStore, type ThemePreference } from '../state/theme';
 import { AlertBanner } from './AlertBanner';
 import { RealtimeBridge } from './RealtimeBridge';
 import { Toaster } from './Toaster';
 import { UpdateBanner } from './UpdateBanner';
-import { Button } from './ui';
+import { Button, cn } from './ui';
 
 /** Nav entries with literal routes + literal translation keys (i18n guard). */
 function useNav() {
@@ -38,24 +39,41 @@ function useNav() {
   ];
 }
 
-function ThemeToggle() {
+/** Three-state theme control: light / dark / system. */
+function ThemeSwitch() {
+  const t = useT();
   const preference = useThemeStore((state) => state.preference);
   const setPreference = useThemeStore((state) => state.setPreference);
-  const isDark =
-    preference === 'dark' ||
-    (preference === 'system' &&
-      typeof window !== 'undefined' &&
-      window.matchMedia?.('(prefers-color-scheme: dark)').matches);
+
+  const options: Array<{ value: ThemePreference; label: string; icon: typeof Sun }> = [
+    { value: 'light', label: t('Light'), icon: Sun },
+    { value: 'dark', label: t('Dark'), icon: Moon },
+    { value: 'system', label: t('System'), icon: Monitor },
+  ];
 
   return (
-    <Button
-      variant="ghost"
-      size="icon"
-      aria-label="Toggle theme"
-      onClick={() => setPreference(isDark ? 'light' : 'dark')}
-    >
-      {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-    </Button>
+    <div className="inline-flex items-center gap-0.5 rounded-lg bg-muted p-0.5" role="group" aria-label={t('Appearance')}>
+      {options.map((option) => {
+        const Icon = option.icon;
+        const active = preference === option.value;
+        return (
+          <button
+            key={option.value}
+            type="button"
+            aria-label={option.label}
+            aria-pressed={active}
+            title={option.label}
+            onClick={() => setPreference(option.value)}
+            className={cn(
+              'grid h-8 w-8 place-items-center rounded-md transition',
+              active ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground',
+            )}
+          >
+            <Icon className="h-4 w-4" />
+          </button>
+        );
+      })}
+    </div>
   );
 }
 
@@ -115,12 +133,12 @@ export function AppShell() {
           </div>
           <span className="font-semibold tracking-tight">{t('ChronoWarden')}</span>
         </div>
-        <ThemeToggle />
+        <ThemeSwitch />
       </header>
 
       {/* Desktop top-right actions */}
       <div className="fixed right-5 top-4 z-40 hidden lg:block">
-        <ThemeToggle />
+        <ThemeSwitch />
       </div>
 
       <main className="lg:pl-60">

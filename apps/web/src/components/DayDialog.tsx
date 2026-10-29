@@ -20,12 +20,14 @@ export function DayDialog({
   open,
   onClose,
   initial,
+  defaultDate,
   defaultExpectedMinutes,
   onSubmit,
 }: {
   open: boolean;
   onClose: () => void;
   initial?: TimeLog | null;
+  defaultDate?: string;
   defaultExpectedMinutes: number;
   onSubmit: (values: DayFormValues) => void | Promise<void>;
 }) {
@@ -42,14 +44,14 @@ export function DayDialog({
 
   useEffect(() => {
     if (!open) return;
-    setDate(initial?.date ?? toDateStr(new Date()));
+    setDate(initial?.date ?? defaultDate ?? toDateStr(new Date()));
     setStartTime((initial?.startTime ?? '08:00:00').slice(0, 5));
     setEndTime((initial?.endTime ?? '').slice(0, 5));
     setExpected(String(initial?.expectedMinutes ?? defaultExpectedMinutes));
     setLunch(String(initial?.lunchMinutes ?? 0));
     setNonWork(String(initial?.nonWorkMinutes ?? 0));
     setNote(initial?.note ?? '');
-  }, [open, initial, defaultExpectedMinutes]);
+  }, [open, initial, defaultDate, defaultExpectedMinutes]);
 
   async function submit() {
     setBusy(true);

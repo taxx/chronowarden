@@ -25,7 +25,7 @@ import {
   type TimeLog,
 } from '../lib/domain/time-log';
 import { expectedMinutesForDate, type WorkConfig } from '../lib/domain/work-config';
-import { formatDurationMinutes, formatSignedMinutes } from '../lib/format';
+import { formatDurationMinutes, formatSignedMinutes, overtimeTextClass } from '../lib/format';
 import { usePreferences, useWorkConfig } from '../queries/settings';
 import {
   useCreateTimeLog,
@@ -307,7 +307,7 @@ export function MyDayPage() {
         <CardContent className="flex items-center justify-between gap-4">
           <div>
             <p className="text-sm text-muted-foreground">{t('Time bank')}</p>
-            <p className={'text-2xl font-semibold ' + (timeBank >= 0 ? 'text-success' : 'text-warning')}>
+            <p className={'text-2xl font-semibold ' + overtimeTextClass(timeBank)}>
               {formatSignedMinutes(timeBank)}
             </p>
           </div>
@@ -651,7 +651,7 @@ function CompletedDayCard({
           <Stat
             label={overtime < 0 ? t('Undertime') : t('Overtime')}
             value={formatSignedMinutes(overtime)}
-            tone={overtime >= 0 ? 'text-success' : 'text-warning'}
+            tone={overtimeTextClass(overtime)}
           />
           <Stat label={t('Lunch')} value={formatDurationMinutes(log.lunchMinutes)} />
           {log.nonWorkMinutes > 0 ? (

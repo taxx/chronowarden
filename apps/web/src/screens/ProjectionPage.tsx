@@ -13,7 +13,7 @@ import {
 import { Button, Card, CardContent, CardHeader, Slider, Spinner } from '../components/ui';
 import { useT } from '../i18n';
 import { computeProjection } from '../lib/domain/projection';
-import { formatDurationMinutes, formatSignedMinutes } from '../lib/format';
+import { formatDurationMinutes, formatSignedMinutes, overtimeTextClass } from '../lib/format';
 import { useTimeLogs } from '../queries/time-logs';
 import { usePreferences } from '../queries/settings';
 
@@ -62,12 +62,7 @@ export function ProjectionPage() {
       <Card>
         <CardHeader title={t('Current time bank')} description={t('Time bank over time')} />
         <CardContent>
-          <p
-            className={
-              'text-3xl font-semibold ' +
-              (result.currentBalance >= 0 ? 'text-success' : 'text-warning')
-            }
-          >
+          <p className={'text-3xl font-semibold ' + overtimeTextClass(result.currentBalance)}>
             {formatSignedMinutes(result.currentBalance)}
           </p>
         </CardContent>

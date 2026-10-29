@@ -5,6 +5,7 @@
 
 ## 2026-10-29
 
+- docs: UI gap analysis + framework options; e2e selectors for the new day dialogs (`7ddeccf`)
 - web: projection analytics + richer transit (occupancy, transfers, countdown) (`6142236`)
 - web: change passphrase, appearance, about; History polish; light/dark sweep (`a68d8d0`)
 - web: design system (light/dark, shell, primitives, toasts) + My Day overhaul (`42cf4af`)
@@ -441,4 +442,3 @@
 - fix: RLS policies must use 'for all' to allow UPDATE/DELETE for anon (`7909adc`)
 - fix: show explicit snackbar feedback after all CRUD operations (`5469c00`)
 - fix: add explicit feedback after all CRUD operations in Settings (`4cb1034`)
-- fix: strip DB-managed fields from update payloads (`79e23b8`)

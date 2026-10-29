@@ -8,6 +8,11 @@ import { create } from 'zustand';
 export type Locale = 'en' | 'sv';
 
 const sv: Record<string, string> = {
+  'Green means you kept your time; red means you worked over.':
+      'Grönt betyder att du behöll din tid; rött betyder att du arbetade över.',
+  Next: 'Nästa',
+  Previous: 'Föregående',
+  Total: 'Totalt',
   '1 change': '1 byte',
   '{count} changes': '{count} byten',
   Departed: 'Avgått',
@@ -116,7 +121,6 @@ const sv: Record<string, string> = {
   Week: 'Vecka',
   Month: 'Månad',
   Year: 'År',
-  'Loading…': 'Laddar…',
   'Time bank over time': 'Tidsbank över tid',
   'Enable transit': 'Aktivera kollektivtrafik',
   'Home station': 'Hemstation',

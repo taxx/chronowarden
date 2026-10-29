@@ -42,3 +42,34 @@ export function formatSignedMinutes(minutes: number): string {
 export function formatOvertimeStatus(minutes: number): string {
   return minutes === 0 ? '✓' : formatSignedMinutes(minutes);
 }
+
+/**
+ * Time-warding tone for an overtime / balance value.
+ *
+ * ChronoWarden's job is to protect the user's time, so working **less** than
+ * expected (a negative overtime) is the good outcome — green — while working
+ * **more** (a positive overtime) is what we flag — red. Zero is neutral.
+ */
+export type OvertimeTone = 'success' | 'warning' | 'neutral';
+
+export function overtimeTone(minutes: number): OvertimeTone {
+  if (minutes < 0) return 'success';
+  if (minutes > 0) return 'warning';
+  return 'neutral';
+}
+
+/** Tailwind text colour class for an overtime value. */
+export function overtimeTextClass(minutes: number): string {
+  const tone = overtimeTone(minutes);
+  if (tone === 'success') return 'text-success';
+  if (tone === 'warning') return 'text-warning';
+  return 'text-muted-foreground';
+}
+
+/** Badge variant for an overtime value. */
+export function overtimeBadgeVariant(minutes: number): 'success' | 'warning' | 'secondary' {
+  const tone = overtimeTone(minutes);
+  if (tone === 'success') return 'success';
+  if (tone === 'warning') return 'warning';
+  return 'secondary';
+}
