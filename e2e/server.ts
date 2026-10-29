@@ -1,6 +1,6 @@
 /**
  * E2E server for the React client: throwaway Postgres + the real API + the
- * built `apps/web-next/dist` on one origin (mirroring the production proxy).
+ * built `apps/web/dist` on one origin (mirroring the production proxy).
  */
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
@@ -32,7 +32,7 @@ const server = Bun.serve({
   },
 });
 
-console.log(`[e2e-next] server ready at http://127.0.0.1:${server.port}`);
+console.log(`[e2e] server ready at http://127.0.0.1:${server.port}`);
 
 async function shutdown() {
   server.stop();

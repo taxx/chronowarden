@@ -14,7 +14,7 @@ function nodeBinDir(): string {
 
 function buildClient(): void {
   if (existsSync(join(DIST, 'index.html')) && !process.env.E2E_FORCE_BUILD) return;
-  console.log('[e2e-next] building the React client…');
+  console.log('[e2e] building the client…');
   const path = nodeBinDir();
   const result = spawnSync('npm', ['run', 'build'], {
     cwd: WEB_DIR,

@@ -3,11 +3,11 @@ import { test, expect, type Page } from '@playwright/test';
 /**
  * End-to-end tests for the React client.
  *
- * The harness (`global-setup.ts`) builds `apps/web-next`, starts a throwaway
+ * The harness (`global-setup.ts`) builds `apps/web`, starts a throwaway
  * Postgres + the real API, and serves everything on one origin. As a DOM app,
  * Playwright drives it with ordinary role/label selectors.
  */
-test.describe.serial('ChronoWarden web-next', () => {
+test.describe.serial('ChronoWarden web', () => {
   const EMAIL = 'e2e@example.com';
   const PASSWORD = 'supersecret1';
   const PASSPHRASE = 'e2e-encryption-passphrase';
