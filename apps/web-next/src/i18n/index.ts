@@ -20,6 +20,7 @@ const sv: Record<string, string> = {
   'Start lunch': 'Starta lunch',
   'Stop lunch': 'Stoppa lunch',
   'Non-work': 'Icke-arbete',
+  'Non-work time': 'Icke-arbetstid',
   'Start non-work': 'Starta icke-arbete',
   'Stop non-work': 'Stoppa icke-arbete',
   'Banked time to withdraw': 'Sparad tid att ta ut',
