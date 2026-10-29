@@ -12,6 +12,7 @@ import { HistoryPage } from './screens/HistoryPage';
 import { LoginScreen } from './screens/LoginScreen';
 import { MyDayPage } from './screens/MyDayPage';
 import { OverviewPage } from './screens/OverviewPage';
+import { ProjectionPage } from './screens/ProjectionPage';
 import { RegisterScreen } from './screens/RegisterScreen';
 import { PlaceholderPage } from './screens/PlaceholderPage';
 import { RecoveryScreen } from './screens/RecoveryScreen';
@@ -120,7 +121,7 @@ const historyRoute = createRoute({
 const projectionRoute = createRoute({
   getParentRoute: () => appRoute,
   path: '/projection',
-  component: placeholder('Projection'),
+  component: ProjectionPage,
 });
 const transitRoute = createRoute({
   getParentRoute: () => appRoute,

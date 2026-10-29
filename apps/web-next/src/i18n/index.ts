@@ -28,6 +28,8 @@ const sv: Record<string, string> = {
   Overtime: 'Övertid',
   Today: 'Idag',
   Week: 'Vecka',
+  'Time bank over time': 'Tidsbank över tid',
+  Balance: 'Saldo',
   'Time bank': 'Tidsbank',
   Save: 'Spara',
   Saved: 'Sparat',
