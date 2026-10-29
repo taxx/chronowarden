@@ -7,6 +7,7 @@ import {
 } from '@tanstack/react-router';
 
 import { AppShell } from './components/AppShell';
+import { HistoryPage } from './screens/HistoryPage';
 import { LoginScreen } from './screens/LoginScreen';
 import { MyDayPage } from './screens/MyDayPage';
 import { RegisterScreen } from './screens/RegisterScreen';
@@ -103,6 +104,7 @@ const settingsRoute = createRoute({
 
 const placeholder = (titleKey: string) => () => <PlaceholderPage titleKey={titleKey} />;
 
+
 const overviewRoute = createRoute({
   getParentRoute: () => appRoute,
   path: '/overview',
@@ -111,7 +113,7 @@ const overviewRoute = createRoute({
 const historyRoute = createRoute({
   getParentRoute: () => appRoute,
   path: '/history',
-  component: placeholder('History'),
+  component: HistoryPage,
 });
 const projectionRoute = createRoute({
   getParentRoute: () => appRoute,
