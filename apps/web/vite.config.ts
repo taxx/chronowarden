@@ -1,5 +1,6 @@
 import { execSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
+import path from 'node:path';
 import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
 import { defineConfig } from 'vitest/config';
@@ -72,6 +73,10 @@ export default defineConfig({
       },
     }),
   ],
+  resolve: {
+    // shadcn/ui convention — the CLI and component imports use `@/…`.
+    alias: { '@': path.resolve(import.meta.dirname, 'src') },
+  },
   server: {
     port: 5173,
     // Same-origin API during development, so cookie auth works exactly like

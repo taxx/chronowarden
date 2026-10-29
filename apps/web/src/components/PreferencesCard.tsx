@@ -3,7 +3,29 @@ import { useEffect, useState } from 'react';
 import { useT } from '../i18n';
 import { readSettings, writeSettings } from '../services/settings';
 import { useDek } from '../state/auth';
-import { Card, Field, Input } from './ui';
+import { Card, CardContent, CardHeader, Field, Input, Switch } from './ui';
+
+function ToggleRow({
+  label,
+  description,
+  checked,
+  onChange,
+}: {
+  label: string;
+  description?: string;
+  checked: boolean;
+  onChange: (value: boolean) => void;
+}) {
+  return (
+    <div className="flex items-center justify-between gap-4 py-1">
+      <div>
+        <p className="text-sm font-medium">{label}</p>
+        {description ? <p className="text-xs text-muted-foreground">{description}</p> : null}
+      </div>
+      <Switch checked={checked} onCheckedChange={onChange} />
+    </div>
+  );
+}
 
 /**
  * Local preferences stored inside the encrypted settings payload:
@@ -44,54 +66,49 @@ export function PreferencesCard() {
 
   return (
     <Card>
-      <h2 className="text-lg font-semibold text-foreground">{t('Preferences')}</h2>
-
-      <label className="mt-4 flex items-center gap-2 text-sm text-foreground">
-        <input
-          type="checkbox"
+      <CardHeader title={t('Preferences')} />
+      <CardContent className="space-y-3">
+        <ToggleRow
+          label={t('Show weekends')}
           checked={weekend}
-          onChange={(event) => {
-            setWeekend(event.target.checked);
-            void persist({ show_weekends: event.target.checked });
+          onChange={(value) => {
+            setWeekend(value);
+            void persist({ show_weekends: value });
           }}
         />
-        {t('Show weekends')}
-      </label>
-
-      <label className="mt-2 flex items-center gap-2 text-sm text-foreground">
-        <input
-          type="checkbox"
+        <ToggleRow
+          label={t('Non-work time')}
+          description={t('Track time spent on errands or other non-work activities.')}
           checked={nonWork}
-          onChange={(event) => {
-            setNonWork(event.target.checked);
-            void persist({ non_work_enabled: event.target.checked });
+          onChange={(value) => {
+            setNonWork(value);
+            void persist({ non_work_enabled: value });
           }}
         />
-        {t('Non-work time')}
-      </label>
 
-      <div className="mt-4 grid gap-4 sm:grid-cols-2">
-        <Field label={t('Default flex minutes')} htmlFor="defaultFlex">
-          <Input
-            id="defaultFlex"
-            type="number"
-            inputMode="numeric"
-            value={defaultFlex}
-            onChange={(event) => setDefaultFlex(event.target.value)}
-            onBlur={() => void persist({ default_flex_minutes: Number(defaultFlex) || 0 })}
-          />
-        </Field>
-        <Field label={t('Slider step (min)')} htmlFor="sliderStep">
-          <Input
-            id="sliderStep"
-            type="number"
-            inputMode="numeric"
-            value={sliderStep}
-            onChange={(event) => setSliderStep(event.target.value)}
-            onBlur={() => void persist({ slider_step_minutes: Number(sliderStep) || 5 })}
-          />
-        </Field>
-      </div>
+        <div className="grid gap-4 pt-2 sm:grid-cols-2">
+          <Field label={t('Default flex minutes')} htmlFor="defaultFlex">
+            <Input
+              id="defaultFlex"
+              type="number"
+              inputMode="numeric"
+              value={defaultFlex}
+              onChange={(event) => setDefaultFlex(event.target.value)}
+              onBlur={() => void persist({ default_flex_minutes: Number(defaultFlex) || 0 })}
+            />
+          </Field>
+          <Field label={t('Slider step (min)')} htmlFor="sliderStep">
+            <Input
+              id="sliderStep"
+              type="number"
+              inputMode="numeric"
+              value={sliderStep}
+              onChange={(event) => setSliderStep(event.target.value)}
+              onBlur={() => void persist({ slider_step_minutes: Number(sliderStep) || 5 })}
+            />
+          </Field>
+        </div>
+      </CardContent>
     </Card>
   );
 }

@@ -8,6 +8,8 @@ import { create } from 'zustand';
 export type Locale = 'en' | 'sv';
 
 const sv: Record<string, string> = {
+  'Track time spent on errands or other non-work activities.':
+      'Spåra tid för ärenden eller andra icke-arbetsaktiviteter.',
   'A 24-word BIP39 recovery phrase encodes the DEK directly, so you can regain access if you forget your passphrase.':
       'En återställningsfras med 24 BIP39-ord kodar DEK direkt, så du kan återfå åtkomst om du glömmer din lösenfras.',
   API: 'API',

@@ -1,6 +1,6 @@
 import { Bell, BellRing } from 'lucide-react';
 
-import { Button, Card, CardContent, CardHeader, Field, Input } from './ui';
+import { Button, Card, CardContent, CardHeader, Field, Input, Switch } from './ui';
 import { useT } from '../i18n';
 import {
   audioState,
@@ -52,9 +52,9 @@ export function NotificationSettingsCard() {
         description={t('Permission') + ': ' + permission + ' · ' + t('Audio') + ': ' + audioState()}
       />
       <CardContent className="space-y-4">
-        <label className="flex items-center gap-2 text-sm">
-          <input type="checkbox" checked={enabled} onChange={(e) => setEnabled(e.target.checked)} />
-          {t('Enable notifications')}
+        <label className="flex items-center justify-between gap-4 text-sm">
+          <span>{t('Enable notifications')}</span>
+          <Switch checked={enabled} onCheckedChange={setEnabled} />
         </label>
 
         <div className="grid gap-4 sm:grid-cols-2">
@@ -78,13 +78,15 @@ export function NotificationSettingsCard() {
           </Field>
         </div>
 
-        <label className="flex items-center gap-2 text-sm">
-          <input type="checkbox" checked={sound} onChange={(e) => setSound(e.target.checked)} />
-          {t('Sound')}
+        <label className="flex items-center justify-between gap-4 text-sm">
+          <span>{t('Sound')}</span>
+          <Switch checked={sound} onCheckedChange={setSound} />
         </label>
-        <label className="flex items-center gap-2 text-sm">
-          <input type="checkbox" checked={vibrateEnabled} onChange={(e) => setVibrate(e.target.checked)} />
-          {t('Vibration')} {vibrationSupported() ? '' : `(${t('unsupported')})`}
+        <label className="flex items-center justify-between gap-4 text-sm">
+          <span>
+            {t('Vibration')} {vibrationSupported() ? '' : `(${t('unsupported')})`}
+          </span>
+          <Switch checked={vibrateEnabled} onCheckedChange={setVibrate} />
         </label>
 
         <div className="flex flex-wrap gap-2 pt-1">

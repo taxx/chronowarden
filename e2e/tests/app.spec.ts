@@ -100,7 +100,7 @@ test.describe.serial('ChronoWarden web', () => {
     await signIn(page);
 
     await page.getByRole('link', { name: 'Admin' }).click();
-    await page.getByRole('button', { name: 'Invites' }).click();
+    await page.getByRole('tab', { name: 'Invites' }).click();
 
     await page.getByLabel('Email').fill('invitee@example.com');
     await page.getByRole('button', { name: 'Create invite' }).click();
