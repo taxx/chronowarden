@@ -23,6 +23,11 @@ const sv: Record<string, string> = {
   'You are the first user. This account will be an administrator.':
       'Du är den första användaren. Detta konto blir administratör.',
   'Sign in': 'Logga in',
+  'Invite token': 'Inbjudningskod',
+  'Create account': 'Skapa konto',
+  'Invalid or expired invite token': 'Ogiltig eller utgången inbjudningskod',
+  'Ask your administrator for an invite token': 'Be din administratör om en inbjudningskod',
+  'Have an invite?': 'Har du en inbjudan?',
   'I have an encryption passphrase': 'Jag har en krypteringsfras',
   'Email': 'E-post',
   'Password': 'Lösenord',

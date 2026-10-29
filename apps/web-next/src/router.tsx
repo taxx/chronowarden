@@ -9,6 +9,7 @@ import {
 import { AppShell } from './components/AppShell';
 import { LoginScreen } from './screens/LoginScreen';
 import { MyDayPage } from './screens/MyDayPage';
+import { RegisterScreen } from './screens/RegisterScreen';
 import { PlaceholderPage } from './screens/PlaceholderPage';
 import { RecoveryScreen } from './screens/RecoveryScreen';
 import { SettingsPage } from './screens/SettingsPage';
@@ -36,6 +37,18 @@ const loginRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/login',
   component: LoginScreen,
+  beforeLoad: () => {
+    const { status, hasUsers } = useAuthStore.getState();
+    if (status === 'ready') throw redirect({ to: '/' });
+    if (status === 'needs-passphrase') throw redirect({ to: '/passphrase' });
+    if (status === 'unauthenticated' && !hasUsers) throw redirect({ to: '/setup' });
+  },
+});
+
+const registerRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/register',
+  component: RegisterScreen,
   beforeLoad: () => {
     const { status, hasUsers } = useAuthStore.getState();
     if (status === 'ready') throw redirect({ to: '/' });
@@ -122,6 +135,7 @@ const adminRoute = createRoute({
 const routeTree = rootRoute.addChildren([
   setupRoute,
   loginRoute,
+  registerRoute,
   passphraseRoute,
   recoveryRoute,
   appRoute.addChildren([
