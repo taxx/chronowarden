@@ -2,6 +2,7 @@ import { Link, Outlet, useNavigate } from '@tanstack/react-router';
 
 import { useT } from '../i18n';
 import { useAuthStore } from '../state/auth';
+import { RealtimeBridge } from './RealtimeBridge';
 import { Button } from './ui';
 
 const linkClass = 'rounded-lg px-3 py-1.5 text-slate-300 hover:bg-slate-800 hover:text-white';
@@ -54,6 +55,7 @@ export function AppShell() {
         </div>
       </header>
       <main className="mx-auto max-w-5xl px-4 py-6">
+        <RealtimeBridge />
         <Outlet />
       </main>
     </div>

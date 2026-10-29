@@ -111,6 +111,9 @@ async function verifyRecoveryHash(phrase: string): Promise<boolean> {
   return (await hashRecoveryPhrase(phrase)) === settings.recovery_hash;
 }
 
+/** Convenience selector for the unwrapped DEK. */
+export const useDek = (): Uint8Array | null => useAuthStore((state) => state.dek);
+
 export const useAuthStore = create<AuthState>((set) => ({
   status: 'loading',
   user: null,
