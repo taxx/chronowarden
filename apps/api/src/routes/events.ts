@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import { streamSSE } from 'hono/streaming';
 import type { AppEnv } from '../auth.ts';
-import { authenticateToken } from '../auth.ts';
+import { authenticateToken, tokenFromRequest } from '../auth.ts';
 import { addSubscriber, removeSubscriber } from '../events.ts';
 import { ApiError } from '../errors.ts';
 
@@ -16,7 +16,9 @@ const KEEP_ALIVE_MS = 25_000;
  * parameter (same-origin over HTTPS).
  */
 eventRoutes.get('/events', async (c) => {
-  const user = await authenticateToken(c.req.query('token') ?? null);
+  // The React client authenticates with the httpOnly cookie; the token query
+  // parameter remains for clients that cannot send headers (EventSource + bearer).
+  const user = await authenticateToken(c.req.query('token') ?? tokenFromRequest(c));
   if (!user) throw ApiError.unauthorized();
 
   return streamSSE(c, async (stream) => {

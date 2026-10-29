@@ -21,6 +21,8 @@ if (config.corsOrigin) {
       origin: config.corsOrigin,
       allowHeaders: ['authorization', 'content-type'],
       allowMethods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
+      // Required so the browser sends/stores the session cookie in local dev.
+      credentials: true,
     }),
   );
 }

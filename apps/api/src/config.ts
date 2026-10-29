@@ -15,6 +15,12 @@ export interface AppConfig {
    * the same-origin proxy and needs none; local `flutter run -d chrome` does.
    */
   corsOrigin?: string;
+  /**
+   * Whether the session cookie is marked `Secure`. Defaults to true in
+   * production (TLS terminated at the host proxy); override with
+   * `COOKIE_SECURE=false` for plain-HTTP local development.
+   */
+  cookieSecure: boolean;
 }
 
 function env(name: string, fallback?: string): string {
@@ -31,4 +37,7 @@ export const config: AppConfig = {
   sessionTtlDays: Number(env('SESSION_TTL_DAYS', '30')),
   slApiKey: Bun.env['SL_API_KEY'] || undefined,
   corsOrigin: Bun.env['CORS_ORIGIN'] || undefined,
+  cookieSecure: Bun.env['COOKIE_SECURE']
+    ? Bun.env['COOKIE_SECURE'] === 'true'
+    : Bun.env['NODE_ENV'] === 'production',
 };

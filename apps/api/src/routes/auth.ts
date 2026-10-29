@@ -1,6 +1,7 @@
 import { Hono } from 'hono';
+import { deleteCookie, setCookie } from 'hono/cookie';
 import type { AppEnv } from '../auth.ts';
-import { requireAuth } from '../auth.ts';
+import { SESSION_COOKIE, requireAuth, sessionCookieOptions, tokenFromRequest } from '../auth.ts';
 import { config } from '../config.ts';
 import { sql } from '../db.ts';
 import { ApiError } from '../errors.ts';
@@ -67,6 +68,7 @@ authRoutes.post('/auth/setup', async (c) => {
   `;
   const user = rows[0]!;
   const token = await issueSession(user.id);
+  setCookie(c, SESSION_COOKIE, token, sessionCookieOptions());
   return c.json({ token, user }, 201);
 });
 
@@ -109,6 +111,7 @@ authRoutes.post('/auth/register', async (c) => {
   });
 
   const token = await issueSession(user.id);
+  setCookie(c, SESSION_COOKIE, token, sessionCookieOptions());
   return c.json({ token, user }, 201);
 });
 
@@ -132,16 +135,17 @@ authRoutes.post('/auth/login', async (c) => {
 
   const users = await sql`select ${sql.unsafe(USER_COLUMNS)} from users where id = ${account.id}`;
   const token = await issueSession(account.id);
+  setCookie(c, SESSION_COOKIE, token, sessionCookieOptions());
   return c.json({ token, user: users[0] });
 });
 
 /** Revokes the presented session token. */
 authRoutes.post('/auth/logout', requireAuth, async (c) => {
-  const header = c.req.header('authorization') ?? '';
-  const match = /^bearer\s+(.+)$/i.exec(header.trim());
-  if (match?.[1]) {
-    await sql`delete from sessions where token_hash = ${hashToken(match[1].trim())}`;
+  const token = tokenFromRequest(c);
+  if (token) {
+    await sql`delete from sessions where token_hash = ${hashToken(token)}`;
   }
+  deleteCookie(c, SESSION_COOKIE, { path: '/' });
   return c.json({ ok: true });
 });
 

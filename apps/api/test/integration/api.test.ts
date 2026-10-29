@@ -581,6 +581,52 @@ describe('realtime (SSE)', () => {
   });
 });
 
+describe('cookie sessions', () => {
+  async function loginCookie(): Promise<{ cookie: string; setCookie: string }> {
+    const login = await app.request('/api/v1/auth/login', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ email: 'admin@example.com', password: PASSWORD }),
+    });
+    const setCookie = login.headers.get('set-cookie') ?? '';
+    return { cookie: setCookie.split(';')[0] ?? '', setCookie };
+  }
+
+  test('login sets an httpOnly session cookie that authenticates requests', async () => {
+    const { cookie, setCookie } = await loginCookie();
+    expect(setCookie).toContain('cw_session=');
+    expect(setCookie.toLowerCase()).toContain('httponly');
+
+    const me = await app.request('/api/v1/me', { headers: { cookie } });
+    expect(me.status).toBe(200);
+    expect(((await me.json()) as { email: string }).email).toBe('admin@example.com');
+  });
+
+  test('cookie sessions can reach admin routes', async () => {
+    const { cookie } = await loginCookie();
+    const users = await app.request('/api/v1/admin/users', { headers: { cookie } });
+    expect(users.status).toBe(200);
+  });
+
+  test('logout revokes the session and clears the cookie', async () => {
+    const { cookie } = await loginCookie();
+
+    const logout = await app.request('/api/v1/auth/logout', { method: 'POST', headers: { cookie } });
+    expect(logout.status).toBe(200);
+    expect(logout.headers.get('set-cookie') ?? '').toContain('cw_session=');
+
+    const me = await app.request('/api/v1/me', { headers: { cookie } });
+    expect(me.status).toBe(401);
+  });
+
+  test('bearer tokens still authenticate (Flutter compatibility)', async () => {
+    const login = await call<{ token: string }>('POST', '/api/v1/auth/login', {
+      body: { email: 'admin@example.com', password: PASSWORD },
+    });
+    expect((await call('GET', '/api/v1/me', { token: login.body.token })).status).toBe(200);
+  });
+});
+
 describe('backup pipeline', () => {
   const hasPgDump = findPgBin() !== null || Bun.which('pg_dump') !== null;
 
