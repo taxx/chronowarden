@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 
 import { StationPicker } from '../components/StationPicker';
-import { Button, Card, Field, Input, Spinner } from '../components/ui';
+import { Badge, Button, Card, Field, Input, Spinner } from '../components/ui';
 import { useNow } from '../hooks/useNow';
 import { useT } from '../i18n';
 import { formatClock, toDateStr } from '../lib/date';
@@ -18,6 +18,8 @@ import {
   journeyDeparturePlatform,
   journeyMainDestination,
   journeyMainLine,
+  journeyOccupancy,
+  journeyTransferCount,
 } from '../lib/domain/transit';
 import {
   defaultTransitConfig,
@@ -198,10 +200,10 @@ export function TransitPage() {
           </div>
 
           {availability === 'unavailable' ? (
-            <div className="mt-4 rounded-lg border border-amber-800 bg-amber-950/40 p-3">
-              <p className="text-sm text-amber-200">{t('Transit unavailable')}</p>
+            <div className="mt-4 rounded-lg border border-warning/40 bg-warning/10 p-3">
+              <p className="text-sm text-warning">{t('Transit unavailable')}</p>
               {transitLastError() ? (
-                <p className="mt-1 text-xs text-amber-300/70">{transitLastError()}</p>
+                <p className="mt-1 text-xs text-warning/70">{transitLastError()}</p>
               ) : null}
               <Button className="mt-3" variant="ghost" onClick={refresh}>
                 {t('Try again')}
@@ -222,12 +224,13 @@ export function TransitPage() {
           ) : (
             <ul className="mt-4 divide-y divide-border">
               {pinForRoute ? (
-                <PinnedRow pin={pinForRoute} live={livePinned} onUnpin={unpin} />
+                <PinnedRow pin={pinForRoute} live={livePinned} now={now} onUnpin={unpin} />
               ) : null}
               {journeys.map((journey) => (
                 <JourneyRow
                   key={journey.departureTime.toISOString()}
                   journey={journey}
+                  now={now}
                   onPin={() => pin(journey)}
                 />
               ))}
@@ -239,13 +242,24 @@ export function TransitPage() {
   );
 }
 
+function occupancyLabel(t: ReturnType<typeof useT>, occupancy: string | null): string | null {
+  if (!occupancy) return null;
+  const value = occupancy.toLowerCase();
+  if (value.includes('standing') || value === 'high') return t('Standing room only');
+  if (value.includes('few') || value === 'medium') return t('Few seats available');
+  if (value.includes('many') || value === 'low') return t('Many seats available');
+  return t('Seats available');
+}
+
 function JourneyRow({
   journey,
+  now,
   onPin,
   pinned = false,
   onUnpin,
 }: {
   journey: JourneyInfo;
+  now: Date;
   onPin?: () => void;
   pinned?: boolean;
   onUnpin?: () => void;
@@ -254,37 +268,56 @@ function JourneyRow({
   const line = journeyMainLine(journey);
   const platform = journeyDeparturePlatform(journey);
   const delay = departureDelayMinutes(journey);
+  const occupancy = occupancyLabel(t, journeyOccupancy(journey));
+  const transfers = journeyTransferCount(journey);
+  const departsIn = Math.round((journey.departureEstimated.getTime() - now.getTime()) / 60_000);
 
   return (
-    <li className={'flex flex-wrap items-center justify-between gap-3 py-3' + (pinned ? ' rounded-lg bg-card px-2' : '')}>
-      <div>
-        <p className="font-medium text-foreground">
-          {formatClock(journey.departureTime)} → {formatClock(journey.arrivalTime)}
-          {pinned ? (
-            <span className="ml-2 rounded bg-sky-900/60 px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-primary">
-              {t('Pinned')}
-            </span>
-          ) : null}
+    <li
+      className={
+        'flex flex-wrap items-start justify-between gap-3 py-3' +
+        (pinned ? ' rounded-lg bg-accent/50 px-3' : '')
+      }
+    >
+      <div className="min-w-0">
+        <p className="flex items-center gap-2 font-medium">
+          <span className="font-mono">{formatClock(journey.departureTime)}</span>
+          <span className="text-muted-foreground">→</span>
+          <span className="font-mono">{formatClock(journey.arrivalTime)}</span>
+          {pinned ? <Badge variant="default">{t('Pinned')}</Badge> : null}
         </p>
-        <p className="text-xs text-muted-foreground">
+        <p className="mt-1 text-xs text-muted-foreground">
           {line ? `${line} · ` : ''}
           {journeyMainDestination(journey) ?? ''}
-          {platform ? ` · ${platform}` : ''}
+          {platform ? ` · ${t('Platform')} ${platform}` : ''}
         </p>
+        <div className="mt-2 flex flex-wrap gap-1.5">
+          {occupancy ? <Badge variant="secondary">{occupancy}</Badge> : null}
+          {transfers > 0 ? (
+            <Badge variant="outline">
+              {transfers === 1 ? t('1 change') : t('{count} changes', { count: transfers })}
+            </Badge>
+          ) : null}
+          {departsIn >= -2 ? (
+            <Badge variant="outline">{t('in {minutes} min', { minutes: Math.max(0, departsIn) })}</Badge>
+          ) : (
+            <Badge variant="warning">{t('Departed')}</Badge>
+          )}
+        </div>
       </div>
       <div className="flex items-center gap-3 text-sm">
         <div className="text-right">
-          <p className="text-foreground">{journey.durationMinutes} min</p>
+          <p>{t('{minutes}min trip', { minutes: journey.durationMinutes })}</p>
           <p className={delay > 0 ? 'text-xs text-warning' : 'text-xs text-success'}>
             {delay > 0 ? `+${delay} min` : t('On time')}
           </p>
         </div>
         {pinned ? (
-          <Button variant="ghost" onClick={onUnpin}>
+          <Button variant="ghost" size="sm" onClick={onUnpin}>
             {t('Unpin')}
           </Button>
         ) : onPin ? (
-          <Button variant="ghost" onClick={onPin}>
+          <Button variant="outline" size="sm" onClick={onPin}>
             {t('Pin')}
           </Button>
         ) : null}
@@ -297,32 +330,34 @@ function JourneyRow({
 function PinnedRow({
   pin,
   live,
+  now,
   onUnpin,
 }: {
   pin: PinnedJourney;
   live: JourneyInfo | null;
+  now: Date;
   onUnpin: () => void;
 }) {
   const t = useT();
-  if (live) return <JourneyRow journey={live} pinned onUnpin={onUnpin} />;
+  if (live) return <JourneyRow journey={live} now={now} pinned onUnpin={onUnpin} />;
 
   return (
-    <li className="flex flex-wrap items-center justify-between gap-3 rounded-lg bg-card px-2 py-3">
+    <li className="flex flex-wrap items-center justify-between gap-3 rounded-lg bg-accent/50 px-3 py-3">
       <div>
-        <p className="font-medium text-foreground">
-          {pin.timeOfDay}
-          <span className="ml-2 rounded bg-sky-900/60 px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-primary">
-            {t('Pinned')}
-          </span>
+        <p className="flex items-center gap-2 font-medium">
+          <span className="font-mono">{pin.timeOfDay}</span>
+          <Badge variant="default">{t('Pinned')}</Badge>
         </p>
-        <p className="text-xs text-muted-foreground">
+        <p className="mt-1 text-xs text-muted-foreground">
           {pin.line ? `${pin.line} · ` : ''}
           {pin.destination ?? ''}
         </p>
       </div>
       <div className="flex items-center gap-3 text-sm">
-        {pin.durationMinutes ? <span className="text-foreground">{pin.durationMinutes} min</span> : null}
-        <Button variant="ghost" onClick={onUnpin}>
+        {pin.durationMinutes ? (
+          <span>{t('{minutes}min trip', { minutes: pin.durationMinutes })}</span>
+        ) : null}
+        <Button variant="outline" size="sm" onClick={onUnpin}>
           {t('Unpin')}
         </Button>
       </div>

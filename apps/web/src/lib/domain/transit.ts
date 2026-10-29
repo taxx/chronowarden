@@ -106,6 +106,12 @@ export function journeyTransportMode(journey: JourneyInfo): string | null {
   return firstTransportLeg(journey)?.transportMode ?? null;
 }
 
+/** Number of changes (transport legs − 1). */
+export function journeyTransferCount(journey: JourneyInfo): number {
+  const transportLegs = journey.legs.filter((leg) => leg.type === 'transport').length;
+  return Math.max(0, transportLegs - 1);
+}
+
 /** Morning before 11:00 → home → work; otherwise work → home. */
 export function isMorning(date: Date): boolean {
   return date.getHours() < 11;
