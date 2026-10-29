@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { KeyRound } from 'lucide-react';
+import { Link } from '@tanstack/react-router';
 
 import { useT } from '../i18n';
 import { useAuthStore } from '../state/auth';
@@ -81,6 +82,9 @@ export function ChangePassphraseCard() {
         <Button onClick={() => void submit()} disabled={busy}>
           {t('Change passphrase')}
         </Button>
+        <Link to="/encryption" className="ml-3 text-sm text-primary hover:underline">
+          {t('How encryption works')}
+        </Link>
       </CardContent>
     </Card>
   );

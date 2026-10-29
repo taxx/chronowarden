@@ -9,6 +9,7 @@ import {
 import { AppShell } from './components/AppShell';
 import { AdminPage } from './screens/AdminPage';
 import { ChangelogScreen } from './screens/ChangelogScreen';
+import { EncryptionScreen } from './screens/EncryptionScreen';
 import { HistoryPage } from './screens/HistoryPage';
 import { LoginScreen } from './screens/LoginScreen';
 import { MyDayPage } from './screens/MyDayPage';
@@ -124,6 +125,12 @@ const changelogRoute = createRoute({
   component: ChangelogScreen,
 });
 
+const encryptionRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: '/encryption',
+  component: EncryptionScreen,
+});
+
 
 const overviewRoute = createRoute({
   getParentRoute: () => appRoute,
@@ -169,6 +176,7 @@ const routeTree = rootRoute.addChildren([
     transitRoute,
     settingsRoute,
     changelogRoute,
+    encryptionRoute,
     adminRoute,
   ]),
 ]);

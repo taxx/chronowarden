@@ -8,6 +8,58 @@ import { create } from 'zustand';
 export type Locale = 'en' | 'sv';
 
 const sv: Record<string, string> = {
+  'A 24-word BIP39 recovery phrase encodes the DEK directly, so you can regain access if you forget your passphrase.':
+      'En återställningsfras med 24 BIP39-ord kodar DEK direkt, så du kan återfå åtkomst om du glömmer din lösenfras.',
+  API: 'API',
+  'Allow notifications': 'Tillåt aviseringar',
+  'CSV format': 'CSV-format',
+  'CSV format guide': 'Guide för CSV-format',
+  'Check for updates': 'Sök efter uppdateringar',
+  Close: 'Stäng',
+  Column: 'Kolumn',
+  Connected: 'Ansluten',
+  'Critical warning': 'Kritisk varning',
+  'Data key': 'Datanyckel',
+  Diagnostics: 'Diagnostik',
+  'Encryption key': 'Krypteringsnyckel',
+  Example: 'Exempel',
+  'How encryption works': 'Så fungerar krypteringen',
+  'If you lose both the passphrase and the recovery phrase, your data is gone forever. No one — not even the administrator — can recover it.':
+      'Om du tappar både lösenfrasen och återställningsfrasen är din data förlorad för alltid. Ingen — inte ens administratören — kan återställa den.',
+  Locked: 'Låst',
+  'Make admin': 'Gör till admin',
+  'Make user': 'Gör till användare',
+  'Master key': 'Huvudnyckel',
+  'One row per day. The header row must be present and the date must be YYYY-MM-DD.':
+      'En rad per dag. Rubrikraden måste finnas och datumet måste vara ÅÅÅÅ-MM-DD.',
+  Passphrase: 'Lösenfras',
+  'Permanently delete this user and all their data? This cannot be undone.':
+      'Radera den här användaren och all deras data permanent? Detta kan inte ångras.',
+  Recovery: 'Återställning',
+  'Reset password': 'Återställ lösenord',
+  'Self-hosting guide': 'Guide för egen drift',
+  'Send test': 'Skicka test',
+  'Share this temporary password with the user. Their sessions were signed out.':
+      'Dela det här tillfälliga lösenordet med användaren. Deras sessioner loggades ut.',
+  'Temporary password': 'Tillfälligt lösenord',
+  'Test alert fired — check for sound & vibration': 'Testavisering skickad — kontrollera ljud och vibration',
+  'The Master Key unwraps your random Data Encryption Key. Only the wrapped DEK is stored on the server.':
+      'Huvudnyckeln låser upp din slumpade datanyckel. Endast den inkapslade DEK:n lagras på servern.',
+  'Totals are computed on import; existing dates are skipped to avoid duplicates.':
+      'Summor beräknas vid import; befintliga datum hoppas över för att undvika dubbletter.',
+  Unlocked: 'Upplåst',
+  Unreachable: 'Onåbar',
+  'Update check unavailable.': 'Uppdateringskontroll ej tillgänglig.',
+  User: 'Användare',
+  Version: 'Version',
+  'You are on the latest version ({commit}).': 'Du har den senaste versionen ({commit}).',
+  'Your data is encrypted end-to-end. Even the administrator cannot read it.':
+      'Din data är krypterad från början till slut. Inte ens administratören kan läsa den.',
+  'Your passphrase is never stored. It derives a Master Key in memory with PBKDF2-HMAC-SHA256 (310,000 iterations).':
+      'Din lösenfras lagras aldrig. Den härleder en huvudnyckel i minnet med PBKDF2-HMAC-SHA256 (310 000 iterationer).',
+  'Your time logs, presets and settings are encrypted with AES-256-GCM on your device before they leave it.':
+      'Dina tidsloggar, profiler och inställningar krypteras med AES-256-GCM på din enhet innan de lämnar den.',
+  unsupported: 'stöds ej',
   'Green means you kept your time; red means you worked over.':
       'Grönt betyder att du behöll din tid; rött betyder att du arbetade över.',
   Next: 'Nästa',
@@ -153,8 +205,6 @@ const sv: Record<string, string> = {
   Vibration: 'Vibration',
   Permission: 'Behörighet',
   Audio: 'Ljud',
-  Yes: 'Ja',
-  No: 'Nej',
   'Time bank': 'Tidsbank',
   Save: 'Spara',
   Saved: 'Sparat',
@@ -178,7 +228,6 @@ const sv: Record<string, string> = {
   Invites: 'Inbjudningar',
   Approve: 'Godkänn',
   Reject: 'Neka',
-  'Delete user?': 'Ta bort användare?',
   'Create invite': 'Skapa inbjudan',
   'Copy this token and share it with the user:': 'Kopiera koden och dela den med användaren:',
   Copy: 'Kopiera',

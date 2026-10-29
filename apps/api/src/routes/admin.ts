@@ -3,7 +3,8 @@ import type { AppEnv } from '../auth.ts';
 import { requireAdmin } from '../auth.ts';
 import { sql } from '../db.ts';
 import { ApiError } from '../errors.ts';
-import { generateToken, hashToken } from '../tokens.ts';
+import { generateTemporaryPassword, generateToken, hashToken } from '../tokens.ts';
+import { hashPassword } from '../password.ts';
 
 export const adminRoutes = new Hono<AppEnv>();
 
@@ -42,6 +43,26 @@ adminRoutes.patch('/admin/users/:id', requireAdmin, async (c) => {
   `;
   if (rows.length === 0) throw ApiError.notFound('User not found');
   return c.json(rows[0]);
+});
+
+/**
+ * Admin-assisted password reset. Issues a fresh temporary password (shown once)
+ * and revokes the user's existing sessions. The encryption envelope is never
+ * touched — the user's passphrase is separate and unchanged.
+ */
+adminRoutes.post('/admin/users/:id/reset-password', requireAdmin, async (c) => {
+  const id = c.req.param('id');
+  const rows = await sql`select id, email from users where id = ${id}`;
+  if (rows.length === 0) throw ApiError.notFound('User not found');
+
+  const temporaryPassword = generateTemporaryPassword();
+  await sql`
+    update users set password_hash = ${await hashPassword(temporaryPassword)}, updated_at = now()
+    where id = ${id}
+  `;
+  await sql`delete from sessions where user_id = ${id}`;
+
+  return c.json({ email: rows[0].email, temporaryPassword });
 });
 
 /** Permanently deletes a user; sessions, data and presets cascade. */

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Download, NotebookPen, Pencil, Plus, Trash2, Upload } from 'lucide-react';
 
 import { CsvImportDialog } from '../components/CsvImportDialog';
+import { CsvFormatGuide } from '../components/CsvFormatGuide';
 import { DayDialog, type DayFormValues } from '../components/DayDialog';
 import {
   Badge,
@@ -47,6 +48,7 @@ export function HistoryPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<TimeLog | null>(null);
   const [csvOpen, setCsvOpen] = useState(false);
+  const [csvGuideOpen, setCsvGuideOpen] = useState(false);
   const [deleting, setDeleting] = useState<TimeLog | null>(null);
 
   const showWeekends = prefsQuery.data?.showWeekends ?? true;
@@ -131,6 +133,9 @@ export function HistoryPage() {
                 <Upload className="h-3.5 w-3.5" />
                 {t('Import CSV')}
               </Button>
+              <Button variant="ghost" size="sm" onClick={() => setCsvGuideOpen(true)}>
+                {t('CSV format')}
+              </Button>
               <Button size="sm" onClick={openAdd}>
                 <Plus className="h-3.5 w-3.5" />
                 {t('Add day')}
@@ -208,6 +213,8 @@ export function HistoryPage() {
         existingDates={new Set(logs.map((log) => log.date))}
         onImport={importCsv}
       />
+
+      <CsvFormatGuide open={csvGuideOpen} onClose={() => setCsvGuideOpen(false)} />
 
       <ConfirmDialog
         open={deleting != null}

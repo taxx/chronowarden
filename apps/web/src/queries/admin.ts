@@ -28,6 +28,13 @@ export function useDeleteUser() {
   });
 }
 
+/** Issue a temporary password for a user (shown once, sessions revoked). */
+export function useResetPassword() {
+  return useMutation({
+    mutationFn: (id: string) => adminApi.resetPassword(id),
+  });
+}
+
 export function useAdminInvites() {
   return useQuery({ queryKey: adminKeys.invites, queryFn: adminApi.listInvites });
 }

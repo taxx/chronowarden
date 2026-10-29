@@ -369,6 +369,34 @@ describe('admin user management', () => {
     const res = await call('GET', '/api/v1/admin/users', { token: user.token });
     expect(res.status).toBe(403);
   });
+
+  test('an admin can reset a password and it revokes sessions', async () => {
+    const user = await makeUser('reset@example.com');
+
+    const sessionsBefore = await sql`select count(*)::int as n from sessions where user_id = ${user.id}`;
+    expect(sessionsBefore[0].n).toBeGreaterThan(0);
+
+    const reset = await call<{ email: string; temporaryPassword: string }>(
+      'POST',
+      `/api/v1/admin/users/${user.id}/reset-password`,
+      { token: adminToken },
+    );
+    expect(reset.status).toBe(200);
+    expect(reset.body.email).toBe('reset@example.com');
+    expect(reset.body.temporaryPassword.length).toBeGreaterThanOrEqual(10);
+
+    const oldLogin = await call('POST', '/api/v1/auth/login', {
+      body: { email: 'reset@example.com', password: user.password },
+    });
+    expect(oldLogin.status).toBe(400);
+    const newLogin = await call('POST', '/api/v1/auth/login', {
+      body: { email: 'reset@example.com', password: reset.body.temporaryPassword },
+    });
+    expect(newLogin.status).toBe(200);
+
+    const sessionsAfter = await sql`select count(*)::int as n from sessions where user_id = ${user.id}`;
+    expect(sessionsAfter[0].n).toBe(1); // only the new login's session
+  });
 });
 
 describe('cross-user isolation', () => {
