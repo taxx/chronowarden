@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { useT } from '../i18n';
 import type { StationInfo } from '../lib/domain/transit';
 import { useStopSearch } from '../queries/transit';
-import { Input } from './ui';
+import { Input, Label } from './ui';
 
 /** Debounced SL stop-finder autocomplete. */
 export function StationPicker({
@@ -29,7 +29,7 @@ export function StationPicker({
 
   return (
     <div className="space-y-1.5">
-      <span className="block text-sm font-medium text-foreground">{label}</span>
+      <Label>{label}</Label>
       <Input
         aria-label={label}
         value={query}

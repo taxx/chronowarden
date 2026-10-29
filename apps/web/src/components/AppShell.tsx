@@ -39,41 +39,30 @@ function useNav() {
   ];
 }
 
-/** Three-state theme control: light / dark / system. */
-function ThemeSwitch() {
+const THEME_ORDER: ThemePreference[] = ['light', 'dark', 'system'];
+
+/** One compact button that cycles light → dark → system. */
+function ThemeToggle() {
   const t = useT();
   const preference = useThemeStore((state) => state.preference);
   const setPreference = useThemeStore((state) => state.setPreference);
 
-  const options: Array<{ value: ThemePreference; label: string; icon: typeof Sun }> = [
-    { value: 'light', label: t('Light'), icon: Sun },
-    { value: 'dark', label: t('Dark'), icon: Moon },
-    { value: 'system', label: t('System'), icon: Monitor },
-  ];
+  const label =
+    preference === 'light' ? t('Light') : preference === 'dark' ? t('Dark') : t('System');
+  const Icon = preference === 'light' ? Sun : preference === 'dark' ? Moon : Monitor;
+  const next = THEME_ORDER[(THEME_ORDER.indexOf(preference) + 1) % THEME_ORDER.length]!;
 
   return (
-    <div className="inline-flex items-center gap-0.5 rounded-lg bg-muted p-0.5" role="group" aria-label={t('Appearance')}>
-      {options.map((option) => {
-        const Icon = option.icon;
-        const active = preference === option.value;
-        return (
-          <button
-            key={option.value}
-            type="button"
-            aria-label={option.label}
-            aria-pressed={active}
-            title={option.label}
-            onClick={() => setPreference(option.value)}
-            className={cn(
-              'grid h-8 w-8 place-items-center rounded-md transition',
-              active ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground',
-            )}
-          >
-            <Icon className="h-4 w-4" />
-          </button>
-        );
-      })}
-    </div>
+    <Button
+      variant="ghost"
+      size="icon"
+      aria-label={`${t('Appearance')}: ${label}`}
+      title={`${t('Appearance')}: ${label}`}
+      onClick={() => setPreference(next)}
+      className="h-8 w-8"
+    >
+      <Icon className="h-4 w-4" />
+    </Button>
   );
 }
 
@@ -117,7 +106,10 @@ export function AppShell() {
           })}
         </nav>
         <div className="border-t border-border p-3">
-          <p className="truncate px-2 text-xs text-muted-foreground">{user?.email}</p>
+          <div className="flex items-center justify-between gap-2 px-2">
+            <p className="min-w-0 truncate text-xs text-muted-foreground">{user?.email}</p>
+            <ThemeToggle />
+          </div>
           <Button variant="ghost" className="mt-1 w-full justify-start" onClick={onLogout}>
             <LogOut className="h-4 w-4" />
             {t('Log out')}
@@ -133,13 +125,8 @@ export function AppShell() {
           </div>
           <span className="font-semibold tracking-tight">{t('ChronoWarden')}</span>
         </div>
-        <ThemeSwitch />
+        <ThemeToggle />
       </header>
-
-      {/* Desktop top-right actions */}
-      <div className="fixed right-5 top-4 z-40 hidden lg:block">
-        <ThemeSwitch />
-      </div>
 
       <main className="lg:pl-60">
         <div className="mx-auto max-w-4xl px-4 py-6 pb-24 lg:pb-10">
@@ -158,7 +145,9 @@ export function AppShell() {
             <Link
               key={item.to}
               to={item.to}
-              className="flex flex-1 flex-col items-center gap-1 py-2 text-[11px] font-medium text-muted-foreground"
+              className={cn(
+                'flex flex-1 flex-col items-center gap-1 py-2 text-[11px] font-medium text-muted-foreground',
+              )}
               activeProps={{ className: 'text-primary' }}
               activeOptions={{ exact: item.exact }}
             >

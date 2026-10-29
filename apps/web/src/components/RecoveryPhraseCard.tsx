@@ -2,7 +2,7 @@ import { useState } from 'react';
 
 import { useT } from '../i18n';
 import { useAuthStore } from '../state/auth';
-import { Button, Card } from './ui';
+import { Button, Card, CardContent, CardHeader } from './ui';
 
 /**
  * Show the recovery phrase for the current DEK.
@@ -28,27 +28,26 @@ export function RecoveryPhraseCard() {
 
   return (
     <Card>
-      <h2 className="text-lg font-semibold text-foreground">{t('Recovery phrase')}</h2>
-      <p className="mt-1 text-sm text-muted-foreground">
-        {t(
+      <CardHeader
+        title={t('Recovery phrase')}
+        description={t(
           'This is the only way to recover your encrypted data if you forget your encryption passphrase. Write it down and keep it safe.',
         )}
-      </p>
-
-      {phrase ? (
-        <div
-          data-testid="recovery-phrase"
-          className="mt-4 break-words rounded-xl border border-input bg-background p-4 font-mono text-sm leading-7 text-amber-200"
-        >
-          {phrase}
-        </div>
-      ) : null}
-
-      <Button className="mt-4" variant="ghost" onClick={() => void reveal()}>
-        {t('Show recovery phrase')}
-      </Button>
-
-      {error ? <p className="mt-3 text-sm text-destructive">{error}</p> : null}
+      />
+      <CardContent className="space-y-3">
+        {phrase ? (
+          <div
+            data-testid="recovery-phrase"
+            className="break-words rounded-xl border border-input bg-background p-4 font-mono text-sm leading-7 text-warning"
+          >
+            {phrase}
+          </div>
+        ) : null}
+        <Button variant="outline" onClick={() => void reveal()}>
+          {t('Show recovery phrase')}
+        </Button>
+        {error ? <p className="text-sm text-destructive">{error}</p> : null}
+      </CardContent>
     </Card>
   );
 }

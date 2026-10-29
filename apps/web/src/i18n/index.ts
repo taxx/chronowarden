@@ -8,6 +8,13 @@ import { create } from 'zustand';
 export type Locale = 'en' | 'sv';
 
 const sv: Record<string, string> = {
+  'Both work and home stations must be set.': 'Både hem- och arbetsstation måste anges.',
+  'Commute scenarios with overhead buffer.': 'Pendlingsscenarier med tidsbuffert.',
+  'Configure your expected work time per day.': 'Ange din förväntade arbetstid per dag.',
+  'Delete "{name}"?': 'Radera "{name}"?',
+  'Journey planning between home and work stations.': 'Reseplanering mellan hem- och arbetsstation.',
+  'Leave reduced fields empty to disable the reduced period.':
+      'Lämna fälten för reducerad tid tomma för att inaktivera perioden.',
   'Track time spent on errands or other non-work activities.':
       'Spåra tid för ärenden eller andra icke-arbetsaktiviteter.',
   'A 24-word BIP39 recovery phrase encodes the DEK directly, so you can regain access if you forget your passphrase.':

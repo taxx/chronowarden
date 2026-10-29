@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Pencil, Plus, Trash2 } from 'lucide-react';
 
 import { useT } from '../i18n';
 import {
@@ -13,7 +14,20 @@ import {
   useTravelPresets,
   useUpdateTravelPreset,
 } from '../queries/travel-presets';
-import { Button, Card, Field, Input, Modal, Spinner } from './ui';
+import { useToastStore } from '../state/toast';
+import {
+  Button,
+  Card,
+  CardContent,
+  CardHeader,
+  ConfirmDialog,
+  EmptyState,
+  Field,
+  Input,
+  Modal,
+  Select,
+  Spinner,
+} from './ui';
 
 interface FormValues {
   name: string;
@@ -65,17 +79,37 @@ function PresetDialog({
   }, [open, initial]);
 
   const setNumber = (key: keyof FormValues) => (value: string) =>
-    setValues({ ...values, [key]: Number(value) || 0 });
+    setValues((prev) => ({ ...prev, [key]: Number(value) || 0 }));
 
   return (
-    <Modal open={open} onClose={onClose} title={initial ? t('Edit preset') : t('Add preset')}>
+    <Modal
+      open={open}
+      onClose={onClose}
+      title={initial ? t('Edit preset') : t('Add preset')}
+      footer={
+        <div className="flex justify-end gap-2">
+          <Button variant="ghost" onClick={onClose}>
+            {t('Cancel')}
+          </Button>
+          <Button
+            disabled={busy || !values.name.trim()}
+            onClick={() => {
+              setBusy(true);
+              void onSubmit(values).finally(() => setBusy(false));
+            }}
+          >
+            {t('Save')}
+          </Button>
+        </div>
+      }
+    >
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="sm:col-span-2">
           <Field label={t('Name')} htmlFor="presetName">
             <Input
               id="presetName"
               value={values.name}
-              onChange={(event) => setValues({ ...values, name: event.target.value })}
+              onChange={(event) => setValues((prev) => ({ ...prev, name: event.target.value }))}
             />
           </Field>
         </div>
@@ -117,36 +151,20 @@ function PresetDialog({
         </Field>
         <div className="sm:col-span-2">
           <Field label={t('Commute mode')} htmlFor="commuteMode">
-            <select
+            <Select
               id="commuteMode"
-              className="w-full rounded-lg border border-input bg-card px-3 py-2 text-sm text-foreground"
               value={values.commuteMode}
               onChange={(event) =>
-                setValues({ ...values, commuteMode: event.target.value as CommuteMode })
+                setValues((prev) => ({ ...prev, commuteMode: event.target.value as CommuteMode }))
               }
             >
               <option value="none">{t('None')}</option>
               <option value="transit">{t('Transit')}</option>
               <option value="car">{t('Car')}</option>
               <option value="vespa">{t('Vespa')}</option>
-            </select>
+            </Select>
           </Field>
         </div>
-      </div>
-
-      <div className="mt-6 flex justify-end gap-2">
-        <Button variant="ghost" onClick={onClose}>
-          {t('Cancel')}
-        </Button>
-        <Button
-          disabled={busy || !values.name.trim()}
-          onClick={() => {
-            setBusy(true);
-            void onSubmit(values).finally(() => setBusy(false));
-          }}
-        >
-          {t('Save')}
-        </Button>
       </div>
     </Modal>
   );
@@ -158,24 +176,16 @@ export function TravelPresetsCard() {
   const create = useCreateTravelPreset();
   const update = useUpdateTravelPreset();
   const remove = useDeleteTravelPreset();
+  const pushToast = useToastStore((state) => state.push);
 
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<TravelPreset | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState<TravelPreset | null>(null);
 
   const presets = query.data ?? [];
 
-  async function run(action: () => Promise<unknown>) {
-    setError(null);
-    try {
-      await action();
-    } catch {
-      setError(t('Could not save'));
-    }
-  }
-
   async function submit(values: FormValues) {
-    await run(async () => {
+    try {
       if (editing?.id) {
         await update.mutateAsync({
           id: editing.id,
@@ -199,72 +209,100 @@ export function TravelPresetsCard() {
         });
       }
       setOpen(false);
-    });
+      pushToast(t('Saved'), 'success');
+    } catch {
+      pushToast(t('Could not save'), 'error');
+    }
+  }
+
+  async function confirmDelete() {
+    if (!deleting?.id) return;
+    try {
+      await remove.mutateAsync(deleting.id);
+      pushToast(t('Saved'), 'success');
+    } catch {
+      pushToast(t('Could not save'), 'error');
+    } finally {
+      setDeleting(null);
+    }
   }
 
   return (
     <Card>
-      <div className="flex items-center justify-between gap-4">
-        <h2 className="text-lg font-semibold text-foreground">{t('Travel presets')}</h2>
-        <Button
-          onClick={() => {
-            setEditing(null);
-            setOpen(true);
-          }}
-        >
-          {t('Add preset')}
-        </Button>
-      </div>
-
-      {query.isLoading ? (
-        <div className="flex justify-center py-6">
-          <Spinner />
-        </div>
-      ) : presets.length === 0 ? (
-        <p className="mt-4 text-sm text-muted-foreground">{t('No presets yet')}</p>
-      ) : (
-        <ul className="mt-4 divide-y divide-border">
-          {presets.map((preset) => (
-            <li
-              key={preset.id ?? preset.name}
-              className="flex flex-wrap items-center justify-between gap-3 py-3"
-            >
-              <div>
-                <p className="font-medium text-foreground">{preset.name}</p>
-                <p className="text-xs text-muted-foreground">
-                  {t('Overhead')}: {defaultOverheadMinutes(preset)} min · {t('Productive')}:{' '}
-                  {productiveCommuteMinutes(preset)} min · {preset.commuteMode}
-                </p>
-              </div>
-              <div className="flex gap-2">
-                <Button
-                  variant="ghost"
-                  onClick={() => {
-                    setEditing(preset);
-                    setOpen(true);
-                  }}
-                >
-                  {t('Edit preset')}
-                </Button>
-                <Button
-                  variant="ghost"
-                  onClick={() => {
-                    if (preset.id && window.confirm(t('Delete preset?'))) {
-                      void run(() => remove.mutateAsync(preset.id!));
-                    }
-                  }}
-                >
-                  {t('Delete')}
-                </Button>
-              </div>
-            </li>
-          ))}
-        </ul>
-      )}
-
-      {error ? <p className="mt-3 text-sm text-destructive">{error}</p> : null}
+      <CardHeader
+        title={t('Travel presets')}
+        description={t('Commute scenarios with overhead buffer.')}
+        action={
+          <Button
+            size="sm"
+            onClick={() => {
+              setEditing(null);
+              setOpen(true);
+            }}
+          >
+            <Plus className="h-3.5 w-3.5" />
+            {t('Add preset')}
+          </Button>
+        }
+      />
+      <CardContent>
+        {query.isLoading ? (
+          <div className="flex justify-center py-6">
+            <Spinner />
+          </div>
+        ) : presets.length === 0 ? (
+          <EmptyState title={t('No presets yet')} />
+        ) : (
+          <ul className="divide-y divide-border">
+            {presets.map((preset) => (
+              <li
+                key={preset.id ?? preset.name}
+                className="flex flex-wrap items-center justify-between gap-3 py-3 first:pt-0 last:pb-0"
+              >
+                <div>
+                  <p className="font-medium">{preset.name}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {t('Overhead')}: {defaultOverheadMinutes(preset)} min · {t('Productive')}:{' '}
+                    {productiveCommuteMinutes(preset)} min · {preset.commuteMode}
+                  </p>
+                </div>
+                <div className="flex gap-1">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    aria-label={t('Edit preset')}
+                    onClick={() => {
+                      setEditing(preset);
+                      setOpen(true);
+                    }}
+                  >
+                    <Pencil className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    aria-label={t('Delete preset?')}
+                    onClick={() => setDeleting(preset)}
+                  >
+                    <Trash2 className="h-4 w-4 text-destructive" />
+                  </Button>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </CardContent>
 
       <PresetDialog open={open} initial={editing} onClose={() => setOpen(false)} onSubmit={submit} />
+
+      <ConfirmDialog
+        open={deleting != null}
+        title={t('Delete preset?')}
+        description={t('Delete "{name}"?', { name: deleting?.name ?? '' })}
+        busy={remove.isPending}
+        onClose={() => setDeleting(null)}
+        onConfirm={confirmDelete}
+      />
     </Card>
   );
 }

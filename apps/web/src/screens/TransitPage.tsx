@@ -1,7 +1,18 @@
 import { useEffect, useState } from 'react';
 
 import { StationPicker } from '../components/StationPicker';
-import { Badge, Button, Card, Field, Input, Spinner } from '../components/ui';
+import {
+  Badge,
+  Button,
+  Card,
+  CardContent,
+  CardHeader,
+  EmptyState,
+  Field,
+  Input,
+  Spinner,
+  Switch,
+} from '../components/ui';
 import { useNow } from '../hooks/useNow';
 import { useT } from '../i18n';
 import { formatClock, toDateStr } from '../lib/date';
@@ -43,6 +54,7 @@ import {
   savePinnedJourney,
 } from '../services/pinned-journey-store';
 import { useJourneys, useSaveTransitConfig, useTransitConfig } from '../queries/transit';
+import { useToastStore } from '../state/toast';
 
 function asStation(id: string, name: string): StationInfo | null {
   return id && name ? { id, name, siteId: null } : null;
@@ -54,6 +66,7 @@ export function TransitPage() {
 
   const configQuery = useTransitConfig();
   const save = useSaveTransitConfig();
+  const pushToast = useToastStore((state) => state.push);
 
   const [draft, setDraft] = useState<TransitConfig>(defaultTransitConfig);
   const [initialised, setInitialised] = useState(false);
@@ -87,9 +100,9 @@ export function TransitPage() {
   if (configQuery.isLoading || !initialised) {
     return (
       <Card>
-        <div className="flex justify-center py-8">
+        <CardContent className="grid place-items-center py-10">
           <Spinner />
-        </div>
+        </CardContent>
       </Card>
     );
   }
@@ -99,8 +112,7 @@ export function TransitPage() {
 
   const routeOrigin = originStopId(draft, morning);
   const routeDest = destStopId(draft, morning);
-  const pinForRoute =
-    pinned && pinBelongsToRoute(pinned, routeOrigin, routeDest) ? pinned : null;
+  const pinForRoute = pinned && pinBelongsToRoute(pinned, routeOrigin, routeDest) ? pinned : null;
   const livePinned = pinForRoute
     ? (journeys.find((journey) => journeyMatchesPin(journey, pinForRoute)) ?? null)
     : null;
@@ -121,121 +133,139 @@ export function TransitPage() {
     void journeysQuery.refetch();
   }
 
+  async function saveConfig() {
+    const previous = configQuery.data;
+    if (
+      previous &&
+      (previous.homeStopId !== draft.homeStopId || previous.workStopId !== draft.workStopId)
+    ) {
+      // The route changed, so the pin no longer applies.
+      unpin();
+    }
+    try {
+      await save.mutateAsync(draft);
+      pushToast(t('Saved'), 'success');
+    } catch {
+      pushToast(t('Could not save'), 'error');
+    }
+  }
+
   return (
     <div className="space-y-4">
       <Card>
-        <h1 className="text-xl font-semibold text-foreground">{t('Transit')}</h1>
-
-        <label className="mt-4 flex items-center gap-2 text-sm text-foreground">
-          <input
-            type="checkbox"
-            checked={draft.enabled}
-            onChange={(event) => setDraft({ ...draft, enabled: event.target.checked })}
-          />
-          {t('Enable transit')}
-        </label>
-
-        <div className="mt-4 grid gap-4 sm:grid-cols-2">
-          <StationPicker
-            label={t('Home station')}
-            selected={asStation(draft.homeStopId, draft.homeStopName)}
-            onSelect={(station) =>
-              setDraft({ ...draft, homeStopId: station.id, homeStopName: station.name })
-            }
-          />
-          <StationPicker
-            label={t('Work station')}
-            selected={asStation(draft.workStopId, draft.workStopName)}
-            onSelect={(station) =>
-              setDraft({ ...draft, workStopId: station.id, workStopName: station.name })
-            }
-          />
-          <Field label={t('Walk from home (min)')} htmlFor="walkHome">
-            <Input
-              id="walkHome"
-              type="number"
-              inputMode="numeric"
-              value={String(draft.walkHomeMinutes)}
-              onChange={(event) => setDraft({ ...draft, walkHomeMinutes: Number(event.target.value) || 0 })}
+        <CardHeader
+          title={t('Transit')}
+          description={t('Journey planning between home and work stations.')}
+        />
+        <CardContent className="space-y-4">
+          <label className="flex items-center justify-between gap-4 text-sm">
+            <span>{t('Enable transit')}</span>
+            <Switch
+              checked={draft.enabled}
+              onCheckedChange={(enabled) => setDraft({ ...draft, enabled })}
             />
-          </Field>
-          <Field label={t('Walk to work (min)')} htmlFor="walkWork">
-            <Input
-              id="walkWork"
-              type="number"
-              inputMode="numeric"
-              value={String(draft.walkWorkMinutes)}
-              onChange={(event) => setDraft({ ...draft, walkWorkMinutes: Number(event.target.value) || 0 })}
-            />
-          </Field>
-        </div>
+          </label>
 
-        <Button
-          className="mt-4"
-          disabled={save.isPending}
-          onClick={() => {
-            const previous = configQuery.data;
-            if (
-              previous &&
-              (previous.homeStopId !== draft.homeStopId ||
-                previous.workStopId !== draft.workStopId)
-            ) {
-              // The route changed, so the pin no longer applies.
-              unpin();
-            }
-            void save.mutateAsync(draft);
-          }}
-        >
-          {t('Save')}
-        </Button>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <StationPicker
+              label={t('Home station')}
+              selected={asStation(draft.homeStopId, draft.homeStopName)}
+              onSelect={(station) =>
+                setDraft({ ...draft, homeStopId: station.id, homeStopName: station.name })
+              }
+            />
+            <StationPicker
+              label={t('Work station')}
+              selected={asStation(draft.workStopId, draft.workStopName)}
+              onSelect={(station) =>
+                setDraft({ ...draft, workStopId: station.id, workStopName: station.name })
+              }
+            />
+            <Field label={t('Walk from home (min)')} htmlFor="walkHome">
+              <Input
+                id="walkHome"
+                type="number"
+                inputMode="numeric"
+                value={String(draft.walkHomeMinutes)}
+                onChange={(event) =>
+                  setDraft({ ...draft, walkHomeMinutes: Number(event.target.value) || 0 })
+                }
+              />
+            </Field>
+            <Field label={t('Walk to work (min)')} htmlFor="walkWork">
+              <Input
+                id="walkWork"
+                type="number"
+                inputMode="numeric"
+                value={String(draft.walkWorkMinutes)}
+                onChange={(event) =>
+                  setDraft({ ...draft, walkWorkMinutes: Number(event.target.value) || 0 })
+                }
+              />
+            </Field>
+          </div>
+
+          {!canFetch ? (
+            <p className="text-xs text-muted-foreground">{t('Both work and home stations must be set.')}</p>
+          ) : null}
+
+          <div>
+            <Button onClick={() => void saveConfig()} disabled={save.isPending}>
+              {t('Save')}
+            </Button>
+          </div>
+        </CardContent>
       </Card>
 
       {canFetch ? (
         <Card>
-          <div className="flex items-center justify-between gap-4">
-            <h2 className="text-sm font-medium text-foreground">{directionLabel(draft, morning)}</h2>
-            <Button variant="ghost" onClick={refresh}>
-              {t('Refresh')}
-            </Button>
-          </div>
-
-          {availability === 'unavailable' ? (
-            <div className="mt-4 rounded-lg border border-warning/40 bg-warning/10 p-3">
-              <p className="text-sm text-warning">{t('Transit unavailable')}</p>
-              {transitLastError() ? (
-                <p className="mt-1 text-xs text-warning/70">{transitLastError()}</p>
-              ) : null}
-              <Button className="mt-3" variant="ghost" onClick={refresh}>
-                {t('Try again')}
+          <CardHeader
+            title={directionLabel(draft, morning)}
+            action={
+              <Button variant="outline" size="sm" onClick={refresh}>
+                {t('Refresh')}
               </Button>
-            </div>
-          ) : availability === 'backingOff' ? (
-            <p className="mt-4 text-sm text-amber-300">
-              {t('Retrying in {seconds}s', {
-                seconds: Math.ceil(transitBackoffRemainingMs(now.getTime()) / 1000),
-              })}
-            </p>
-          ) : journeysQuery.isLoading ? (
-            <div className="flex justify-center py-6">
-              <Spinner />
-            </div>
-          ) : journeys.length === 0 && !pinForRoute ? (
-            <p className="mt-4 text-sm text-muted-foreground">{t('No journeys found')}</p>
-          ) : (
-            <ul className="mt-4 divide-y divide-border">
-              {pinForRoute ? (
-                <PinnedRow pin={pinForRoute} live={livePinned} now={now} onUnpin={unpin} />
-              ) : null}
-              {journeys.map((journey) => (
-                <JourneyRow
-                  key={journey.departureTime.toISOString()}
-                  journey={journey}
-                  now={now}
-                  onPin={() => pin(journey)}
-                />
-              ))}
-            </ul>
-          )}
+            }
+          />
+          <CardContent>
+            {availability === 'unavailable' ? (
+              <div className="rounded-lg border border-warning/40 bg-warning/10 p-3">
+                <p className="text-sm text-warning">{t('Transit unavailable')}</p>
+                {transitLastError() ? (
+                  <p className="mt-1 text-xs text-warning/70">{transitLastError()}</p>
+                ) : null}
+                <Button className="mt-3" variant="outline" size="sm" onClick={refresh}>
+                  {t('Try again')}
+                </Button>
+              </div>
+            ) : availability === 'backingOff' ? (
+              <p className="text-sm text-warning">
+                {t('Retrying in {seconds}s', {
+                  seconds: Math.ceil(transitBackoffRemainingMs(now.getTime()) / 1000),
+                })}
+              </p>
+            ) : journeysQuery.isLoading ? (
+              <div className="flex justify-center py-6">
+                <Spinner />
+              </div>
+            ) : journeys.length === 0 && !pinForRoute ? (
+              <EmptyState title={t('No journeys found')} />
+            ) : (
+              <ul className="divide-y divide-border">
+                {pinForRoute ? (
+                  <PinnedRow pin={pinForRoute} live={livePinned} now={now} onUnpin={unpin} />
+                ) : null}
+                {journeys.map((journey) => (
+                  <JourneyRow
+                    key={journey.departureTime.toISOString()}
+                    journey={journey}
+                    now={now}
+                    onPin={() => pin(journey)}
+                  />
+                ))}
+              </ul>
+            )}
+          </CardContent>
         </Card>
       ) : null}
     </div>
@@ -275,7 +305,7 @@ function JourneyRow({
   return (
     <li
       className={
-        'flex flex-wrap items-start justify-between gap-3 py-3' +
+        'flex flex-wrap items-start justify-between gap-3 py-3 first:pt-0 last:pb-0' +
         (pinned ? ' rounded-lg bg-accent/50 px-3' : '')
       }
     >
@@ -284,7 +314,7 @@ function JourneyRow({
           <span className="font-mono">{formatClock(journey.departureTime)}</span>
           <span className="text-muted-foreground">→</span>
           <span className="font-mono">{formatClock(journey.arrivalTime)}</span>
-          {pinned ? <Badge variant="default">{t('Pinned')}</Badge> : null}
+          {pinned ? <Badge>{t('Pinned')}</Badge> : null}
         </p>
         <p className="mt-1 text-xs text-muted-foreground">
           {line ? `${line} · ` : ''}
@@ -346,7 +376,7 @@ function PinnedRow({
       <div>
         <p className="flex items-center gap-2 font-medium">
           <span className="font-mono">{pin.timeOfDay}</span>
-          <Badge variant="default">{t('Pinned')}</Badge>
+          <Badge>{t('Pinned')}</Badge>
         </p>
         <p className="mt-1 text-xs text-muted-foreground">
           {pin.line ? `${pin.line} · ` : ''}

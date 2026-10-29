@@ -5,6 +5,7 @@
 
 ## 2026-10-29
 
+- docs: update gap analysis + framework plan after the M2 pass (`b95025a`)
 - Milestone M2: React UI rewrite (v0.2.0-react-ui) (`ab0073a`)
 - web: adopt shadcn/ui (Radix dialog, tabs, switch; cva variants; components.json + @ alias) (`41d2136`)
 - feature parity: admin password reset, encryption explainer, notifications test, CSV guide, diagnostics + update check (`3f79642`)
@@ -438,7 +439,3 @@
 - feat: add UserProfile and Invite domain models (`560872f`)
 - feat: implement authentication and user management plan with roles and RLS policies (`2a7c922`)
 - feat: add lunch minutes handling and update functionality in time logs (`5a658a7`)
-
-## 2026-06-09
-
-- slider again (`41d7b2a`)
