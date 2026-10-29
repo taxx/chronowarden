@@ -1,4 +1,4 @@
-import { useNavigate } from '@tanstack/react-router';
+import { Link, useNavigate } from '@tanstack/react-router';
 import { useState, type FormEvent } from 'react';
 
 import { Button, Card, Field, Input, Spinner } from '../components/ui';
@@ -54,6 +54,12 @@ export function UnlockScreen() {
             {busy ? <Spinner /> : t('Unlock')}
           </Button>
         </form>
+
+        <div className="mt-4 text-center">
+          <Link to="/recover" className="text-sm text-sky-400 hover:text-sky-300">
+            {t('Forgot passphrase?')}
+          </Link>
+        </div>
       </Card>
     </div>
   );

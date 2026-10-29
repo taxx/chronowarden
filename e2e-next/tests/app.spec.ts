@@ -11,6 +11,7 @@ test.describe.serial('ChronoWarden web-next', () => {
   const EMAIL = 'e2e@example.com';
   const PASSWORD = 'supersecret1';
   const PASSPHRASE = 'e2e-encryption-passphrase';
+  let recoveryPhrase = '';
 
   async function signIn(page: Page) {
     await page.getByLabel('Email').fill(EMAIL);
@@ -35,6 +36,7 @@ test.describe.serial('ChronoWarden web-next', () => {
     await expect(page.getByRole('heading', { name: 'Your recovery phrase' })).toBeVisible();
     const phrase = await page.getByTestId('recovery-phrase').innerText();
     expect(phrase.trim().split(/\s+/)).toHaveLength(24);
+    recoveryPhrase = phrase.trim();
 
     await page.getByRole('button', { name: 'I have saved my recovery phrase' }).click();
     await expect(page.getByRole('link', { name: 'My Day' })).toBeVisible();
@@ -102,5 +104,24 @@ test.describe.serial('ChronoWarden web-next', () => {
 
     await expect(page.getByText('Copy this token and share it with the user:')).toBeVisible();
     await expect(page.getByText('invitee@example.com')).toBeVisible();
+  });
+
+  // Runs last: it sets a new passphrase, so earlier tests need the original one.
+  test('recovers access with the recovery phrase and a new passphrase', async ({ page }) => {
+    await page.goto('/');
+
+    // Sign in without the passphrase to land on the unlock screen.
+    await page.getByLabel('Email').fill(EMAIL);
+    await page.getByLabel('Password').fill(PASSWORD);
+    await page.getByRole('button', { name: 'Sign in' }).click();
+    await expect(page.getByRole('heading', { name: 'Unlock' })).toBeVisible();
+
+    await page.getByRole('link', { name: 'Forgot passphrase?' }).click();
+    await page.getByLabel('Enter your recovery phrase').fill(recoveryPhrase);
+    await page.getByLabel('New encryption passphrase').fill('a-new-encryption-passphrase');
+    await page.getByLabel('Confirm encryption passphrase').fill('a-new-encryption-passphrase');
+    await page.getByRole('button', { name: 'Recover access' }).click();
+
+    await expect(page.getByRole('link', { name: 'My Day' })).toBeVisible();
   });
 });

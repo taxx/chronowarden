@@ -14,6 +14,7 @@ import { MyDayPage } from './screens/MyDayPage';
 import { OverviewPage } from './screens/OverviewPage';
 import { ProjectionPage } from './screens/ProjectionPage';
 import { RegisterScreen } from './screens/RegisterScreen';
+import { RecoverScreen } from './screens/RecoverScreen';
 import { RecoveryScreen } from './screens/RecoveryScreen';
 import { SettingsPage } from './screens/SettingsPage';
 import { SetupScreen } from './screens/SetupScreen';
@@ -82,6 +83,17 @@ const recoveryRoute = createRoute({
   },
 });
 
+const recoverRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/recover',
+  component: RecoverScreen,
+  beforeLoad: () => {
+    const { status, hasUsers } = useAuthStore.getState();
+    if (status === 'ready') throw redirect({ to: '/' });
+    if (status === 'unauthenticated') throw redirect({ to: hasUsers ? '/login' : '/setup' });
+  },
+});
+
 const appRoute = createRoute({
   getParentRoute: () => rootRoute,
   id: 'app',
@@ -140,6 +152,7 @@ const routeTree = rootRoute.addChildren([
   loginRoute,
   registerRoute,
   passphraseRoute,
+  recoverRoute,
   recoveryRoute,
   appRoute.addChildren([
     indexRoute,

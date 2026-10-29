@@ -8,6 +8,7 @@ import {
   KEK_ITERATIONS,
   base64ToBytes,
   bytesToBase64,
+  decryptString,
   dekToMnemonic,
   deriveMasterKey,
   generateDek,
@@ -65,6 +66,8 @@ interface AuthState {
   recoverWithPhrase: (phrase: string) => Promise<void>;
   recoverAndSetPassphrase: (phrase: string, newPassphrase: string) => Promise<void>;
   logout: () => Promise<void>;
+  /** The recovery phrase for the current DEK (also refreshes the stored hash). */
+  showRecoveryPhrase: () => Promise<string>;
   /** After a backup restore: drop the cached DEK and require the backup's passphrase. */
   onBackupRestored: () => void;
   clearError: () => void;
@@ -107,16 +110,40 @@ async function createEnvelope(passphrase: string): Promise<{ dek: Uint8Array; ph
   return { dek, phrase };
 }
 
-async function verifyRecoveryHash(phrase: string): Promise<boolean> {
-  const settings = await settingsApi.get();
-  if (!settings?.recovery_hash) return true; // nothing to verify against
-  return (await hashRecoveryPhrase(phrase)) === settings.recovery_hash;
+/**
+ * Verify a DEK by decrypting the user's settings payload — the real test of a
+ * recovery phrase (robust across the old custom wordlist and the new BIP39).
+ */
+async function verifyDekByDecrypt(dek: Uint8Array): Promise<boolean> {
+  const row = await settingsApi.get();
+  const encrypted = row?.encrypted_data;
+  if (!encrypted) return true; // nothing to check against yet
+  try {
+    await decryptString(encrypted, dek);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Store the recovery hash for the current (official BIP39) phrase. This is the
+ * one-time migration for accounts whose hash was created with the old custom
+ * wordlist.
+ */
+async function storeOfficialRecoveryHash(dek: Uint8Array): Promise<void> {
+  const phrase = dekToMnemonic(dek);
+  const hash = await hashRecoveryPhrase(phrase);
+  const row = await settingsApi.get();
+  if (row && row.recovery_hash !== hash) {
+    await settingsApi.patch({ recovery_hash: hash });
+  }
 }
 
 /** Convenience selector for the unwrapped DEK. */
 export const useDek = (): Uint8Array | null => useAuthStore((state) => state.dek);
 
-export const useAuthStore = create<AuthState>((set) => ({
+export const useAuthStore = create<AuthState>((set, get) => ({
   status: 'loading',
   user: null,
   dek: null,
@@ -192,6 +219,8 @@ export const useAuthStore = create<AuthState>((set) => ({
       const kek = await deriveMasterKey(passphrase, base64ToBytes(settings.kek_salt));
       const dek = await unwrapDek(settings.encrypted_dek, kek);
       cacheDek(dek);
+      // Migrate the stored recovery hash to the official BIP39 phrase.
+      await storeOfficialRecoveryHash(dek).catch(() => {});
       set({ status: 'ready', dek });
     } catch (error) {
       set({ error: messageOf(error) });
@@ -203,10 +232,11 @@ export const useAuthStore = create<AuthState>((set) => ({
     set({ error: null });
     try {
       const dek = mnemonicToDek(phrase);
-      if (!(await verifyRecoveryHash(phrase))) {
+      if (!(await verifyDekByDecrypt(dek))) {
         throw new Error('Recovery phrase is incorrect');
       }
       cacheDek(dek);
+      await storeOfficialRecoveryHash(dek).catch(() => {});
       set({ status: 'ready', dek });
     } catch (error) {
       set({ error: messageOf(error) });
@@ -218,14 +248,16 @@ export const useAuthStore = create<AuthState>((set) => ({
     set({ error: null });
     try {
       const dek = mnemonicToDek(phrase);
-      if (!(await verifyRecoveryHash(phrase))) {
+      if (!(await verifyDekByDecrypt(dek))) {
         throw new Error('Recovery phrase is incorrect');
       }
       const wrap = await wrapDekWithPassphrase(dek, newPassphrase);
+      // Re-wrap under the new passphrase and record the official BIP39 hash.
       await settingsApi.patch({
         encrypted_dek: wrap.wrapped_b64,
         kek_salt: wrap.salt_b64,
         kek_iterations: wrap.iterations,
+        recovery_hash: await hashRecoveryPhrase(dekToMnemonic(dek)),
       });
       cacheDek(dek);
       set({ status: 'ready', dek });
@@ -233,6 +265,13 @@ export const useAuthStore = create<AuthState>((set) => ({
       set({ error: messageOf(error) });
       throw error;
     }
+  },
+
+  showRecoveryPhrase: async () => {
+    const dek = get().dek;
+    if (!dek) throw new Error('Encryption key is not loaded');
+    await storeOfficialRecoveryHash(dek).catch(() => {});
+    return dekToMnemonic(dek);
   },
 
   logout: async () => {
