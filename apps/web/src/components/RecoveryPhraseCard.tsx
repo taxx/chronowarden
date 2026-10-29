@@ -28,8 +28,8 @@ export function RecoveryPhraseCard() {
 
   return (
     <Card>
-      <h2 className="text-lg font-semibold text-white">{t('Recovery phrase')}</h2>
-      <p className="mt-1 text-sm text-slate-400">
+      <h2 className="text-lg font-semibold text-foreground">{t('Recovery phrase')}</h2>
+      <p className="mt-1 text-sm text-muted-foreground">
         {t(
           'This is the only way to recover your encrypted data if you forget your encryption passphrase. Write it down and keep it safe.',
         )}
@@ -38,7 +38,7 @@ export function RecoveryPhraseCard() {
       {phrase ? (
         <div
           data-testid="recovery-phrase"
-          className="mt-4 break-words rounded-xl border border-slate-700 bg-slate-950 p-4 font-mono text-sm leading-7 text-amber-200"
+          className="mt-4 break-words rounded-xl border border-input bg-background p-4 font-mono text-sm leading-7 text-amber-200"
         >
           {phrase}
         </div>
@@ -48,7 +48,7 @@ export function RecoveryPhraseCard() {
         {t('Show recovery phrase')}
       </Button>
 
-      {error ? <p className="mt-3 text-sm text-red-400">{error}</p> : null}
+      {error ? <p className="mt-3 text-sm text-destructive">{error}</p> : null}
     </Card>
   );
 }

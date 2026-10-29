@@ -62,12 +62,12 @@ export function AdminPage() {
               <Spinner />
             </div>
           ) : (
-            <ul className="mt-4 divide-y divide-slate-800">
+            <ul className="mt-4 divide-y divide-border">
               {users.map((user: User) => (
                 <li key={user.id} className="flex flex-wrap items-center justify-between gap-3 py-3">
                   <div>
-                    <p className="font-medium text-white">{user.email}</p>
-                    <p className="text-xs text-slate-400">
+                    <p className="font-medium text-foreground">{user.email}</p>
+                    <p className="text-xs text-muted-foreground">
                       {user.role} · {user.status}
                     </p>
                   </div>
@@ -133,8 +133,8 @@ export function AdminPage() {
             </form>
 
             {createdToken ? (
-              <div className="rounded-lg border border-slate-700 bg-slate-950 p-3">
-                <p className="text-xs text-slate-400">{t('Copy this token and share it with the user:')}</p>
+              <div className="rounded-lg border border-input bg-background p-3">
+                <p className="text-xs text-muted-foreground">{t('Copy this token and share it with the user:')}</p>
                 <div className="mt-2 flex items-center gap-2">
                   <code className="flex-1 break-all font-mono text-sm text-amber-200">{createdToken}</code>
                   <Button
@@ -148,14 +148,14 @@ export function AdminPage() {
             ) : null}
 
             {invites.length === 0 ? (
-              <p className="text-sm text-slate-400">{t('No invites yet')}</p>
+              <p className="text-sm text-muted-foreground">{t('No invites yet')}</p>
             ) : (
-              <ul className="divide-y divide-slate-800">
+              <ul className="divide-y divide-border">
                 {invites.map((invite) => (
                   <li key={invite.id} className="flex flex-wrap items-center justify-between gap-3 py-3">
                     <div>
-                      <p className="font-medium text-white">{invite.email}</p>
-                      <p className="text-xs text-slate-400">
+                      <p className="font-medium text-foreground">{invite.email}</p>
+                      <p className="text-xs text-muted-foreground">
                         {inviteState(invite) === 'used'
                           ? t('Used')
                           : inviteState(invite) === 'expired'
@@ -180,7 +180,7 @@ export function AdminPage() {
           </div>
         )}
 
-        {error ? <p className="mt-3 text-sm text-red-400">{error}</p> : null}
+        {error ? <p className="mt-3 text-sm text-destructive">{error}</p> : null}
       </Card>
     </div>
   );

@@ -46,7 +46,7 @@ export function LoginScreen() {
   return (
     <div className="grid min-h-dvh place-items-center p-6">
       <Card className="w-full max-w-md">
-        <h1 className="text-xl font-semibold text-white">{t('Sign in')}</h1>
+        <h1 className="text-xl font-semibold text-foreground">{t('Sign in')}</h1>
 
         <form className="mt-6 space-y-4" onSubmit={onSubmit}>
           <Field label={t('Email')} htmlFor="email">
@@ -81,7 +81,7 @@ export function LoginScreen() {
           ) : (
             <button
               type="button"
-              className="text-sm text-sky-400 hover:text-sky-300"
+              className="text-sm text-primary hover:text-primary"
               onClick={() => setShowPassphrase(true)}
             >
               {t('I have an encryption passphrase')}
@@ -89,7 +89,7 @@ export function LoginScreen() {
           )}
 
           {localError || storeError ? (
-            <p className="text-sm text-red-400">{localError ?? storeError}</p>
+            <p className="text-sm text-destructive">{localError ?? storeError}</p>
           ) : null}
 
           <Button type="submit" disabled={busy} className="w-full">
@@ -98,7 +98,7 @@ export function LoginScreen() {
         </form>
 
         <div className="mt-4 text-center">
-          <Link to="/register" className="text-sm text-sky-400 hover:text-sky-300">
+          <Link to="/register" className="text-sm text-primary hover:text-primary">
             {t('Have an invite?')}
           </Link>
         </div>

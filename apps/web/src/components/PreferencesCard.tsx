@@ -44,9 +44,9 @@ export function PreferencesCard() {
 
   return (
     <Card>
-      <h2 className="text-lg font-semibold text-white">{t('Preferences')}</h2>
+      <h2 className="text-lg font-semibold text-foreground">{t('Preferences')}</h2>
 
-      <label className="mt-4 flex items-center gap-2 text-sm text-slate-300">
+      <label className="mt-4 flex items-center gap-2 text-sm text-foreground">
         <input
           type="checkbox"
           checked={weekend}
@@ -58,7 +58,7 @@ export function PreferencesCard() {
         {t('Show weekends')}
       </label>
 
-      <label className="mt-2 flex items-center gap-2 text-sm text-slate-300">
+      <label className="mt-2 flex items-center gap-2 text-sm text-foreground">
         <input
           type="checkbox"
           checked={nonWork}

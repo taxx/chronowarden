@@ -32,8 +32,8 @@ export function UnlockScreen() {
   return (
     <div className="grid min-h-dvh place-items-center p-6">
       <Card className="w-full max-w-md">
-        <h1 className="text-xl font-semibold text-white">{t('Unlock')}</h1>
-        <p className="mt-1 text-sm text-slate-400">
+        <h1 className="text-xl font-semibold text-foreground">{t('Unlock')}</h1>
+        <p className="mt-1 text-sm text-muted-foreground">
           {t('Your data is encrypted. Enter your encryption passphrase to unlock it.')}
         </p>
 
@@ -48,7 +48,7 @@ export function UnlockScreen() {
             />
           </Field>
 
-          {storeError ? <p className="text-sm text-red-400">{storeError}</p> : null}
+          {storeError ? <p className="text-sm text-destructive">{storeError}</p> : null}
 
           <Button type="submit" disabled={busy} className="w-full">
             {busy ? <Spinner /> : t('Unlock')}
@@ -56,7 +56,7 @@ export function UnlockScreen() {
         </form>
 
         <div className="mt-4 text-center">
-          <Link to="/recover" className="text-sm text-sky-400 hover:text-sky-300">
+          <Link to="/recover" className="text-sm text-primary hover:text-primary">
             {t('Forgot passphrase?')}
           </Link>
         </div>

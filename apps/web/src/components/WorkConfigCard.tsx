@@ -47,7 +47,7 @@ export function WorkConfigCard() {
 
   return (
     <Card>
-      <h2 className="text-lg font-semibold text-white">{t('Work hours')}</h2>
+      <h2 className="text-lg font-semibold text-foreground">{t('Work hours')}</h2>
 
       <div className="mt-4 grid gap-4 sm:grid-cols-2">
         <Field label={t('Default expected minutes')} htmlFor="defaultMinutes">
@@ -92,7 +92,7 @@ export function WorkConfigCard() {
         <Button onClick={() => void onSave()} disabled={save.isPending}>
           {t('Save')}
         </Button>
-        {saved ? <span className="text-sm text-emerald-400">{t('Saved')}</span> : null}
+        {saved ? <span className="text-sm text-success">{t('Saved')}</span> : null}
       </div>
     </Card>
   );

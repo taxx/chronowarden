@@ -19,9 +19,9 @@ export function NotificationSettingsCard() {
 
   return (
     <Card>
-      <h2 className="text-lg font-semibold text-white">{t('Notifications')}</h2>
+      <h2 className="text-lg font-semibold text-foreground">{t('Notifications')}</h2>
 
-      <label className="mt-4 flex items-center gap-2 text-sm text-slate-300">
+      <label className="mt-4 flex items-center gap-2 text-sm text-foreground">
         <input type="checkbox" checked={enabled} onChange={(e) => setEnabled(e.target.checked)} />
         {t('Enable notifications')}
       </label>
@@ -47,16 +47,16 @@ export function NotificationSettingsCard() {
         </Field>
       </div>
 
-      <label className="mt-4 flex items-center gap-2 text-sm text-slate-300">
+      <label className="mt-4 flex items-center gap-2 text-sm text-foreground">
         <input type="checkbox" checked={sound} onChange={(e) => setSound(e.target.checked)} />
         {t('Sound')}
       </label>
-      <label className="mt-2 flex items-center gap-2 text-sm text-slate-300">
+      <label className="mt-2 flex items-center gap-2 text-sm text-foreground">
         <input type="checkbox" checked={vibrateEnabled} onChange={(e) => setVibrate(e.target.checked)} />
         {t('Vibration')}
       </label>
 
-      <p className="mt-4 text-xs text-slate-500">
+      <p className="mt-4 text-xs text-muted-foreground">
         {t('Permission')}: {notificationPermission()} · {t('Audio')}: {audioState()} ·{' '}
         {t('Vibration')}: {vibrationSupported() ? t('Yes') : t('No')}
       </p>

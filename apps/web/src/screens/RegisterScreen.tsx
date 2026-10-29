@@ -77,7 +77,7 @@ export function RegisterScreen() {
   return (
     <div className="grid min-h-dvh place-items-center p-6">
       <Card className="w-full max-w-md">
-        <h1 className="text-xl font-semibold text-white">{t('Create account')}</h1>
+        <h1 className="text-xl font-semibold text-foreground">{t('Create account')}</h1>
 
         <form className="mt-6 space-y-4" onSubmit={onSubmit}>
           <Field
@@ -94,7 +94,7 @@ export function RegisterScreen() {
               />
               {checking ? <Spinner /> : null}
             </div>
-            <p className="text-xs text-slate-500">{t('Ask your administrator for an invite token')}</p>
+            <p className="text-xs text-muted-foreground">{t('Ask your administrator for an invite token')}</p>
           </Field>
 
           <Field label={t('Full name')} htmlFor="fullName">
@@ -138,7 +138,7 @@ export function RegisterScreen() {
           </Field>
 
           {localError || storeError ? (
-            <p className="text-sm text-red-400">{localError ?? storeError}</p>
+            <p className="text-sm text-destructive">{localError ?? storeError}</p>
           ) : null}
 
           <Button type="submit" disabled={busy} className="w-full">

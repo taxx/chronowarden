@@ -29,7 +29,7 @@ export function StationPicker({
 
   return (
     <div className="space-y-1.5">
-      <span className="block text-sm font-medium text-slate-300">{label}</span>
+      <span className="block text-sm font-medium text-foreground">{label}</span>
       <Input
         aria-label={label}
         value={query}
@@ -37,12 +37,12 @@ export function StationPicker({
         onChange={(event) => setQuery(event.target.value)}
       />
       {showResults ? (
-        <ul className="max-h-48 overflow-auto rounded-lg border border-slate-700 bg-slate-950">
+        <ul className="max-h-48 overflow-auto rounded-lg border border-input bg-background">
           {stops.data!.map((station) => (
             <li key={station.id}>
               <button
                 type="button"
-                className="w-full px-3 py-2 text-left text-sm text-slate-200 hover:bg-slate-800"
+                className="w-full px-3 py-2 text-left text-sm text-foreground hover:bg-accent"
                 onClick={() => {
                   onSelect(station);
                   setQuery('');
@@ -54,7 +54,7 @@ export function StationPicker({
           ))}
         </ul>
       ) : null}
-      {selected ? <p className="text-xs text-slate-500">{selected.name}</p> : null}
+      {selected ? <p className="text-xs text-muted-foreground">{selected.name}</p> : null}
     </div>
   );
 }

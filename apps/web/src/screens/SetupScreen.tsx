@@ -46,8 +46,8 @@ export function SetupScreen() {
   return (
     <div className="grid min-h-dvh place-items-center p-6">
       <Card className="w-full max-w-md">
-        <h1 className="text-xl font-semibold text-white">{t('First-time setup')}</h1>
-        <p className="mt-1 text-sm text-slate-400">
+        <h1 className="text-xl font-semibold text-foreground">{t('First-time setup')}</h1>
+        <p className="mt-1 text-sm text-muted-foreground">
           {t('You are the first user. This account will be an administrator.')}
         </p>
 
@@ -98,7 +98,7 @@ export function SetupScreen() {
           </Field>
 
           {localError || storeError ? (
-            <p className="text-sm text-red-400">{localError ?? storeError}</p>
+            <p className="text-sm text-destructive">{localError ?? storeError}</p>
           ) : null}
 
           <Button type="submit" disabled={busy} className="w-full">

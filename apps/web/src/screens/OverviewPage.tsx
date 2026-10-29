@@ -27,7 +27,7 @@ function monthTotal(byDate: Map<string, TimeLog>, year: number, month: number): 
 }
 
 function overtimeClass(minutes: number): string {
-  return minutes >= 0 ? 'text-emerald-400' : 'text-amber-400';
+  return minutes >= 0 ? 'text-success' : 'text-warning';
 }
 
 export function OverviewPage() {
@@ -93,7 +93,7 @@ export function OverviewPage() {
   if (logsQuery.isLoading) {
     return (
       <Card>
-        <div className="flex justify-center py-8 text-slate-400">{t('Loading…')}</div>
+        <div className="flex justify-center py-8 text-muted-foreground">{t('Loading…')}</div>
       </Card>
     );
   }
@@ -101,7 +101,7 @@ export function OverviewPage() {
   return (
     <Card>
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-xl font-semibold capitalize text-white">{label()}</h1>
+        <h1 className="text-xl font-semibold capitalize text-foreground">{label()}</h1>
         <div className="flex items-center gap-1">
           <Button variant={period === 'week' ? 'primary' : 'ghost'} onClick={() => setPeriod('week')}>
             {t('Week')}
@@ -129,15 +129,15 @@ export function OverviewPage() {
           {weekDays.map((date, index) => {
             const log = byDate.get(toDateStr(date)) ?? null;
             return (
-              <div key={toDateStr(date)} className="rounded-lg border border-slate-800 bg-slate-900/60 p-3">
-                <p className="text-xs uppercase tracking-wide text-slate-500">{WEEKDAYS[index]}</p>
-                <p className="mt-0.5 text-sm text-slate-300">{date.getDate()}</p>
+              <div key={toDateStr(date)} className="rounded-lg border border-border bg-card p-3">
+                <p className="text-xs uppercase tracking-wide text-muted-foreground">{WEEKDAYS[index]}</p>
+                <p className="mt-0.5 text-sm text-foreground">{date.getDate()}</p>
                 {log ? (
                   <p className={'mt-2 text-sm ' + overtimeClass(log.overtimeMinutes)}>
                     {formatSignedMinutes(log.overtimeMinutes)}
                   </p>
                 ) : (
-                  <p className="mt-2 text-sm text-slate-600">—</p>
+                  <p className="mt-2 text-sm text-muted-foreground">—</p>
                 )}
               </div>
             );
@@ -148,11 +148,11 @@ export function OverviewPage() {
           <table className="w-full min-w-[640px] border-collapse text-sm">
             <thead>
               <tr>
-                <th className="w-10 px-1 py-2 text-left text-xs uppercase tracking-wide text-slate-500">
+                <th className="w-10 px-1 py-2 text-left text-xs uppercase tracking-wide text-muted-foreground">
                   {t('Week')}
                 </th>
                 {WEEKDAYS.map((day) => (
-                  <th key={day} className="px-1 py-2 text-left text-xs uppercase tracking-wide text-slate-500">
+                  <th key={day} className="px-1 py-2 text-left text-xs uppercase tracking-wide text-muted-foreground">
                     {day}
                   </th>
                 ))}
@@ -161,7 +161,7 @@ export function OverviewPage() {
             <tbody>
               {weeks.map((week, weekIndex) => (
                 <tr key={weekIndex}>
-                  <td className="px-1 py-1 align-top text-xs text-slate-500">
+                  <td className="px-1 py-1 align-top text-xs text-muted-foreground">
                     {isoWeekNumber(week[0]!.date)}
                   </td>
                   {week.map((cell) => {
@@ -172,10 +172,10 @@ export function OverviewPage() {
                         <div
                           className={
                             'h-16 rounded-lg border p-1.5 ' +
-                            (cell.inMonth ? 'border-slate-800 bg-slate-900/60' : 'border-transparent')
+                            (cell.inMonth ? 'border-border bg-card' : 'border-transparent')
                           }
                         >
-                          <div className={cell.inMonth ? 'text-slate-300' : 'text-slate-600'}>
+                          <div className={cell.inMonth ? 'text-foreground' : 'text-muted-foreground'}>
                             {cell.date.getDate()}
                           </div>
                           {cell.log ? (
@@ -204,8 +204,8 @@ export function OverviewPage() {
               return y === cursor.getFullYear() && m === month + 1;
             });
             return (
-              <div key={month} className="rounded-lg border border-slate-800 bg-slate-900/60 p-3">
-                <p className="text-sm capitalize text-slate-300">{name}</p>
+              <div key={month} className="rounded-lg border border-border bg-card p-3">
+                <p className="text-sm capitalize text-foreground">{name}</p>
                 <p className={'mt-2 text-lg font-semibold ' + overtimeClass(total)}>
                   {hasData ? formatSignedMinutes(total) : '—'}
                 </p>

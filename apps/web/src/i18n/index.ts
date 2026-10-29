@@ -8,6 +8,34 @@ import { create } from 'zustand';
 export type Locale = 'en' | 'sv';
 
 const sv: Record<string, string> = {
+  'About ChronoWarden': 'Om ChronoWarden',
+  'Add a past day': 'Lägg till en tidigare dag',
+  Appearance: 'Utseende',
+  'Change passphrase': 'Byt lösenfras',
+  'Choose the theme used across the app.': 'Välj temat som används i appen.',
+  'ChronoWarden is free, open-source and designed to be self-hosted — the whole stack lives in one repository.':
+      'ChronoWarden är fritt, öppen källkod och byggt för egen drift — hela stacken finns i ett enda kodförråd.',
+  'Confirm passphrase': 'Bekräfta lösenfras',
+  Dark: 'Mörkt',
+  'Download all your time logs as CSV or import from a CSV file.':
+      'Ladda ner alla dina tidsloggar som CSV eller importera från en CSV-fil.',
+  Encryption: 'Kryptering',
+  Light: 'Ljust',
+  'Log out?': 'Logga ut?',
+  'New passphrase': 'Ny lösenfras',
+  'Passphrase changed': 'Lösenfrasen ändrad',
+  'Passphrase must be at least 8 characters': 'Lösenfrasen måste vara minst 8 tecken',
+  'Passphrases do not match': 'Lösenfraserna matchar inte',
+  System: 'System',
+  'Version {version}': 'Version {version}',
+  'View source on GitHub': 'Visa källkoden på GitHub',
+  'You will need your password and passphrase to sign in again.':
+      'Du behöver ditt lösenord och din lösenfras för att logga in igen.',
+  'Your data is encrypted with AES-256-GCM on your device before it reaches the server. No one — not even the administrator — can read it.':
+      'Din data krypteras med AES-256-GCM på din enhet innan den når servern. Ingen — inte ens administratören — kan läsa den.',
+  'Your passphrase protects your encryption key — it never leaves this device.':
+      'Din lösenfras skyddar din krypteringsnyckel — den lämnar aldrig den här enheten.',
+  active: 'aktiv',
   Add: 'Lägg till',
   Edit: 'Redigera',
   Done: 'Klar',
@@ -110,7 +138,6 @@ const sv: Record<string, string> = {
   'Non-work minutes': 'Minuter icke-arbete',
   Note: 'Anteckning',
   Delete: 'Ta bort',
-  'Delete this day?': 'Ta bort denna dag?',
   'No days recorded yet': 'Inga dagar registrerade än',
   Users: 'Användare',
   Invites: 'Inbjudningar',

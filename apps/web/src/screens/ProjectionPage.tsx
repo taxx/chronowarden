@@ -42,11 +42,11 @@ export function ProjectionPage() {
 
   return (
     <Card>
-      <h1 className="text-xl font-semibold text-white">{t('Projection')}</h1>
-      <p className="mt-1 text-sm text-slate-400">{t('Time bank over time')}</p>
+      <h1 className="text-xl font-semibold text-foreground">{t('Projection')}</h1>
+      <p className="mt-1 text-sm text-muted-foreground">{t('Time bank over time')}</p>
 
-      <p className="mt-4 text-xs uppercase tracking-wide text-slate-500">{t('Balance')}</p>
-      <p className="text-3xl font-semibold text-white">{formatSignedMinutes(current)}</p>
+      <p className="mt-4 text-xs uppercase tracking-wide text-muted-foreground">{t('Balance')}</p>
+      <p className="text-3xl font-semibold text-foreground">{formatSignedMinutes(current)}</p>
 
       <div className="mt-6 h-72 w-full">
         <ResponsiveContainer width="100%" height="100%">

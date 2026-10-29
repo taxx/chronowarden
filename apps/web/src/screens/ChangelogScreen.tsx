@@ -19,25 +19,25 @@ export function ChangelogScreen() {
 
   return (
     <Card>
-      <h1 className="text-xl font-semibold text-white">{t("What's New")}</h1>
+      <h1 className="text-xl font-semibold text-foreground">{t("What's New")}</h1>
 
       {loading ? (
         <div className="flex justify-center py-8">
           <Spinner />
         </div>
       ) : !changelog || changelog.sections.length === 0 ? (
-        <p className="mt-4 text-sm text-slate-400">{t('Changelog is not available.')}</p>
+        <p className="mt-4 text-sm text-muted-foreground">{t('Changelog is not available.')}</p>
       ) : (
         <div className="mt-4 space-y-6">
           {changelog.sections.map((section) => (
             <section key={section.date}>
-              <h2 className="text-sm font-medium text-slate-300">{section.date}</h2>
+              <h2 className="text-sm font-medium text-foreground">{section.date}</h2>
               <ul className="mt-2 space-y-1">
                 {section.entries.map((entry) => (
                   <li key={`${section.date}-${entry.text}`} className="flex items-baseline gap-2 text-sm">
-                    <span className="text-slate-300">{entry.text}</span>
+                    <span className="text-foreground">{entry.text}</span>
                     {entry.hash ? (
-                      <code className="text-xs text-slate-500">{entry.hash}</code>
+                      <code className="text-xs text-muted-foreground">{entry.hash}</code>
                     ) : null}
                   </li>
                 ))}

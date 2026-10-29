@@ -1,32 +1,62 @@
 import { useState } from 'react';
+import { Download, NotebookPen, Pencil, Plus, Trash2, Upload } from 'lucide-react';
 
 import { CsvImportDialog } from '../components/CsvImportDialog';
 import { DayDialog, type DayFormValues } from '../components/DayDialog';
-import { Button, Card, Spinner } from '../components/ui';
+import {
+  Badge,
+  Button,
+  Card,
+  CardContent,
+  CardHeader,
+  ConfirmDialog,
+  EmptyState,
+  Spinner,
+} from '../components/ui';
 import { useT } from '../i18n';
 import { todayStr } from '../lib/date';
 import { timeLogsToCsv, type ImportResult } from '../lib/domain/csv';
 import { calculateOvertimeMinutes, copyWithTimeLog, type TimeLog } from '../lib/domain/time-log';
 import { downloadText } from '../lib/download';
-import { formatSignedMinutes } from '../lib/format';
-import { useWorkConfig } from '../queries/settings';
-import { useCreateTimeLog, useDeleteTimeLog, useTimeLogs, useUpdateTimeLog } from '../queries/time-logs';
+import { formatDurationMinutes, formatSignedMinutes } from '../lib/format';
+import { usePreferences, useWorkConfig } from '../queries/settings';
+import {
+  useCreateTimeLog,
+  useDeleteTimeLog,
+  useTimeLogs,
+  useUpdateTimeLog,
+} from '../queries/time-logs';
+import { useToastStore } from '../state/toast';
+
+function weekdayLabel(dateStr: string): string {
+  const date = new Date(`${dateStr}T00:00:00`);
+  return new Intl.DateTimeFormat(undefined, { weekday: 'short', day: 'numeric', month: 'short' }).format(date);
+}
 
 export function HistoryPage() {
   const t = useT();
 
   const logsQuery = useTimeLogs();
   const configQuery = useWorkConfig();
+  const prefsQuery = usePreferences();
   const createLog = useCreateTimeLog();
   const updateLog = useUpdateTimeLog();
   const deleteLog = useDeleteTimeLog();
+  const pushToast = useToastStore((state) => state.push);
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<TimeLog | null>(null);
   const [csvOpen, setCsvOpen] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState<TimeLog | null>(null);
 
-  const logs = [...(logsQuery.data ?? [])].sort((a, b) => b.date.localeCompare(a.date));
+  const showWeekends = prefsQuery.data?.showWeekends ?? true;
+  const logs = [...(logsQuery.data ?? [])]
+    .filter((log) => {
+      if (showWeekends) return true;
+      const day = new Date(`${log.date}T00:00:00`).getDay();
+      return day >= 1 && day <= 5;
+    })
+    .sort((a, b) => b.date.localeCompare(a.date));
   const defaultExpected = configQuery.data?.defaultExpectedMinutes ?? 480;
 
   function openAdd() {
@@ -40,13 +70,17 @@ export function HistoryPage() {
   }
 
   async function submit(values: DayFormValues) {
-    setError(null);
     try {
       if (editing?.id) {
         const endTime = values.endTime || null;
-        const overtime = endTime
-          ? calculateOvertimeMinutes(copyWithTimeLog(editing, { endTime }))
-          : 0;
+        const next = copyWithTimeLog(editing, {
+          startTime: values.startTime,
+          endTime,
+          expectedMinutes: values.expectedMinutes,
+          lunchMinutes: values.lunchMinutes,
+          nonWorkMinutes: values.nonWorkMinutes,
+          note: values.note,
+        });
         await updateLog.mutateAsync({
           id: editing.id,
           fields: {
@@ -56,7 +90,7 @@ export function HistoryPage() {
             lunch_minutes: values.lunchMinutes,
             non_work_minutes: values.nonWorkMinutes,
             note: values.note,
-            overtime_minutes: overtime,
+            overtime_minutes: calculateOvertimeMinutes(next),
           },
         });
       } else {
@@ -81,8 +115,9 @@ export function HistoryPage() {
         });
       }
       setDialogOpen(false);
+      pushToast(t('Saved'), 'success');
     } catch {
-      setError(t('Could not save'));
+      pushToast(t('Could not save'), 'error');
     }
   }
 
@@ -91,86 +126,113 @@ export function HistoryPage() {
   }
 
   async function importCsv(result: ImportResult) {
-    setError(null);
     for (const imported of result.imported) {
       await createLog.mutateAsync({
         ...imported,
         overtimeMinutes: calculateOvertimeMinutes(imported),
       });
     }
+    pushToast(t('Imported {count} day(s)', { count: result.imported.length }), 'success');
   }
 
-  async function remove(log: TimeLog) {
-    if (!log.id) return;
-    if (!window.confirm(t('Delete this day?'))) return;
-    setError(null);
+  async function confirmDelete() {
+    if (!deleting?.id) return;
     try {
-      await deleteLog.mutateAsync(log.id);
+      await deleteLog.mutateAsync(deleting.id);
+      pushToast(t('Saved'), 'success');
     } catch {
-      setError(t('Could not save'));
+      pushToast(t('Could not save'), 'error');
+    } finally {
+      setDeleting(null);
     }
   }
 
   if (logsQuery.isLoading) {
     return (
       <Card>
-        <div className="flex justify-center py-8">
+        <CardContent className="grid place-items-center py-10">
           <Spinner />
-        </div>
+        </CardContent>
       </Card>
     );
   }
 
   return (
-    <>
+    <div className="space-y-4">
       <Card>
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <h1 className="text-xl font-semibold text-white">{t('History')}</h1>
-          <div className="flex flex-wrap gap-2">
-            <Button variant="ghost" onClick={exportCsv}>
-              {t('Export CSV')}
-            </Button>
-            <Button variant="ghost" onClick={() => setCsvOpen(true)}>
-              {t('Import CSV')}
-            </Button>
-            <Button onClick={openAdd}>{t('Add day')}</Button>
-          </div>
-        </div>
-
-        {logs.length === 0 ? (
-          <p className="mt-4 text-sm text-slate-400">{t('No days recorded yet')}</p>
-        ) : (
-          <ul className="mt-4 divide-y divide-slate-800">
-            {logs.map((log) => (
-              <li key={log.id ?? log.date} className="flex flex-wrap items-center justify-between gap-3 py-3">
-                <div>
-                  <p className="font-medium text-white">{log.date}</p>
-                  <p className="text-xs text-slate-400">
-                    {log.startTime.slice(0, 5)}
-                    {log.endTime ? ` – ${log.endTime.slice(0, 5)}` : ''}
-                  </p>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span
-                    className={
-                      log.overtimeMinutes >= 0 ? 'text-sm text-emerald-400' : 'text-sm text-amber-400'
-                    }
+        <CardHeader
+          title={t('History')}
+          description={t('Download all your time logs as CSV or import from a CSV file.')}
+          action={
+            <div className="flex flex-wrap gap-2">
+              <Button variant="outline" size="sm" onClick={exportCsv}>
+                <Download className="h-3.5 w-3.5" />
+                {t('Export CSV')}
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => setCsvOpen(true)}>
+                <Upload className="h-3.5 w-3.5" />
+                {t('Import CSV')}
+              </Button>
+              <Button size="sm" onClick={openAdd}>
+                <Plus className="h-3.5 w-3.5" />
+                {t('Add day')}
+              </Button>
+            </div>
+          }
+        />
+        <CardContent>
+          {logs.length === 0 ? (
+            <EmptyState title={t('No days recorded yet')} description={t('Add a past day')} />
+          ) : (
+            <ul className="divide-y divide-border">
+              {logs.map((log) => {
+                const overtime = log.overtimeMinutes;
+                return (
+                  <li
+                    key={log.id ?? log.date}
+                    className="flex flex-wrap items-center gap-3 py-3 first:pt-0 last:pb-0"
                   >
-                    {formatSignedMinutes(log.overtimeMinutes)}
-                  </span>
-                  <Button variant="ghost" onClick={() => openEdit(log)}>
-                    {t('Edit day')}
-                  </Button>
-                  <Button variant="ghost" onClick={() => void remove(log)}>
-                    {t('Delete')}
-                  </Button>
-                </div>
-              </li>
-            ))}
-          </ul>
-        )}
-
-        {error ? <p className="mt-3 text-sm text-red-400">{error}</p> : null}
+                    <div className="min-w-40 flex-1">
+                      <div className="flex items-center gap-2">
+                        <p className="font-medium">{weekdayLabel(log.date)}</p>
+                        {log.note ? <NotebookPen className="h-3.5 w-3.5 text-muted-foreground" /> : null}
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        {log.startTime.slice(0, 5)}
+                        {log.endTime ? ` – ${log.endTime.slice(0, 5)}` : ` · ${t('active')}`}
+                        {log.lunchMinutes > 0 ? ` · ${t('Lunch')} ${formatDurationMinutes(log.lunchMinutes)}` : ''}
+                        {log.nonWorkMinutes > 0
+                          ? ` · ${t('Non-work')} ${formatDurationMinutes(log.nonWorkMinutes)}`
+                          : ''}
+                      </p>
+                    </div>
+                    <Badge variant={overtime >= 0 ? 'success' : 'warning'}>
+                      {formatSignedMinutes(overtime)}
+                    </Badge>
+                    <div className="flex gap-1">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        aria-label={t('Edit day')}
+                        onClick={() => openEdit(log)}
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        aria-label={t('Delete day')}
+                        onClick={() => setDeleting(log)}
+                      >
+                        <Trash2 className="h-4 w-4 text-destructive" />
+                      </Button>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </CardContent>
       </Card>
 
       <DayDialog
@@ -187,6 +249,19 @@ export function HistoryPage() {
         existingDates={new Set(logs.map((log) => log.date))}
         onImport={importCsv}
       />
-    </>
+
+      <ConfirmDialog
+        open={deleting != null}
+        title={t('Delete day')}
+        description={
+          deleting
+            ? t('Permanently delete the entry for {date}? This cannot be undone.', { date: deleting.date })
+            : undefined
+        }
+        busy={deleteLog.isPending}
+        onClose={() => setDeleting(null)}
+        onConfirm={confirmDelete}
+      />
+    </div>
   );
 }

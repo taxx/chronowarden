@@ -51,17 +51,17 @@ export function CsvImportDialog({
 
   return (
     <Modal open={open} onClose={close} title={t('Import CSV')}>
-      <p className="text-sm text-slate-400">{t('Paste your CSV data below.')}</p>
+      <p className="text-sm text-muted-foreground">{t('Paste your CSV data below.')}</p>
       <textarea
         aria-label={t('Paste your CSV data below.')}
-        className="mt-2 h-40 w-full rounded-lg border border-slate-700 bg-slate-950 p-3 font-mono text-xs text-slate-100"
+        className="mt-2 h-40 w-full rounded-lg border border-input bg-background p-3 font-mono text-xs text-foreground"
         value={text}
         onChange={(event) => setText(event.target.value)}
       />
 
-      {summary ? <p className="mt-3 text-sm text-slate-300">{summary}</p> : null}
+      {summary ? <p className="mt-3 text-sm text-foreground">{summary}</p> : null}
       {errors.length > 0 ? (
-        <ul className="mt-2 max-h-32 overflow-auto text-xs text-red-400">
+        <ul className="mt-2 max-h-32 overflow-auto text-xs text-destructive">
           {errors.map((error) => (
             <li key={error}>{error}</li>
           ))}

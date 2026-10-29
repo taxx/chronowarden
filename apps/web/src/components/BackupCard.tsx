@@ -48,8 +48,8 @@ export function BackupCard() {
 
   return (
     <Card>
-      <h2 className="text-lg font-semibold text-white">{t('Backup & Restore')}</h2>
-      <p className="mt-1 text-sm text-slate-400">
+      <h2 className="text-lg font-semibold text-foreground">{t('Backup & Restore')}</h2>
+      <p className="mt-1 text-sm text-muted-foreground">
         {t(
           'Download a complete, encrypted backup you can restore on any ChronoWarden instance.',
         )}
@@ -64,17 +64,17 @@ export function BackupCard() {
         </Button>
       </div>
 
-      {message ? <p className="mt-3 text-sm text-slate-400">{message}</p> : null}
+      {message ? <p className="mt-3 text-sm text-muted-foreground">{message}</p> : null}
 
       <Modal open={restoreOpen} onClose={() => setRestoreOpen(false)} title={t('Restore backup')}>
-        <p className="text-sm text-slate-400">
+        <p className="text-sm text-muted-foreground">
           {t(
             'Restoring replaces all data in this account. Use the encryption passphrase from the backup.',
           )}
         </p>
         <textarea
           aria-label={t('Paste your backup JSON below.')}
-          className="mt-3 h-40 w-full rounded-lg border border-slate-700 bg-slate-950 p-3 font-mono text-xs text-slate-100"
+          className="mt-3 h-40 w-full rounded-lg border border-input bg-background p-3 font-mono text-xs text-foreground"
           value={bundleText}
           onChange={(event) => setBundleText(event.target.value)}
         />

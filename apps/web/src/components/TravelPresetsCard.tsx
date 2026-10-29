@@ -119,7 +119,7 @@ function PresetDialog({
           <Field label={t('Commute mode')} htmlFor="commuteMode">
             <select
               id="commuteMode"
-              className="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100"
+              className="w-full rounded-lg border border-input bg-card px-3 py-2 text-sm text-foreground"
               value={values.commuteMode}
               onChange={(event) =>
                 setValues({ ...values, commuteMode: event.target.value as CommuteMode })
@@ -205,7 +205,7 @@ export function TravelPresetsCard() {
   return (
     <Card>
       <div className="flex items-center justify-between gap-4">
-        <h2 className="text-lg font-semibold text-white">{t('Travel presets')}</h2>
+        <h2 className="text-lg font-semibold text-foreground">{t('Travel presets')}</h2>
         <Button
           onClick={() => {
             setEditing(null);
@@ -221,17 +221,17 @@ export function TravelPresetsCard() {
           <Spinner />
         </div>
       ) : presets.length === 0 ? (
-        <p className="mt-4 text-sm text-slate-400">{t('No presets yet')}</p>
+        <p className="mt-4 text-sm text-muted-foreground">{t('No presets yet')}</p>
       ) : (
-        <ul className="mt-4 divide-y divide-slate-800">
+        <ul className="mt-4 divide-y divide-border">
           {presets.map((preset) => (
             <li
               key={preset.id ?? preset.name}
               className="flex flex-wrap items-center justify-between gap-3 py-3"
             >
               <div>
-                <p className="font-medium text-white">{preset.name}</p>
-                <p className="text-xs text-slate-400">
+                <p className="font-medium text-foreground">{preset.name}</p>
+                <p className="text-xs text-muted-foreground">
                   {t('Overhead')}: {defaultOverheadMinutes(preset)} min · {t('Productive')}:{' '}
                   {productiveCommuteMinutes(preset)} min · {preset.commuteMode}
                 </p>
@@ -262,7 +262,7 @@ export function TravelPresetsCard() {
         </ul>
       )}
 
-      {error ? <p className="mt-3 text-sm text-red-400">{error}</p> : null}
+      {error ? <p className="mt-3 text-sm text-destructive">{error}</p> : null}
 
       <PresetDialog open={open} initial={editing} onClose={() => setOpen(false)} onSubmit={submit} />
     </Card>

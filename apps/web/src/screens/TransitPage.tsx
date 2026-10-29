@@ -122,9 +122,9 @@ export function TransitPage() {
   return (
     <div className="space-y-4">
       <Card>
-        <h1 className="text-xl font-semibold text-white">{t('Transit')}</h1>
+        <h1 className="text-xl font-semibold text-foreground">{t('Transit')}</h1>
 
-        <label className="mt-4 flex items-center gap-2 text-sm text-slate-300">
+        <label className="mt-4 flex items-center gap-2 text-sm text-foreground">
           <input
             type="checkbox"
             checked={draft.enabled}
@@ -191,7 +191,7 @@ export function TransitPage() {
       {canFetch ? (
         <Card>
           <div className="flex items-center justify-between gap-4">
-            <h2 className="text-sm font-medium text-slate-300">{directionLabel(draft, morning)}</h2>
+            <h2 className="text-sm font-medium text-foreground">{directionLabel(draft, morning)}</h2>
             <Button variant="ghost" onClick={refresh}>
               {t('Refresh')}
             </Button>
@@ -218,9 +218,9 @@ export function TransitPage() {
               <Spinner />
             </div>
           ) : journeys.length === 0 && !pinForRoute ? (
-            <p className="mt-4 text-sm text-slate-400">{t('No journeys found')}</p>
+            <p className="mt-4 text-sm text-muted-foreground">{t('No journeys found')}</p>
           ) : (
-            <ul className="mt-4 divide-y divide-slate-800">
+            <ul className="mt-4 divide-y divide-border">
               {pinForRoute ? (
                 <PinnedRow pin={pinForRoute} live={livePinned} onUnpin={unpin} />
               ) : null}
@@ -256,17 +256,17 @@ function JourneyRow({
   const delay = departureDelayMinutes(journey);
 
   return (
-    <li className={'flex flex-wrap items-center justify-between gap-3 py-3' + (pinned ? ' rounded-lg bg-slate-900/60 px-2' : '')}>
+    <li className={'flex flex-wrap items-center justify-between gap-3 py-3' + (pinned ? ' rounded-lg bg-card px-2' : '')}>
       <div>
-        <p className="font-medium text-white">
+        <p className="font-medium text-foreground">
           {formatClock(journey.departureTime)} → {formatClock(journey.arrivalTime)}
           {pinned ? (
-            <span className="ml-2 rounded bg-sky-900/60 px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-sky-300">
+            <span className="ml-2 rounded bg-sky-900/60 px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-primary">
               {t('Pinned')}
             </span>
           ) : null}
         </p>
-        <p className="text-xs text-slate-400">
+        <p className="text-xs text-muted-foreground">
           {line ? `${line} · ` : ''}
           {journeyMainDestination(journey) ?? ''}
           {platform ? ` · ${platform}` : ''}
@@ -274,8 +274,8 @@ function JourneyRow({
       </div>
       <div className="flex items-center gap-3 text-sm">
         <div className="text-right">
-          <p className="text-slate-300">{journey.durationMinutes} min</p>
-          <p className={delay > 0 ? 'text-xs text-amber-400' : 'text-xs text-emerald-400'}>
+          <p className="text-foreground">{journey.durationMinutes} min</p>
+          <p className={delay > 0 ? 'text-xs text-warning' : 'text-xs text-success'}>
             {delay > 0 ? `+${delay} min` : t('On time')}
           </p>
         </div>
@@ -307,21 +307,21 @@ function PinnedRow({
   if (live) return <JourneyRow journey={live} pinned onUnpin={onUnpin} />;
 
   return (
-    <li className="flex flex-wrap items-center justify-between gap-3 rounded-lg bg-slate-900/60 px-2 py-3">
+    <li className="flex flex-wrap items-center justify-between gap-3 rounded-lg bg-card px-2 py-3">
       <div>
-        <p className="font-medium text-white">
+        <p className="font-medium text-foreground">
           {pin.timeOfDay}
-          <span className="ml-2 rounded bg-sky-900/60 px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-sky-300">
+          <span className="ml-2 rounded bg-sky-900/60 px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-primary">
             {t('Pinned')}
           </span>
         </p>
-        <p className="text-xs text-slate-400">
+        <p className="text-xs text-muted-foreground">
           {pin.line ? `${pin.line} · ` : ''}
           {pin.destination ?? ''}
         </p>
       </div>
       <div className="flex items-center gap-3 text-sm">
-        {pin.durationMinutes ? <span className="text-slate-300">{pin.durationMinutes} min</span> : null}
+        {pin.durationMinutes ? <span className="text-foreground">{pin.durationMinutes} min</span> : null}
         <Button variant="ghost" onClick={onUnpin}>
           {t('Unpin')}
         </Button>

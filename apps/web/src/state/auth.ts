@@ -63,6 +63,8 @@ interface AuthState {
   }) => Promise<void>;
   login: (email: string, password: string) => Promise<void>;
   unlock: (passphrase: string) => Promise<void>;
+  /** Re-wrap the loaded DEK under a new passphrase (does not re-encrypt data). */
+  changePassphrase: (passphrase: string) => Promise<void>;
   recoverWithPhrase: (phrase: string) => Promise<void>;
   recoverAndSetPassphrase: (phrase: string, newPassphrase: string) => Promise<void>;
   logout: () => Promise<void>;
@@ -222,6 +224,25 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       // Migrate the stored recovery hash to the official BIP39 phrase.
       await storeOfficialRecoveryHash(dek).catch(() => {});
       set({ status: 'ready', dek });
+    } catch (error) {
+      set({ error: messageOf(error) });
+      throw error;
+    }
+  },
+
+  changePassphrase: async (passphrase) => {
+    const dek = get().dek;
+    if (!dek) throw new Error('Encryption key is not loaded');
+    set({ error: null });
+    try {
+      const wrap = await wrapDekWithPassphrase(dek, passphrase);
+      // Only the envelope changes — the DEK (and all ciphertext) stays the same.
+      await settingsApi.patch({
+        encrypted_dek: wrap.wrapped_b64,
+        kek_salt: wrap.salt_b64,
+        kek_iterations: wrap.iterations,
+        recovery_hash: await hashRecoveryPhrase(dekToMnemonic(dek)),
+      });
     } catch (error) {
       set({ error: messageOf(error) });
       throw error;

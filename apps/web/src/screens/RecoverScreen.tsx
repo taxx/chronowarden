@@ -46,8 +46,8 @@ export function RecoverScreen() {
   return (
     <div className="grid min-h-dvh place-items-center p-6">
       <Card className="w-full max-w-lg">
-        <h1 className="text-xl font-semibold text-white">{t('Recover access')}</h1>
-        <p className="mt-1 text-sm text-slate-400">
+        <h1 className="text-xl font-semibold text-foreground">{t('Recover access')}</h1>
+        <p className="mt-1 text-sm text-muted-foreground">
           {t(
             'This is the only way to recover your encrypted data if you forget your encryption passphrase. Write it down and keep it safe.',
           )}
@@ -57,7 +57,7 @@ export function RecoverScreen() {
           <Field label={t('Enter your recovery phrase')} htmlFor="phrase">
             <textarea
               id="phrase"
-              className="h-24 w-full rounded-lg border border-slate-700 bg-slate-950 p-3 font-mono text-sm text-slate-100"
+              className="h-24 w-full rounded-lg border border-input bg-background p-3 font-mono text-sm text-foreground"
               value={phrase}
               onChange={(event) => setPhrase(event.target.value)}
             />
@@ -82,7 +82,7 @@ export function RecoverScreen() {
           </Field>
 
           {localError || storeError ? (
-            <p className="text-sm text-red-400">{localError ?? storeError}</p>
+            <p className="text-sm text-destructive">{localError ?? storeError}</p>
           ) : null}
 
           <Button type="submit" disabled={busy} className="w-full">

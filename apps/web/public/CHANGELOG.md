@@ -5,6 +5,7 @@
 
 ## 2026-10-29
 
+- web: design system (light/dark, shell, primitives, toasts) + My Day overhaul (`42cf4af`)
 - docs: document the chronowarden-old environment; refresh metadata (`98e05c5`)
 - e2e: drop the web-next naming (`96273a9`)
 - Cutover: replace the Flutter client with the React client; purge Flutter from docs (`7cbb6fd`)
@@ -441,4 +442,3 @@
 - fix: strip DB-managed fields from update payloads (`79e23b8`)
 - feat: edit + delete for work periods and travel presets (`2420f6b`)
 - fix: wrap screens in ListenableBuilder so they rebuild on state changes (`99bd9a3`)
-- fix: make user_id nullable + migration SQL for anon-key inserts (`b8ef7b6`)
