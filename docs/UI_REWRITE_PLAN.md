@@ -2,8 +2,8 @@
 
 Status: **feature-complete for v1** on branch `feat/ui-rewrite` (branched from
 `feat/selfhost`). The API, database, backups and deployment stay as they are;
-only the client is replaced. Remaining polish: Overview week/year views,
-pinned transit journeys and a What's New screen.
+only the client is replaced. Parity with the Flutter client is complete; the
+remaining step is the cutover (see below).
 
 ## Progress
 
@@ -14,7 +14,16 @@ pinned transit journeys and a What's New screen.
 - ✅ Auth (setup, register, login, unlock, recovery onboarding, forgot passphrase)
 - ✅ My Day, History (+CSV), Overview, Projection, Transit, Settings, Admin
 - ✅ Notifications, preferences, backup/restore, update prompt
+- ✅ Overview week/month/year, pinned transit journeys, What's New
 - ✅ Playwright E2E (`e2e-next`) + CI job
+
+### Cutover checklist
+
+1. Add a Dockerfile for `web-next` (Vite build → nginx).
+2. Point the compose `web` service at it and rebuild.
+3. Rename `apps/web-next` → `apps/web`, retire the Flutter app.
+4. Repoint the `e2e/` harness (or keep `e2e-next` as the only one).
+5. Confirm HAProxy/DNS, then deploy.
 
 ## Why
 
