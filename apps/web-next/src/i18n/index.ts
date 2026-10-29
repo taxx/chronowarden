@@ -1,0 +1,84 @@
+import { create } from 'zustand';
+
+/**
+ * Lightweight i18n, mirroring the Flutter client: English strings are the
+ * source keys, Swedish lives in a side catalog, and missing keys fall back to
+ * English. `i18n.test.ts` fails on missing or unused Swedish entries.
+ */
+export type Locale = 'en' | 'sv';
+
+const sv: Record<string, string> = {
+  ChronoWarden: 'ChronoWarden',
+  'My Day': 'Min dag',
+  Overview: 'Översikt',
+  Projection: 'Prognos',
+  History: 'Historik',
+  Transit: 'Kollektivtrafik',
+  Settings: 'Inställningar',
+  Admin: 'Admin',
+  'Log out': 'Logga ut',
+  'First-time setup': 'Första uppsättningen',
+  'Full name': 'Namn',
+  'Create admin account': 'Skapa admin-konto',
+  'You are the first user. This account will be an administrator.':
+      'Du är den första användaren. Detta konto blir administratör.',
+  'Sign in': 'Logga in',
+  'I have an encryption passphrase': 'Jag har en krypteringsfras',
+  'Email': 'E-post',
+  'Password': 'Lösenord',
+  'Encryption passphrase': 'Krypteringsfras',
+  'Confirm encryption passphrase': 'Bekräfta krypteringsfras',
+  'Language': 'Språk',
+  'Email is required': 'E-post krävs',
+  'Password must be at least 10 characters': 'Lösenordet måste vara minst 10 tecken',
+  'Encryption passphrase must be at least 8 characters':
+      'Krypteringsfrasen måste vara minst 8 tecken',
+  'Encryption passphrases do not match': 'Krypteringsfraserna matchar inte',
+  'Unlock': 'Lås upp',
+  'Your data is encrypted. Enter your encryption passphrase to unlock it.':
+      'Din data är krypterad. Ange din krypteringsfras för att låsa upp den.',
+  'Your recovery phrase': 'Din återställningsfras',
+  'This is the only way to recover your encrypted data if you forget your encryption passphrase. Write it down and keep it safe.':
+      'Detta är det enda sättet att återställa din krypterade data om du glömmer din krypteringsfras. Skriv ner den och förvara den säkert.',
+  'I have saved my recovery phrase': 'Jag har sparat min återställningsfras',
+};
+
+interface LocaleState {
+  locale: Locale;
+  setLocale: (locale: Locale) => void;
+}
+
+const LOCALE_STORAGE_KEY = 'cw_locale';
+const stored = typeof localStorage !== 'undefined' ? localStorage.getItem(LOCALE_STORAGE_KEY) : null;
+
+export const useLocaleStore = create<LocaleState>((set) => ({
+  locale: stored === 'sv' ? 'sv' : 'en',
+  setLocale: (locale) => {
+    localStorage.setItem(LOCALE_STORAGE_KEY, locale);
+    set({ locale });
+  },
+}));
+
+function interpolate(template: string, params?: Record<string, string | number>): string {
+  if (!params) return template;
+  return template.replace(/\{(\w+)\}/g, (match, name: string) =>
+    name in params ? String(params[name]) : match,
+  );
+}
+
+export function translate(
+  locale: Locale,
+  key: string,
+  params?: Record<string, string | number>,
+): string {
+  const template = locale === 'sv' ? (sv[key] ?? key) : key;
+  return interpolate(template, params);
+}
+
+/** React hook returning a `t(key, params?)` bound to the current locale. */
+export function useT() {
+  const locale = useLocaleStore((state) => state.locale);
+  return (key: string, params?: Record<string, string | number>) => translate(locale, key, params);
+}
+
+export { sv as svCatalog };

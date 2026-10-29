@@ -30,4 +30,10 @@ npm run typecheck  # tsc --noEmit
   (`src/lib/__fixtures__/crypto-golden.json`), so it can read existing data.
   Recovery phrases now use the **official BIP39 wordlist** (`@scure/bip39`);
   the DEK/envelope/passphrase are unchanged.
-- Next: API client + httpOnly cookie auth, auth screens, domain-logic port.
+- **Domain** — `work-config` (ISO/reduced weeks), `time-log` (leave time,
+  overtime, flex, non-work) and `format` ported with the Dart test cases.
+- **API + auth** — typed API client over cookie sessions; an auth store mirroring
+  the Dart `AuthService`; i18n with the same missing/stale guard; TanStack Router
+  with auth guards; functional first-run setup, sign-in, unlock and recovery
+  screens plus the app shell.
+- Next: invite registration, then My Day and the remaining feature screens.
