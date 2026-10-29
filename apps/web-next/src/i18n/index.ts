@@ -26,6 +26,8 @@ const sv: Record<string, string> = {
   'Stop Day': 'Avsluta dagen',
   'Day complete': 'Dagen klar',
   Overtime: 'Övertid',
+  Today: 'Idag',
+  Week: 'Vecka',
   'Time bank': 'Tidsbank',
   Save: 'Spara',
   Saved: 'Sparat',

@@ -11,6 +11,7 @@ import { AdminPage } from './screens/AdminPage';
 import { HistoryPage } from './screens/HistoryPage';
 import { LoginScreen } from './screens/LoginScreen';
 import { MyDayPage } from './screens/MyDayPage';
+import { OverviewPage } from './screens/OverviewPage';
 import { RegisterScreen } from './screens/RegisterScreen';
 import { PlaceholderPage } from './screens/PlaceholderPage';
 import { RecoveryScreen } from './screens/RecoveryScreen';
@@ -109,7 +110,7 @@ const placeholder = (titleKey: string) => () => <PlaceholderPage titleKey={title
 const overviewRoute = createRoute({
   getParentRoute: () => appRoute,
   path: '/overview',
-  component: placeholder('Overview'),
+  component: OverviewPage,
 });
 const historyRoute = createRoute({
   getParentRoute: () => appRoute,
