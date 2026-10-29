@@ -57,3 +57,42 @@ export async function saveTransitConfig(config: TransitConfig, dek: Uint8Array):
   settings['transit_config'] = transitConfigToJson(config);
   await writeSettings(settings, dek);
 }
+
+/** Local preferences kept inside the encrypted settings payload. */
+export interface Preferences {
+  showWeekends: boolean;
+  nonWorkEnabled: boolean;
+  defaultFlexMinutes: number;
+  sliderStepMinutes: number;
+}
+
+export const defaultPreferences: Preferences = {
+  showWeekends: true,
+  nonWorkEnabled: true,
+  defaultFlexMinutes: 0,
+  sliderStepMinutes: 5,
+};
+
+export async function getPreferences(dek: Uint8Array | null): Promise<Preferences> {
+  const settings = await readSettings(dek);
+  return {
+    showWeekends: (settings['show_weekends'] as boolean | null) ?? defaultPreferences.showWeekends,
+    nonWorkEnabled: (settings['non_work_enabled'] as boolean | null) ?? defaultPreferences.nonWorkEnabled,
+    defaultFlexMinutes:
+      (settings['default_flex_minutes'] as number | null) ?? defaultPreferences.defaultFlexMinutes,
+    sliderStepMinutes:
+      (settings['slider_step_minutes'] as number | null) ?? defaultPreferences.sliderStepMinutes,
+  };
+}
+
+export async function savePreferences(
+  patch: Partial<Preferences>,
+  dek: Uint8Array,
+): Promise<void> {
+  const settings = await readSettings(dek);
+  if (patch.showWeekends !== undefined) settings['show_weekends'] = patch.showWeekends;
+  if (patch.nonWorkEnabled !== undefined) settings['non_work_enabled'] = patch.nonWorkEnabled;
+  if (patch.defaultFlexMinutes !== undefined) settings['default_flex_minutes'] = patch.defaultFlexMinutes;
+  if (patch.sliderStepMinutes !== undefined) settings['slider_step_minutes'] = patch.sliderStepMinutes;
+  await writeSettings(settings, dek);
+}

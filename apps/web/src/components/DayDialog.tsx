@@ -27,7 +27,7 @@ export function DayDialog({
   onClose: () => void;
   initial?: TimeLog | null;
   defaultExpectedMinutes: number;
-  onSubmit: (values: DayFormValues) => Promise<void>;
+  onSubmit: (values: DayFormValues) => void | Promise<void>;
 }) {
   const t = useT();
 

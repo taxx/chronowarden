@@ -4,8 +4,14 @@ import { beforeEach, describe, expect, test, vi } from 'vitest';
 
 import type { TimeLog } from '../lib/domain/time-log';
 import { MyDayPage } from './MyDayPage';
-import { useCreateTimeLog, useTimeLogs, useTodayLog, useUpdateTimeLog } from '../queries/time-logs';
-import { useWorkConfig } from '../queries/settings';
+import {
+  useCreateTimeLog,
+  useDeleteTimeLog,
+  useTimeLogs,
+  useTodayLog,
+  useUpdateTimeLog,
+} from '../queries/time-logs';
+import { usePreferences, useWorkConfig } from '../queries/settings';
 import { useTravelPresets } from '../queries/travel-presets';
 
 vi.mock('../queries/time-logs', () => ({
@@ -13,9 +19,11 @@ vi.mock('../queries/time-logs', () => ({
   useTimeLogs: vi.fn(),
   useCreateTimeLog: vi.fn(),
   useUpdateTimeLog: vi.fn(),
+  useDeleteTimeLog: vi.fn(),
 }));
 vi.mock('../queries/settings', () => ({
   useWorkConfig: vi.fn(),
+  usePreferences: vi.fn(),
 }));
 vi.mock('../queries/travel-presets', () => ({
   useTravelPresets: vi.fn(),
@@ -26,7 +34,9 @@ const mocked = {
   useTimeLogs: vi.mocked(useTimeLogs),
   useCreateTimeLog: vi.mocked(useCreateTimeLog),
   useUpdateTimeLog: vi.mocked(useUpdateTimeLog),
+  useDeleteTimeLog: vi.mocked(useDeleteTimeLog),
   useWorkConfig: vi.mocked(useWorkConfig),
+  usePreferences: vi.mocked(usePreferences),
 };
 
 const baseLog: TimeLog = {
@@ -47,8 +57,9 @@ const baseLog: TimeLog = {
 beforeEach(() => {
   vi.clearAllMocks();
   mocked.useTimeLogs.mockReturnValue({ data: [], isLoading: false } as never);
-  mocked.useWorkConfig.mockReturnValue({
-    data: { defaultExpectedMinutes: 480 },
+  mocked.useWorkConfig.mockReturnValue({ data: { defaultExpectedMinutes: 480 } } as never);
+  mocked.usePreferences.mockReturnValue({
+    data: { showWeekends: true, nonWorkEnabled: true, defaultFlexMinutes: 0, sliderStepMinutes: 5 },
   } as never);
   vi.mocked(useTravelPresets).mockReturnValue({ data: [], isLoading: false } as never);
   mocked.useCreateTimeLog.mockReturnValue({
@@ -59,16 +70,23 @@ beforeEach(() => {
     mutateAsync: vi.fn().mockResolvedValue({}),
     isPending: false,
   } as never);
+  mocked.useDeleteTimeLog.mockReturnValue({
+    mutateAsync: vi.fn().mockResolvedValue({}),
+    isPending: false,
+  } as never);
 });
 
 describe('MyDayPage', () => {
-  test('starts the day when there is no log', async () => {
+  test('starts the day via the start dialog', async () => {
     mocked.useTodayLog.mockReturnValue({ data: null, isLoading: false } as never);
     const mutateAsync = vi.fn().mockResolvedValue({});
     mocked.useCreateTimeLog.mockReturnValue({ mutateAsync, isPending: false } as never);
 
     render(<MyDayPage />);
     await userEvent.click(screen.getByRole('button', { name: 'Start Day' }));
+
+    const buttons = await screen.findAllByRole('button', { name: 'Start Day' });
+    await userEvent.click(buttons[buttons.length - 1]!);
 
     await waitFor(() => expect(mutateAsync).toHaveBeenCalledTimes(1));
     const payload = mutateAsync.mock.calls[0]![0] as TimeLog;
@@ -88,6 +106,8 @@ describe('MyDayPage', () => {
     expect(screen.getByText('16:00')).toBeTruthy();
 
     await userEvent.click(screen.getByRole('button', { name: 'Stop Day' }));
+    const buttons = await screen.findAllByRole('button', { name: 'Stop Day' });
+    await userEvent.click(buttons[buttons.length - 1]!);
 
     await waitFor(() => expect(mutateAsync).toHaveBeenCalledTimes(1));
     const call = mutateAsync.mock.calls[0]![0] as { id: string; fields: Record<string, unknown> };
