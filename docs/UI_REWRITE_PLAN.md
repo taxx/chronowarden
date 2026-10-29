@@ -1,8 +1,20 @@
 # UI Rewrite Plan — Chrome-free client (React)
 
-Status: **in progress** on branch `feat/ui-rewrite` (branched from `feat/selfhost`).
-The API, database, backups and deployment stay as they are; only the client is
-replaced.
+Status: **feature-complete for v1** on branch `feat/ui-rewrite` (branched from
+`feat/selfhost`). The API, database, backups and deployment stay as they are;
+only the client is replaced. Remaining polish: Overview week/year views,
+pinned transit journeys and a What's New screen.
+
+## Progress
+
+- ✅ Foundation (Vite/React 19/TS/Tailwind, Node 26, PWA)
+- ✅ Crypto port + Dart golden fixtures; official BIP39 + hash migration
+- ✅ Domain ports (work config, time log, format, CSV, leave alerts, transit guard/config, presets)
+- ✅ API client, cookie sessions, encrypted services, TanStack Query, SSE
+- ✅ Auth (setup, register, login, unlock, recovery onboarding, forgot passphrase)
+- ✅ My Day, History (+CSV), Overview, Projection, Transit, Settings, Admin
+- ✅ Notifications, preferences, backup/restore, update prompt
+- ✅ Playwright E2E (`e2e-next`) + CI job
 
 ## Why
 

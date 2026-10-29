@@ -105,13 +105,17 @@ talks to a Bun/Hono API backed by PostgreSQL, all run with Docker Compose.
 
 ```
 apps/
-  web/                 Flutter web client
+  web/                 Flutter web client (retired at cutover)
     lib/               Dart source (UI, services, models, l10n)
     test/              Flutter tests (incl. app_strings guard)
     tool/              generate_changelog.sh, generate_build_info.sh
     web/               index.html, version.json, icons
     android/ ios/      platform scaffolding
     Dockerfile         builds the static web bundle
+  web-next/            React rewrite (branch feat/ui-rewrite; becomes apps/web at cutover)
+    src/               lib (crypto, domain), api, queries, services, screens, components, state, i18n
+    public/            PWA icons
+    Dockerfile         (to be added at cutover)
   api/                 Bun + Hono API
     src/
       index.ts         entry point: migrate, then Bun.serve
@@ -131,12 +135,16 @@ apps/
       integration/     full-stack API tests against a throwaway Postgres
       helpers/         ephemeral Postgres helper (postgres.ts)
     Dockerfile
-e2e/                   Playwright browser tests
+e2e/                   Playwright browser tests (Flutter client)
   tests/app.spec.ts    signup + recovery phrase, sign-in, backup download
   server.ts            API + static web on one origin (throwaway stack)
   global-setup.ts      builds the web bundle, boots the stack
   README.md            how the harness works / selectors
   playwright.config.ts
+e2e-next/              Playwright browser tests (React client, real DOM)
+  tests/app.spec.ts    setup, sign-in, My Day, History, backup, invites, recovery
+  server.ts            API + apps/web-next/dist on one origin
+  global-setup.ts      builds the React client, boots the stack
 tool/check.sh          one-command feedback loop (api | web | e2e)
 docker/
   proxy/nginx.conf     front door (web + /api)
