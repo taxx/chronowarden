@@ -51,12 +51,14 @@ describe('api client', () => {
   });
 
   test('sends credentials so the session cookie travels', async () => {
-    const fetchMock = vi.fn(async () => new Response('null', { status: 200 }));
+    const fetchMock = vi.fn(
+      async (_input: RequestInfo | URL, _init?: RequestInit) => new Response('null', { status: 200 }),
+    );
     vi.stubGlobal('fetch', fetchMock);
 
     await api.get('/me');
 
-    const init = fetchMock.mock.calls[0]![1] as RequestInit;
-    expect(init.credentials).toBe('include');
+    const init = fetchMock.mock.calls[0]?.[1];
+    expect(init?.credentials).toBe('include');
   });
 });
