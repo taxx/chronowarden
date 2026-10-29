@@ -5,6 +5,7 @@
 
 ## 2026-10-29
 
+- Milestone M2: React UI rewrite (v0.2.0-react-ui) (`ab0073a`)
 - web: adopt shadcn/ui (Radix dialog, tabs, switch; cva variants; components.json + @ alias) (`41d2136`)
 - feature parity: admin password reset, encryption explainer, notifications test, CSV guide, diagnostics + update check (`3f79642`)
 - web: time-warding colours (green=kept time), editable Overview + remembered period, three-state theme (`980ee2f`)
@@ -441,4 +442,3 @@
 ## 2026-06-09
 
 - slider again (`41d7b2a`)
-- editable (`7cc2717`)

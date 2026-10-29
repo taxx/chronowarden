@@ -57,15 +57,21 @@ at runtime.
 ## Modernization plan
 
 1. **Foundation (done)** — design tokens, light/dark, shell, primitives, toasts.
-2. **shadcn adoption (next)** — install the CLI, replace primitives one by one,
-   delete the hand-rolled equivalents.
-3. **Forms** — React Hook Form + Zod for the day, preset and settings forms.
-4. **Motion & polish** — subtle transitions (Tailwind `animate-*`), skeleton
-   loading states, empty states, responsive sheets on mobile.
-5. **Accessibility** — Radix primitives give focus management and ARIA; verify
+2. **shadcn/ui adopted (done)** — `components.json`, `@/` alias, `class-variance-authority`,
+   Radix `Dialog`/`Tabs`/`Switch`, `tailwindcss-animate`, and a `components/ui/`
+   module. The old hand-rolled primitives file is gone; the barrel keeps imports stable.
+3. **Forms (next)** — React Hook Form + Zod for the day, preset and settings forms,
+   with shadcn `Form`, `Calendar`/`DatePicker` and `Select`.
+4. **More shadcn components (next)** — `DropdownMenu` (user menu), `Sheet`
+   (mobile drawers), `Tooltip`, `DataTable` (History), `Sonner` (toasts).
+5. **Motion & polish** — subtle transitions, skeleton loading states, empty
+   states, responsive sheets on mobile.
+6. **Accessibility** — Radix primitives give focus management and ARIA; verify
    with the Playwright suite.
-6. **Branding** — a themed accent, typography scale and iconography (lucide is
-   already in), an app icon set and an empty-state illustration pass.
 
-No component library is adopted at runtime today beyond `lucide-react`, so there
-is no migration risk in the current state.
+Add more components any time with:
+
+```bash
+cd apps/web
+npx shadcn@latest add dropdown-menu sheet tooltip table sonner form
+```

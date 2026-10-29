@@ -33,16 +33,25 @@ Status legend: ✅ done · 🟡 partial · ⬜ open.
 
 | Feature | Notes |
 |---|---|
-| ⬜ Full "How encryption works" explainer screen | We show a condensed privacy card; Flutter had a dedicated 4-layer diagram page. |
-| ⬜ Admin: reset password (issue temporary password) | Admin UI manages users/invites; no reset-password action yet. |
 | ⬜ Admin: pending/rejected status flows | Invite registration auto-approves, so the reserved flow is unused. |
-| ⬜ Notifications: "Send test", permission status readout | Settings exist; no explicit test button. |
-| ⬜ CSV format guide dialog | A help panel explaining the CSV columns. |
-| ⬜ Diagnostics panel (version, API reachability, storage mode) | Partly covered by the About card. |
-| ⬜ "Check for updates" manual button | The update banner is automatic. |
-| ⬜ Committed-journey wording ("Committed ride — departed") | We show "Departed" + Pinned. |
 | ⬜ Multi-device / session-persistence info screen | Documentation-only. |
+| ⬜ A dedicated break-reminder bell (in addition to leave alerts) | The leave-time alerts cover the main case. |
 | ⬜ Onboarding & one-time migration screens | Not needed — no plaintext-era data on new instances. |
+
+## Added after the first gap pass
+
+| Feature | Status |
+|---|---|
+| Edit / add a day from the Overview calendar | ✅ |
+| Remember the Overview period (week/month/year; week by default) | ✅ |
+| Time-warding colours (green = kept time, red = worked over) | ✅ |
+| Three-state theme toggle (light/dark/system) in the shell | ✅ |
+| Admin: reset password (issues a temporary password) | ✅ |
+| Encryption explainer screen | ✅ |
+| Notifications: permission + send test | ✅ |
+| CSV format guide | ✅ |
+| Diagnostics panel + manual “check for updates” | ✅ |
+| shadcn/ui component layer (Radix dialog/tabs/switch) | ✅ |
 
 ## Intentional differences
 
