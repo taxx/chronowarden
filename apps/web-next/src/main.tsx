@@ -6,6 +6,7 @@ import { createRoot } from 'react-dom/client';
 import './index.css';
 import { router } from './router';
 import { useAuthStore } from './state/auth';
+import { useNotificationsStore } from './state/notifications';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -18,6 +19,7 @@ const queryClient = new QueryClient({
  * router guards have a settled auth status to work with.
  */
 async function start() {
+  useNotificationsStore.getState().init();
   await useAuthStore.getState().bootstrap();
 
   createRoot(document.getElementById('root')!).render(

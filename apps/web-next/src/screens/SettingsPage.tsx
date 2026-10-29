@@ -2,6 +2,7 @@ import { useNavigate } from '@tanstack/react-router';
 import { useState } from 'react';
 
 import { BackupCard } from '../components/BackupCard';
+import { NotificationSettingsCard } from '../components/NotificationSettingsCard';
 import { Button, Card } from '../components/ui';
 import { WorkConfigCard } from '../components/WorkConfigCard';
 import { useLocaleStore, useT, type Locale } from '../i18n';
@@ -29,6 +30,7 @@ export function SettingsPage() {
   return (
     <div className="space-y-4">
       <WorkConfigCard />
+      <NotificationSettingsCard />
       <BackupCard />
       <Card>
         <h1 className="text-xl font-semibold text-white">{t('Settings')}</h1>

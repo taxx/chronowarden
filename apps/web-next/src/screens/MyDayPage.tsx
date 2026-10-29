@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 import { Button, Card, Input, Spinner } from '../components/ui';
 import { useNow } from '../hooks/useNow';
@@ -14,6 +14,7 @@ import {
 import { formatDurationMinutes, formatSignedMinutes } from '../lib/format';
 import { useWorkConfig } from '../queries/settings';
 import { useCreateTimeLog, useTimeLogs, useTodayLog, useUpdateTimeLog } from '../queries/time-logs';
+import { useNotificationsStore } from '../state/notifications';
 
 const DEFAULT_CONFIG: WorkConfig = { defaultExpectedMinutes: 480 };
 
@@ -39,6 +40,7 @@ export function MyDayPage() {
   const workConfigQuery = useWorkConfig();
   const createLog = useCreateTimeLog();
   const updateLog = useUpdateTimeLog();
+  const checkNotifications = useNotificationsStore((state) => state.check);
 
   const [error, setError] = useState<string | null>(null);
   const [showFlex, setShowFlex] = useState(false);
@@ -48,6 +50,26 @@ export function MyDayPage() {
   const logs = logsQuery.data ?? [];
   const config = workConfigQuery.data ?? DEFAULT_CONFIG;
   const timeBank = logs.reduce((sum, log) => sum + log.overtimeMinutes, 0);
+
+  // Live leave time, accounting for a break that is still running.
+  const lunchActive =
+    today?.lunchStartedAt != null
+      ? Math.max(today.lunchMinutes, minutesSince(today.lunchStartedAt, now))
+      : (today?.lunchMinutes ?? 0);
+  const nonWorkActive =
+    today?.nonWorkStartedAt != null
+      ? Math.max(today.nonWorkMinutes, minutesSince(today.nonWorkStartedAt, now))
+      : (today?.nonWorkMinutes ?? 0);
+
+  const leave = today
+    ? leaveTimeWithBreaks(today, { lunchMinutes: lunchActive, nonWorkMinutes: nonWorkActive })
+    : null;
+
+  // Feed the leave-time alert evaluator once a second while the day is active.
+  useEffect(() => {
+    if (!today || today.endTime != null || !leave) return;
+    checkNotifications((leave.getTime() - now.getTime()) / 60_000, now);
+  }, [now, today, leave, checkNotifications]);
 
   if (todayQuery.isLoading) {
     return (
@@ -111,16 +133,6 @@ export function MyDayPage() {
     return patch({ [minutesField]: minutes, [startedField]: null });
   };
 
-  // Live leave time, accounting for a break that is still running.
-  const lunchActive =
-    today?.lunchStartedAt != null
-      ? Math.max(today.lunchMinutes, minutesSince(today.lunchStartedAt, now))
-      : (today?.lunchMinutes ?? 0);
-  const nonWorkActive =
-    today?.nonWorkStartedAt != null
-      ? Math.max(today.nonWorkMinutes, minutesSince(today.nonWorkStartedAt, now))
-      : (today?.nonWorkMinutes ?? 0);
-
   return (
     <div className="space-y-4">
       {!today ? (
@@ -137,10 +149,7 @@ export function MyDayPage() {
         <ActiveDayCard
           log={today}
           now={now}
-          leave={leaveTimeWithBreaks(today, {
-            lunchMinutes: lunchActive,
-            nonWorkMinutes: nonWorkActive,
-          })}
+          leave={leave!}
           onStartLunch={() => startBreak('lunch_started_at')}
           onStopLunch={() => stopBreak(today.lunchStartedAt, 'lunch_minutes', 'lunch_started_at')}
           onStartNonWork={() => startBreak('non_work_started_at')}

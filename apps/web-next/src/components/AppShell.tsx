@@ -2,6 +2,7 @@ import { Link, Outlet, useNavigate } from '@tanstack/react-router';
 
 import { useT } from '../i18n';
 import { useAuthStore } from '../state/auth';
+import { AlertBanner } from './AlertBanner';
 import { RealtimeBridge } from './RealtimeBridge';
 import { Button } from './ui';
 
@@ -56,6 +57,7 @@ export function AppShell() {
       </header>
       <main className="mx-auto max-w-5xl px-4 py-6">
         <RealtimeBridge />
+        <AlertBanner />
         <Outlet />
       </main>
     </div>
