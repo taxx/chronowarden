@@ -102,6 +102,38 @@ jobs:
         working-directory: apps/web-next
         run: npm run build
 
+  e2e-next:
+    name: Web-next E2E (Playwright)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: apps/web-next/.nvmrc
+          cache: npm
+          cache-dependency-path: apps/web-next/package-lock.json
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install the client
+        working-directory: apps/web-next
+        run: npm ci
+
+      - name: Install E2E dependencies
+        working-directory: e2e-next
+        run: npm ci
+
+      - name: Install Chromium
+        working-directory: e2e-next
+        run: npx playwright install --with-deps chromium
+
+      - name: Run E2E tests
+        working-directory: e2e-next
+        run: npx playwright test
+
   e2e:
     name: Web E2E (Playwright)
     runs-on: ubuntu-latest
