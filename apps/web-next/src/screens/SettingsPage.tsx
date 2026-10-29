@@ -2,6 +2,7 @@ import { useNavigate } from '@tanstack/react-router';
 import { useState } from 'react';
 
 import { Button, Card } from '../components/ui';
+import { WorkConfigCard } from '../components/WorkConfigCard';
 import { useLocaleStore, useT, type Locale } from '../i18n';
 import { useAuthStore } from '../state/auth';
 
@@ -25,8 +26,10 @@ export function SettingsPage() {
   }
 
   return (
-    <Card>
-      <h1 className="text-xl font-semibold text-white">{t('Settings')}</h1>
+    <div className="space-y-4">
+      <WorkConfigCard />
+      <Card>
+        <h1 className="text-xl font-semibold text-white">{t('Settings')}</h1>
 
       <dl className="mt-4 space-y-2 text-sm">
         <div className="flex items-center justify-between gap-4">
@@ -50,11 +53,12 @@ export function SettingsPage() {
         </select>
       </div>
 
-      <div className="mt-6">
-        <Button variant="ghost" onClick={onLogout} disabled={busy}>
-          {t('Log out')}
-        </Button>
-      </div>
-    </Card>
+        <div className="mt-6">
+          <Button variant="ghost" onClick={onLogout} disabled={busy}>
+            {t('Log out')}
+          </Button>
+        </div>
+      </Card>
+    </div>
   );
 }
