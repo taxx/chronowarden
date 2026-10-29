@@ -4,7 +4,14 @@ import { StationPicker } from '../components/StationPicker';
 import { Button, Card, Field, Input, Spinner } from '../components/ui';
 import { useNow } from '../hooks/useNow';
 import { useT } from '../i18n';
-import { formatClock } from '../lib/date';
+import { formatClock, toDateStr } from '../lib/date';
+import {
+  journeyMatchesPin,
+  pinBelongsToRoute,
+  pinFromJourney,
+  pinIsExpired,
+  type PinnedJourney,
+} from '../lib/domain/pinned-journey';
 import type { JourneyInfo, StationInfo } from '../lib/domain/transit';
 import {
   departureDelayMinutes,
@@ -28,6 +35,11 @@ import {
   transitLastError,
   transitRetryNow,
 } from '../services/transit';
+import {
+  clearPinnedJourney,
+  loadPinnedJourney,
+  savePinnedJourney,
+} from '../services/pinned-journey-store';
 import { useJourneys, useSaveTransitConfig, useTransitConfig } from '../queries/transit';
 
 function asStation(id: string, name: string): StationInfo | null {
@@ -43,6 +55,7 @@ export function TransitPage() {
 
   const [draft, setDraft] = useState<TransitConfig>(defaultTransitConfig);
   const [initialised, setInitialised] = useState(false);
+  const [pinned, setPinned] = useState<PinnedJourney | null>(() => loadPinnedJourney());
 
   useEffect(() => {
     if (configQuery.data && !initialised) {
@@ -50,6 +63,14 @@ export function TransitPage() {
       setInitialised(true);
     }
   }, [configQuery.data, initialised]);
+
+  // A pin only lives for the day it was made.
+  useEffect(() => {
+    if (pinned && pinIsExpired(pinned, toDateStr(new Date()))) {
+      clearPinnedJourney();
+      setPinned(null);
+    }
+  }, [pinned]);
 
   const morning = now.getHours() < 11;
   const canFetch = draft.enabled && hasHome(draft) && hasWork(draft);
@@ -73,6 +94,25 @@ export function TransitPage() {
 
   const availability = transitAvailability(now.getTime());
   const journeys = journeysQuery.data ?? [];
+
+  const routeOrigin = originStopId(draft, morning);
+  const routeDest = destStopId(draft, morning);
+  const pinForRoute =
+    pinned && pinBelongsToRoute(pinned, routeOrigin, routeDest) ? pinned : null;
+  const livePinned = pinForRoute
+    ? (journeys.find((journey) => journeyMatchesPin(journey, pinForRoute)) ?? null)
+    : null;
+
+  function pin(journey: JourneyInfo) {
+    const next = pinFromJourney(journey, routeOrigin, routeDest, toDateStr(new Date()));
+    savePinnedJourney(next);
+    setPinned(next);
+  }
+
+  function unpin() {
+    clearPinnedJourney();
+    setPinned(null);
+  }
 
   function refresh() {
     transitRetryNow();
@@ -128,7 +168,22 @@ export function TransitPage() {
           </Field>
         </div>
 
-        <Button className="mt-4" onClick={() => void save.mutateAsync(draft)} disabled={save.isPending}>
+        <Button
+          className="mt-4"
+          disabled={save.isPending}
+          onClick={() => {
+            const previous = configQuery.data;
+            if (
+              previous &&
+              (previous.homeStopId !== draft.homeStopId ||
+                previous.workStopId !== draft.workStopId)
+            ) {
+              // The route changed, so the pin no longer applies.
+              unpin();
+            }
+            void save.mutateAsync(draft);
+          }}
+        >
           {t('Save')}
         </Button>
       </Card>
@@ -162,12 +217,19 @@ export function TransitPage() {
             <div className="flex justify-center py-6">
               <Spinner />
             </div>
-          ) : journeys.length === 0 ? (
+          ) : journeys.length === 0 && !pinForRoute ? (
             <p className="mt-4 text-sm text-slate-400">{t('No journeys found')}</p>
           ) : (
             <ul className="mt-4 divide-y divide-slate-800">
+              {pinForRoute ? (
+                <PinnedRow pin={pinForRoute} live={livePinned} onUnpin={unpin} />
+              ) : null}
               {journeys.map((journey) => (
-                <JourneyRow key={journey.departureTime.toISOString()} journey={journey} />
+                <JourneyRow
+                  key={journey.departureTime.toISOString()}
+                  journey={journey}
+                  onPin={() => pin(journey)}
+                />
               ))}
             </ul>
           )}
@@ -177,17 +239,32 @@ export function TransitPage() {
   );
 }
 
-function JourneyRow({ journey }: { journey: JourneyInfo }) {
+function JourneyRow({
+  journey,
+  onPin,
+  pinned = false,
+  onUnpin,
+}: {
+  journey: JourneyInfo;
+  onPin?: () => void;
+  pinned?: boolean;
+  onUnpin?: () => void;
+}) {
   const t = useT();
   const line = journeyMainLine(journey);
   const platform = journeyDeparturePlatform(journey);
   const delay = departureDelayMinutes(journey);
 
   return (
-    <li className="flex flex-wrap items-center justify-between gap-3 py-3">
+    <li className={'flex flex-wrap items-center justify-between gap-3 py-3' + (pinned ? ' rounded-lg bg-slate-900/60 px-2' : '')}>
       <div>
         <p className="font-medium text-white">
           {formatClock(journey.departureTime)} → {formatClock(journey.arrivalTime)}
+          {pinned ? (
+            <span className="ml-2 rounded bg-sky-900/60 px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-sky-300">
+              {t('Pinned')}
+            </span>
+          ) : null}
         </p>
         <p className="text-xs text-slate-400">
           {line ? `${line} · ` : ''}
@@ -195,11 +272,59 @@ function JourneyRow({ journey }: { journey: JourneyInfo }) {
           {platform ? ` · ${platform}` : ''}
         </p>
       </div>
-      <div className="text-right text-sm">
-        <p className="text-slate-300">{journey.durationMinutes} min</p>
-        <p className={delay > 0 ? 'text-xs text-amber-400' : 'text-xs text-emerald-400'}>
-          {delay > 0 ? `+${delay} min` : t('On time')}
+      <div className="flex items-center gap-3 text-sm">
+        <div className="text-right">
+          <p className="text-slate-300">{journey.durationMinutes} min</p>
+          <p className={delay > 0 ? 'text-xs text-amber-400' : 'text-xs text-emerald-400'}>
+            {delay > 0 ? `+${delay} min` : t('On time')}
+          </p>
+        </div>
+        {pinned ? (
+          <Button variant="ghost" onClick={onUnpin}>
+            {t('Unpin')}
+          </Button>
+        ) : onPin ? (
+          <Button variant="ghost" onClick={onPin}>
+            {t('Pin')}
+          </Button>
+        ) : null}
+      </div>
+    </li>
+  );
+}
+
+/** The committed journey: live data when available, otherwise a synthetic card. */
+function PinnedRow({
+  pin,
+  live,
+  onUnpin,
+}: {
+  pin: PinnedJourney;
+  live: JourneyInfo | null;
+  onUnpin: () => void;
+}) {
+  const t = useT();
+  if (live) return <JourneyRow journey={live} pinned onUnpin={onUnpin} />;
+
+  return (
+    <li className="flex flex-wrap items-center justify-between gap-3 rounded-lg bg-slate-900/60 px-2 py-3">
+      <div>
+        <p className="font-medium text-white">
+          {pin.timeOfDay}
+          <span className="ml-2 rounded bg-sky-900/60 px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-sky-300">
+            {t('Pinned')}
+          </span>
         </p>
+        <p className="text-xs text-slate-400">
+          {pin.line ? `${pin.line} · ` : ''}
+          {pin.destination ?? ''}
+        </p>
+      </div>
+      <div className="flex items-center gap-3 text-sm">
+        {pin.durationMinutes ? <span className="text-slate-300">{pin.durationMinutes} min</span> : null}
+        <Button variant="ghost" onClick={onUnpin}>
+          {t('Unpin')}
+        </Button>
       </div>
     </li>
   );

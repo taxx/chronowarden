@@ -1,4 +1,4 @@
-import { useNavigate } from '@tanstack/react-router';
+import { Link, useNavigate } from '@tanstack/react-router';
 import { useState } from 'react';
 
 import { BackupCard } from '../components/BackupCard';
@@ -63,10 +63,13 @@ export function SettingsPage() {
         </select>
       </div>
 
-        <div className="mt-6">
+        <div className="mt-6 flex items-center gap-3">
           <Button variant="ghost" onClick={onLogout} disabled={busy}>
             {t('Log out')}
           </Button>
+          <Link to="/changelog" className="text-sm text-sky-400 hover:text-sky-300">
+            {t("What's New")}
+          </Link>
         </div>
       </Card>
     </div>

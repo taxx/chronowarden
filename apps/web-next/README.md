@@ -38,16 +38,15 @@ npm run typecheck  # tsc --noEmit
 - **Screens** — first-run setup, invite registration, sign-in, unlock, recovery
   onboarding, forgot-passphrase recovery, My Day (start/stop, lunch, non-work,
   flex, live leave time, time bank, preset picker), History (add/edit/delete +
-  CSV), Overview (month calendar with ISO week gutter), Projection (balance
-  chart), Transit (stations, journeys, retry/back-off), Settings (work hours,
-  travel presets, notifications, preferences, recovery phrase, backup/restore,
-  language, logout) and Admin (users + invites).
+  CSV), Overview (week/month/year views with ISO week gutter), Projection
+  (balance chart), Transit (stations, journeys, pinned journey, retry/back-off),
+  Settings (work hours, travel presets, notifications, preferences, recovery
+  phrase, backup/restore, language, What's New, logout) and Admin (users +
+  invites).
 - **Notifications** — leave-time alerts with in-app banner, OS notification,
   sound and vibration, snooze/dismiss.
+- **Update prompt** — polls `version.json` and offers a reload.
 - **i18n** — English keys + Swedish catalog with a missing/stale guard test.
 - **E2E** — Playwright suite in `../../e2e-next`.
 
-## Remaining polish
-
-- Week/year views in Overview, pinned transit journeys, and a "What's New"
-  changelog screen are the notable gaps versus the Flutter client.
+Feature parity with the Flutter client is complete for v1.

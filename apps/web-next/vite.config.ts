@@ -1,5 +1,5 @@
 import { execSync } from 'node:child_process';
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
 import { defineConfig } from 'vitest/config';
@@ -13,12 +13,13 @@ function buildCommit(): string {
 }
 
 /**
- * Writes `dist/version.json` so the running app can detect a newer deployment
- * (the Flutter client does the same via `web/version.json`).
+ * Writes `dist/version.json` (for the update prompt) and copies the generated
+ * changelog (from the Flutter app, which owns the git-history generator) so the
+ * What's New screen can render it.
  */
-function versionPlugin() {
+function metadataPlugin() {
   return {
-    name: 'chronowarden-version-json',
+    name: 'chronowarden-metadata',
     closeBundle() {
       const pkg = JSON.parse(readFileSync('package.json', 'utf8')) as { version?: string };
       const info = {
@@ -28,6 +29,9 @@ function versionPlugin() {
       };
       mkdirSync('dist', { recursive: true });
       writeFileSync('dist/version.json', `${JSON.stringify(info, null, 2)}\n`);
+
+      const changelog = '../web/CHANGELOG.md';
+      if (existsSync(changelog)) copyFileSync(changelog, 'dist/CHANGELOG.md');
     },
   };
 }
@@ -38,7 +42,7 @@ export default defineConfig({
   },
   plugins: [
     react(),
-    versionPlugin(),
+    metadataPlugin(),
     VitePWA({
       registerType: 'autoUpdate',
       includeAssets: ['icons/*.png'],

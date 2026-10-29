@@ -29,6 +29,9 @@ const sv: Record<string, string> = {
   Overtime: 'Övertid',
   Today: 'Idag',
   Week: 'Vecka',
+  Month: 'Månad',
+  Year: 'År',
+  'Loading…': 'Laddar…',
   'Time bank over time': 'Tidsbank över tid',
   Balance: 'Saldo',
   'Enable transit': 'Aktivera kollektivtrafik',
@@ -42,6 +45,9 @@ const sv: Record<string, string> = {
   'Retrying in {seconds}s': 'Försöker igen om {seconds} s',
   'No journeys found': 'Inga resor hittades',
   'On time': 'I tid',
+  Pin: 'Fäst',
+  Unpin: 'Ta bort fäst',
+  Pinned: 'Fäst',
   'Search station': 'Sök station',
   'Wrap up and head out': 'Dags att varva ner',
   'You have {minutes} min left before your planned leave time.':
@@ -162,6 +168,8 @@ const sv: Record<string, string> = {
   'A new version is available — reload to update.':
       'En ny version finns tillgänglig – ladda om för att uppdatera.',
   Reload: 'Ladda om',
+  "What's New": 'Nyheter',
+  'Changelog is not available.': 'Ändringsloggen är inte tillgänglig.',
   'Email': 'E-post',
   'Password': 'Lösenord',
   'Encryption passphrase': 'Krypteringsfras',
