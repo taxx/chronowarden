@@ -14,10 +14,10 @@ import { MyDayPage } from './screens/MyDayPage';
 import { OverviewPage } from './screens/OverviewPage';
 import { ProjectionPage } from './screens/ProjectionPage';
 import { RegisterScreen } from './screens/RegisterScreen';
-import { PlaceholderPage } from './screens/PlaceholderPage';
 import { RecoveryScreen } from './screens/RecoveryScreen';
 import { SettingsPage } from './screens/SettingsPage';
 import { SetupScreen } from './screens/SetupScreen';
+import { TransitPage } from './screens/TransitPage';
 import { UnlockScreen } from './screens/UnlockScreen';
 import { useAuthStore } from './state/auth';
 
@@ -105,8 +105,6 @@ const settingsRoute = createRoute({
   component: SettingsPage,
 });
 
-const placeholder = (titleKey: string) => () => <PlaceholderPage titleKey={titleKey} />;
-
 
 const overviewRoute = createRoute({
   getParentRoute: () => appRoute,
@@ -126,7 +124,7 @@ const projectionRoute = createRoute({
 const transitRoute = createRoute({
   getParentRoute: () => appRoute,
   path: '/transit',
-  component: placeholder('Transit'),
+  component: TransitPage,
 });
 const adminRoute = createRoute({
   getParentRoute: () => appRoute,

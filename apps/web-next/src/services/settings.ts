@@ -5,6 +5,12 @@ import {
   workConfigToJson,
   type WorkConfig,
 } from '../lib/domain/work-config';
+import {
+  defaultTransitConfig,
+  transitConfigFromJson,
+  transitConfigToJson,
+  type TransitConfig,
+} from '../lib/domain/transit-config';
 
 export type SettingsMap = Record<string, unknown>;
 
@@ -34,5 +40,20 @@ export async function getWorkConfig(dek: Uint8Array | null): Promise<WorkConfig 
 export async function saveWorkConfig(config: WorkConfig, dek: Uint8Array): Promise<void> {
   const settings = await readSettings(dek);
   Object.assign(settings, workConfigToJson(config));
+  await writeSettings(settings, dek);
+}
+
+export async function getTransitConfig(dek: Uint8Array | null): Promise<TransitConfig> {
+  const settings = await readSettings(dek);
+  const raw = settings['transit_config'];
+  if (raw && typeof raw === 'object') {
+    return transitConfigFromJson(raw as Record<string, unknown>);
+  }
+  return defaultTransitConfig;
+}
+
+export async function saveTransitConfig(config: TransitConfig, dek: Uint8Array): Promise<void> {
+  const settings = await readSettings(dek);
+  settings['transit_config'] = transitConfigToJson(config);
   await writeSettings(settings, dek);
 }
