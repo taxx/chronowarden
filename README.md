@@ -5,9 +5,10 @@
 [![GitHub stars](https://img.shields.io/github/stars/taxx/chronowarden)](https://github.com/taxx/chronowarden)
 
 ChronoWarden is a personal time-banking and overtime protection system built with
-**Flutter** (web/mobile) on top of a **Bun + Hono** API and **PostgreSQL**. Its
-goal is to protect your personal time and prevent unintended, unpaid overtime by
-calculating the exact moment you can stop working with a clear conscience.
+a **React + TypeScript** web client on top of a **Bun + Hono** API and
+**PostgreSQL**. Its goal is to protect your personal time and prevent unintended,
+unpaid overtime by calculating the exact moment you can stop working with a clear
+conscience.
 
 It is **free and open-source software** (MIT), designed to be **100 %
 self-hosted** — the entire stack lives in this repository and runs on your own
@@ -29,7 +30,7 @@ server via Docker Compose, with no third-party services.
 
 | Layer | Technology |
 |-------|-----------|
-| **Client** | Flutter (Dart) web app — KISS, responsive |
+| **Client** | React 19 + TypeScript + Vite, Tailwind CSS, TanStack Router/Query, installable PWA |
 | **API** | Bun + Hono (TypeScript): auth, encrypted CRUD, SSE, SL proxy |
 | **Database** | PostgreSQL 18 |
 | **Front door** | nginx `proxy` container: `/api/*` → API, `/*` → web |
@@ -47,7 +48,7 @@ server via Docker Compose, with no third-party services.
                         │            │
                   ┌─────▼─────┐  ┌───▼────────────┐
                   │ web       │  │ api (Bun+Hono) │
-                  │ Flutter   │  │ REST + SSE +SL │
+                  │ React     │  │ REST + SSE +SL │
                   └───────────┘  └───────┬────────┘
                                          │
                                    ┌─────▼──────┐   ┌────────┐
@@ -58,13 +59,14 @@ server via Docker Compose, with no third-party services.
 Because the app and API share an origin, there is no CORS and no API URL baked
 into the JS bundle. Cross-device sync uses **Server-Sent Events** published by
 the API (all writes go through it), so no separate realtime service is needed.
+The client is an installable PWA.
 
 ## Two ways to run ChronoWarden
 
 ### 1. Self-host it (recommended)
 
-Run the whole stack yourself — your own Postgres, your own web and API
-containers, your own data and backups. Nobody else can shut it down. See
+Run the whole stack yourself — your own Postgres, web and API containers, your
+own data and backups. Nobody else can shut it down. See
 [Running it](#running-it).
 
 ### 2. Use the hosted instance (best effort)
@@ -76,14 +78,11 @@ The maintainer also runs a public instance at
 - **Your data is encrypted end-to-end** with your own passphrase, so the host
   cannot read it. If you lose your passphrase *and* recovery phrase, nobody can
   restore your data.
-- **You can move your data at any time** with Settings → **Backup & Restore**
-  (see [Backup & Restore](#backup--restore)).
+- **You can move your data at any time** with Settings → **Backup & Restore**.
 
 ---
 
 ## Multi-User & Auth
-
-ChronoWarden supports multiple users with role-based access:
 
 | Role | Capabilities |
 |------|-------------|
@@ -91,44 +90,37 @@ ChronoWarden supports multiple users with role-based access:
 | **User** | Full time-tracking access (own data only) |
 
 - **First admin** is created when the app detects an empty database.
-- **New users** register with an invite token issued by an admin. Invites are
-  bound to an email address, single-use, and expire.
+- **New users** register with an invite token issued by an admin (bound to an
+  email, single-use, expiring).
 - **Data isolation** is enforced by the API, which scopes every query to the
-  authenticated user. (There is no RLS — the database is only reachable by the
-  API container.)
-- **Passwords** are hashed with argon2id; sessions are revocable opaque tokens.
+  authenticated user (no RLS — the database is only reachable by the API).
+- **Passwords** use argon2id; sessions are revocable opaque tokens delivered as
+  an httpOnly cookie.
 - There is **no email delivery**: invites are shared out-of-band, and password
   resets are admin-assisted.
 
-See [`docs/AUTH.md`](docs/AUTH.md) for the full authentication architecture.
+See [`docs/AUTH.md`](docs/AUTH.md) for the full reference.
 
 ## Core Logic & Features
 
-1. **Seasonal Work Periods:** Detects whether the day uses summer or winter
-   hours from user-defined reduced-week ranges (ISO week numbers, Monday start).
-   ISO weeks are computed with UTC arithmetic so DST never skews them. Week and
-   Month headers show the ISO week(s), and the month grid is aligned to real
-   weekday columns with a week-number gutter.
-2. **Dynamic Travel Presets:** Commute scenarios (train, car, WFH, …) with their
-   associated overhead minutes; presets can include productive commute time.
+1. **Seasonal Work Periods:** summer/winter hours from reduced-week ranges (ISO
+   week numbers, Monday start), computed DST-safely.
+2. **Travel Presets:** commute scenarios with per-direction overhead and
+   productive-commute minutes.
 3. **Morning Calculator:**
-   `Leave Time = Start Time + Expected Work Minutes + Overhead + Lunch + Non-work`
-4. **Time Bank:** Flex balance derived by summing `overtime_minutes` across all
-   recorded days.
-5. **Bilingual UI (English / Swedish):** English is the source of truth; stored
-   in encrypted settings so it follows you across devices.
-6. **In-app changelog ("What's New"):** generated from the git commit history.
-7. **Update prompt:** compares the running build's commit with the server's
-   `/version.json` and offers a one-tap **Reload**.
-8. **Leave-time notifications:** Alert shortly before and after your projected
-   leave time via in-app banner, OS notification, and optional sound/vibration,
-   with Snooze / Dismiss and a diagnostics panel.
-9. **Non-work time (errands):** A second optional break type alongside lunch,
-   toggleable in Settings (enabled by default).
-10. **Flex withdrawal visualization:** Plan how much banked overtime to take as
-    personal time today; the projected leave time moves earlier.
-11. **Backup & Restore:** Download a complete, encrypted backup of all your data
-    and restore it on any ChronoWarden instance.
+   `Leave Time = Start + Expected Work + Overhead + Lunch + Non-work − Flex`
+4. **Time Bank:** flex balance derived by summing `overtime_minutes`.
+5. **Bilingual UI (English / Swedish)**, stored in encrypted settings.
+6. **In-app changelog ("What's New")** generated from the git history.
+7. **Update prompt** when a newer deployment is detected.
+8. **Leave-time notifications** (banner, OS notification, sound, vibration,
+   snooze/dismiss).
+9. **Non-work time (errands)** and **flex withdrawal** planning.
+10. **Backup & Restore** — download a complete encrypted backup and restore it
+    on any ChronoWarden instance.
+11. **Transit** — SL Journey Planner journeys, station autocomplete, pinned
+    journeys and failure back-off.
+12. **Installable PWA.**
 
 ---
 
@@ -136,12 +128,10 @@ See [`docs/AUTH.md`](docs/AUTH.md) for the full authentication architecture.
 
 ### Docker Compose (production / self-hosting)
 
-Everything runs from `docker-compose.yaml`:
-
 | Service | Role |
 |---------|------|
 | `proxy` | nginx front door on `${WEB_PORT:-8981}` — serves the app and proxies `/api` |
-| `web` | Flutter web build served by nginx |
+| `web` | React build served by nginx |
 | `api` | Bun + Hono API; applies SQL migrations on startup |
 | `db` | PostgreSQL 18 (not exposed on the host) |
 | `backup` | daily `pg_dump` + retention |
@@ -160,18 +150,6 @@ docker compose ps
 The app is then available at `http://localhost:8981`. Point your host reverse
 proxy (or HAProxy) at that port for TLS and a public hostname.
 
-**Configuration** (`.env`):
-
-| Key | Purpose |
-|-----|---------|
-| `POSTGRES_USER` / `POSTGRES_PASSWORD` / `POSTGRES_DB` | database credentials |
-| `DATA_DIR` | host directory for the Postgres volume (default `./data`) |
-| `SESSION_TTL_DAYS` | session lifetime in days (default 30, sliding) |
-| `SL_API_KEY` | optional SL Journey Planner API key |
-| `WEB_PORT` | host port for the front door (default 8981) |
-| `CRON_SCHEDULE` / `RETENTION_DAYS` / `BACKUP_VOLUME` | backup tuning |
-| `CORS_ORIGIN` | optional; only needed for local `flutter run` |
-
 ### Local development
 
 ```bash
@@ -180,53 +158,43 @@ cd apps/api
 bun install
 DATABASE_URL=postgres://user:pass@localhost:5432/chronowarden bun run src/index.ts
 
-# Client — point it at the API and allow that origin
+# Client — proxies /api to the API (requires Node 26 LTS, see apps/web/.nvmrc)
 cd apps/web
-flutter run -d chrome --dart-define=API_URL=http://localhost:8080/api/v1
+npm install
+npm run dev            # http://localhost:5173
 ```
-
-Run the API with `CORS_ORIGIN=http://localhost:<flutter-port>` so the browser can
-call it cross-origin during development.
 
 ### Tests
 
-The whole suite runs through one script:
-
 ```bash
-./tool/check.sh          # API typecheck/unit/integration + Flutter analyze/tests
+./tool/check.sh          # API typecheck/unit/integration + web typecheck/tests/build
 ./tool/check.sh api      # API only
 ./tool/check.sh web      # web only
-./tool/check.sh e2e      # browser end-to-end (Playwright; builds the web app)
+./tool/check.sh e2e      # browser end-to-end (Playwright; builds the client)
 ```
 
-- **API integration tests** (`apps/api/test/integration`) start their own
-  throwaway Postgres (or use `TEST_DATABASE_URL`) and cover auth, invites,
-  admin ops, **cross-user isolation**, CRUD, export/import, SSE and a `pg_dump`
-  round-trip.
-- **Browser E2E** (`e2e/`) drives the real Flutter app against a real API in a
-  throwaway stack — see [`e2e/README.md`](e2e/README.md).
-- CI (`.github/workflows/ci.yml`) runs all of the above on push and pull
-  requests.
+- **API integration tests** start a throwaway Postgres and cover auth, invites,
+  admin ops, cross-user isolation, CRUD, export/import, SSE, cookies and a
+  `pg_dump` round-trip.
+- **Browser E2E** (`e2e/`) drives the real client against a real API — see
+  [`e2e/README.md`](e2e/README.md).
+- CI (`.github/workflows/ci.yml`) runs all of the above on push and PRs.
 
 ### Generated metadata
 
 | File | Generated by | Purpose |
 |------|--------------|---------|
-| `apps/web/CHANGELOG.md` | `apps/web/tool/generate_changelog.sh` | in-app "What's New" |
-| `apps/web/build_info.json` | `apps/web/tool/generate_build_info.sh` | running build's version/commit |
-| `apps/web/web/version.json` | `apps/web/tool/generate_build_info.sh` | server commit at `/version.json` |
+| `apps/web/public/CHANGELOG.md` | `apps/web/tool/generate_metadata.sh` | in-app "What's New" |
+| `apps/web/public/version.json` | `apps/web/tool/generate_metadata.sh` | update prompt (`/version.json`) |
 
-Run both scripts before committing (they are part of the release routine).
+Run the generator before committing.
 
 ---
 
 ## Encryption & Zero-Knowledge
 
 ChronoWarden uses **envelope encryption** so the server (and its administrator)
-cannot read user data. Each user has an encryption passphrase that unwraps a Data
-Encryption Key (DEK) stored only in encrypted form.
-
-### Key hierarchy
+cannot read user data.
 
 ```
 Passphrase → PBKDF2(310k) → Master Key (KEK)
@@ -234,58 +202,35 @@ Passphrase → PBKDF2(310k) → Master Key (KEK)
                         └─ AES-GCM encrypt ──→ Encrypted data
 ```
 
-### What's encrypted
-
-- `time_logs.encrypted_data` — every workday
-- `travel_presets.encrypted_data` — every commute preset
-- `user_settings.encrypted_data` — work config, flex, language, transit config
-
-### What stays plaintext
-
-- `user_id` (ownership), `date` (server-side filtering), row ids/timestamps, and
-  the travel preset `name` (dropdown display)
-
-### Recovery
-
-A 24-word recovery phrase encodes the DEK directly; its hash is stored for
-verification. If you lose **both** the passphrase and the recovery phrase, your
-data is gone forever — not even the administrator can recover it. The full
-explainer is in [`docs/ENCRYPTION.md`](docs/ENCRYPTION.md) and in-app under
-Settings → Encryption.
-
----
+- Encrypted: all time logs, travel presets and settings payloads
+  (including the work config, language and transit settings).
+- Plaintext: `user_id` (ownership), `date` (filtering), row ids/timestamps and
+  the preset `name`.
+- **Recovery:** a 24-word BIP39 recovery phrase encodes the DEK. If you lose
+  both the passphrase and the recovery phrase, your data is gone forever — not
+  even the administrator can recover it. See
+  [`docs/ENCRYPTION.md`](docs/ENCRYPTION.md).
 
 ## Backup & Restore
 
-Move all your data between instances (for example, from the hosted instance to
-your own self-hosted one) via **Settings → Backup & Restore**:
+**Settings → Backup & Restore**:
 
-1. **Download backup** produces a JSON bundle containing the encryption envelope
-   (`encrypted_dek`, `kek_salt`, `kek_iterations`, `recovery_hash`) together with
-   the ciphertext rows.
-2. **Restore backup** on the target instance replaces that account's data. The
-   app then asks for the **backup's** encryption passphrase to unlock it.
+1. **Download backup** produces a JSON bundle with the encryption envelope
+   (`encrypted_dek`, `kek_salt`, `kek_iterations`, `recovery_hash`) and all
+   ciphertext rows.
+2. **Restore backup** on the target instance replaces that account's data, then
+   asks for the **backup's** passphrase to unlock it.
 
-The server only ever handles ciphertext. A CSV export/import for time logs is
-also available for spreadsheet workflows.
+A CSV export/import for time logs is also available in History.
 
 ## Database Backups
 
-A `backup` container runs `pg_dump` on a cron schedule and prunes old archives:
-
-- Daily at 02:00 (`CRON_SCHEDULE`), retained for `RETENTION_DAYS` (default 62).
-- Archives land in the host directory `BACKUP_VOLUME`
-  (`/opt/appdata/chronowarden/backup` on the reference server).
-- Credentials come from the same `.env` (`POSTGRES_*`).
+A `backup` container runs `pg_dump` daily at 02:00 (`CRON_SCHEDULE`) and prunes
+archives older than `RETENTION_DAYS` (default 62). Credentials come from the same
+`.env` (`POSTGRES_*`).
 
 ```bash
-docker compose logs backup                # see backup activity
-ls -lh /opt/appdata/chronowarden/backup   # list archives
-```
-
-Restore:
-
-```bash
+docker compose logs backup
 source .env
 gunzip -c backup/chronowarden_backup_YYYYMMDD_HHMMSS.tar.gz \
   | docker compose exec -T db pg_restore -U "$POSTGRES_USER" -d "$POSTGRES_DB" --format=tar
@@ -293,93 +238,37 @@ gunzip -c backup/chronowarden_backup_YYYYMMDD_HHMMSS.tar.gz \
 
 ---
 
-## Real-Time Transit Integration (SL Journey Planner)
-
-```
-Flutter Web
-  └─ ApiClient.post('/sl/proxy', { path })
-       └─ API route — slims the ~220 KB /v2/trips response to ~2 KB
-            └─ SL Journey Planner API
-```
-
-- **Smart direction:** before 11:00 home → work; after, work → home.
-- **Walk-offset:** the query time is offset by your walking time so returned
-  journeys are ones you can actually catch.
-- **Station autocomplete** via `/v2/stop-finder` (300 ms debounce).
-- **Failure back-off:** `TransitFetchGuard` uses exponential back-off with equal
-  jitter (15 s → 15 min), honors `Retry-After`, and gives up until an explicit
-  retry. The UI shows a countdown or the give-up message plus **Try again**.
-- **Pinned journey:** lock the trip you committed to so it stays visible even
-  when the API's 3-trip window slides past it.
-
-Transit config is stored encrypted in `user_settings` and can be toggled off.
-
-## Cross-Device Realtime Sync
-
-- The API publishes `{ table, type, row }` over Server-Sent Events whenever one of
-  your rows changes.
-- The client subscribes at `GET /api/v1/events` (via `EventSource`) and re-fetches
-  the affected data, so My Day, Overview and History stay in sync without a
-  reload.
-- The subscription is torn down on sign out.
-
-## Slider Interval Setting
-
-Configure the tick interval for lunch/flex sliders in **Settings → Slider step
-size** (default 5 min, range 1–30; stored locally).
-
-## iOS Safari Paste Compatibility
-
-iOS Safari doesn't fire paste events to canvas-rendered TextFields, so a
-`PasteButton` reads the Flutter `Clipboard` directly. It appears on the recovery
-phrase dialog and the login/signup passphrase fields.
-
----
-
 ## Project Structure
 
 ```
 apps/
-├── web/                     Flutter web client
-│   ├── lib/
-│   │   ├── l10n/            AppStrings + Swedish catalog + context.t(...)
-│   │   ├── models/          Domain models (TimeLog, TravelPreset, TransitConfig, …)
-│   │   ├── services/        api_client, auth, realtime, backup, crypto, transit, …
-│   │   ├── screens/         UI screens (thin — layout + wiring)
-│   │   ├── widgets/         Reusable widgets
-│   │   ├── utils/           csv, format, web bridges (browser/download/storage)
-│   │   ├── app_state.dart   Central ChangeNotifier
-│   │   └── main.dart        Auth gate & entry point
-│   ├── test/                Flutter tests (incl. app_strings guard)
-│   ├── tool/                generate_changelog.sh, generate_build_info.sh
-│   ├── web/                 index.html, version.json, icons
+├── web/                     React client
+│   ├── src/
+│   │   ├── api/             typed API client + endpoint modules
+│   │   ├── lib/             crypto, format, date, download, notify + domain/
+│   │   ├── queries/         TanStack Query hooks
+│   │   ├── services/        encrypted data services
+│   │   ├── screens/         route screens
+│   │   ├── components/      UI kit + feature components
+│   │   ├── state/           Zustand stores
+│   │   ├── i18n/            t() + Swedish catalog + guard test
+│   │   ├── router.tsx       TanStack Router with auth guards
+│   │   └── main.tsx         entry point
+│   ├── public/              icons, generated version.json + CHANGELOG.md
+│   ├── tool/                generate_metadata.sh
 │   └── Dockerfile
 └── api/                     Bun + Hono API
-    ├── src/
-    │   ├── app.ts           Hono app + routes + error mapping
-    │   ├── config.ts        env config
-    │   ├── db.ts            postgres.js pool
-    │   ├── migrate.ts       SQL migration runner
-    │   ├── auth.ts          session middleware
-    │   ├── password.ts      argon2id
-    │   ├── tokens.ts        token generation/hashing
-    │   ├── events.ts        SSE hub
-    │   ├── sl.ts            SL fetch + slimming
-    │   └── routes/          auth, admin, data, backup, sl, events
+    ├── src/                 app, config, db, migrate, auth, password, tokens, events, sl, routes/
     ├── migrations/          numbered SQL (001_init.sql …)
-    ├── test/                unit + integration tests (throwaway Postgres)
+    ├── test/                unit + integration (throwaway Postgres)
     └── Dockerfile
 e2e/                         Playwright browser tests
-├── tests/app.spec.ts        signup, sign-in, backup download
-├── server.ts                API + static web on one origin
-├── global-setup.ts          builds the web bundle, boots the stack
-└── README.md
 tool/check.sh                one-command feedback loop (api | web | e2e)
 docker/
 ├── proxy/nginx.conf         front door
 └── backup/                  pg_dump cron container
 docker-compose.yaml
-.github/workflows/ci.yml     CI: api, web, e2e jobs
+.github/workflows/ci.yml     CI: api, web, e2e
 ```
 
 ---
@@ -389,18 +278,16 @@ docker-compose.yaml
 Contributions are welcome — bug reports, feature ideas, docs, and pull requests.
 
 - **Bugs / ideas:** open an issue at
-  <https://github.com/taxx/chronowarden/issues> with steps to reproduce, expected
-  vs. actual behaviour, and platform.
-- **Before a PR:** run `./tool/check.sh` (API typecheck + unit + integration,
-  Flutter analyze + tests) and `./tool/check.sh e2e` for the browser suite. Keep
-  changes small and consistent with the KISS approach.
-- **UI text is localized:** wrap new strings in `context.t('…')` and add the
-  Swedish entry to `apps/web/lib/l10n/app_strings_sv.dart` in the same commit —
-  `test/app_strings_test.dart` fails otherwise.
+  <https://github.com/taxx/chronowarden/issues> with steps to reproduce,
+  expected vs. actual behaviour, and browser/OS.
+- **Before a PR:** run `./tool/check.sh` (API + web) and `./tool/check.sh e2e`
+  (browser). Keep changes small and consistent with the KISS approach.
+- **UI text is localized:** wrap new strings in `t('…')` and add the Swedish
+  entry to `apps/web/src/i18n/index.ts` in the same commit —
+  `src/i18n/i18n.test.ts` fails otherwise.
 - **Regenerate metadata before committing:**
   ```bash
-  apps/web/tool/generate_changelog.sh
-  apps/web/tool/generate_build_info.sh
+  apps/web/tool/generate_metadata.sh
   ```
 
 ## License

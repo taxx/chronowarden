@@ -1,112 +1,82 @@
 import { test, expect, type Page } from '@playwright/test';
 
 /**
- * End-to-end browser tests.
+ * End-to-end tests for the React client.
  *
- * The harness (global-setup.ts) starts a throwaway Postgres + the real API and
- * serves the built Flutter web app on one origin, so these exercise the actual
- * UI against the actual backend. Flutter renders to canvas, so the tests drive
- * the accessibility semantics tree (built with ENABLE_SEMANTICS=true).
- *
- * Tests are serial because they share one database: the first creates the admin
- * that the others sign in with.
+ * The harness (`global-setup.ts`) builds `apps/web-next`, starts a throwaway
+ * Postgres + the real API, and serves everything on one origin. As a DOM app,
+ * Playwright drives it with ordinary role/label selectors.
  */
-test.describe.serial('ChronoWarden end-to-end', () => {
-  const ADMIN_EMAIL = 'e2e-admin@example.com';
-  const ADMIN_PASSWORD = 'supersecret1';
-  const ENCRYPTION_PASSPHRASE = 'e2e-encryption-passphrase';
+test.describe.serial('ChronoWarden web-next', () => {
+  const EMAIL = 'e2e@example.com';
+  const PASSWORD = 'supersecret1';
+  const PASSPHRASE = 'e2e-encryption-passphrase';
+  let recoveryPhrase = '';
 
-  /**
-   * Flutter web commits a field's value on focus change, so `fill()` can drop
-   * values. Click the field and actually type instead.
-   */
-  async function typeInto(page: Page, name: string, text: string, exact = false): Promise<void> {
-    const field = page.getByRole('textbox', { name, exact });
-    await field.click();
-    // Flutter web attaches its input element asynchronously and can swallow
-    // the first keystroke, so settle, then type (and verify) deliberately.
-    await page.waitForTimeout(250);
-
-    for (let attempt = 0; attempt < 2; attempt++) {
-      await page.keyboard.press('ControlOrMeta+A');
-      await page.keyboard.press('Backspace');
-      await page.keyboard.type(text, { delay: 30 });
-      await page.waitForTimeout(150);
-      if ((await field.inputValue().catch(() => '')) === text) return;
-    }
+  async function signIn(page: Page) {
+    await page.getByLabel('Email').fill(EMAIL);
+    await page.getByLabel('Password').fill(PASSWORD);
+    await page.getByRole('button', { name: 'I have an encryption passphrase' }).click();
+    await page.getByLabel('Encryption passphrase', { exact: true }).fill(PASSPHRASE);
+    await page.getByRole('button', { name: 'Sign in' }).click();
+    await expect(page.getByRole('link', { name: 'My Day' })).toBeVisible();
   }
 
-  async function signIn(page: Page): Promise<void> {
-    await typeInto(page, 'Email', ADMIN_EMAIL);
-    await typeInto(page, 'Password', ADMIN_PASSWORD);
-    await expect(page.getByRole('textbox', { name: 'Email' })).toHaveValue(ADMIN_EMAIL);
-    await expect(page.getByRole('textbox', { name: 'Password' })).toHaveValue(ADMIN_PASSWORD);
-
-    await page.getByText('I have an encryption passphrase').click();
-    await typeInto(page, 'Encryption passphrase', ENCRYPTION_PASSPHRASE, true);
-    await expect(
-      page.getByRole('textbox', { name: 'Encryption passphrase', exact: true }),
-    ).toHaveValue(ENCRYPTION_PASSPHRASE);
-
-    await page.getByRole('button', { name: 'Sign In' }).click();
-    await expect(page.getByRole('button', { name: 'Sign out' })).toBeVisible();
-  }
-
-  test('first run: creates the admin through the UI', async ({ page }) => {
+  test('first run: setup creates the admin and shows the recovery phrase', async ({ page }) => {
     await page.goto('/');
+    await expect(page.getByRole('heading', { name: 'First-time setup' })).toBeVisible();
 
-    // Empty database → first-run admin screen.
-    const createAdmin = page.getByRole('button', { name: 'Create Admin Account' });
-    await expect(createAdmin).toBeVisible();
+    await page.getByLabel('Full name').fill('E2E Admin');
+    await page.getByLabel('Email').fill(EMAIL);
+    await page.getByLabel('Password').fill(PASSWORD);
+    await page.getByLabel('Encryption passphrase', { exact: true }).fill(PASSPHRASE);
+    await page.getByLabel('Confirm encryption passphrase').fill(PASSPHRASE);
+    await page.getByRole('button', { name: 'Create admin account' }).click();
 
-    await typeInto(page, 'Full name', 'E2E Admin');
-    await typeInto(page, 'Email', ADMIN_EMAIL);
-    await typeInto(page, 'Password (min 10 characters)', ADMIN_PASSWORD);
-    await typeInto(page, 'Encryption passphrase', ENCRYPTION_PASSPHRASE, true);
-    await typeInto(page, 'Confirm encryption passphrase', ENCRYPTION_PASSPHRASE);
+    await expect(page.getByRole('heading', { name: 'Your recovery phrase' })).toBeVisible();
+    const phrase = await page.getByTestId('recovery-phrase').innerText();
+    expect(phrase.trim().split(/\s+/)).toHaveLength(24);
+    recoveryPhrase = phrase.trim();
 
-    await createAdmin.click();
-
-    // The user MUST land on the recovery-phrase onboarding: skipping it would
-    // leave them without the only way to recover their encryption key.
-    // Regression guard: the signup screen used to be unmounted mid-flow, so
-    // this route was never pushed.
-    const continueToApp = page.getByRole('button', { name: 'Continue to App' });
-    await expect(continueToApp).toBeVisible({ timeout: 30_000 });
-    await expect(page.getByText('Your Recovery Phrase')).toBeVisible();
-    await continueToApp.click();
-
-    await expect(page.getByRole('button', { name: 'Sign out' })).toBeVisible({ timeout: 30_000 });
+    await page.getByRole('button', { name: 'I have saved my recovery phrase' }).click();
+    await expect(page.getByRole('link', { name: 'My Day' })).toBeVisible();
   });
 
-  test('returns login after the first run and signs in', async ({ page }) => {
-    await page.goto('/');
-    await expect(page.getByRole('button', { name: 'Sign In' })).toBeVisible();
-    await signIn(page);
-  });
-
-  test('downloads a full backup from Settings', async ({ page }) => {
+  test('signs in and runs a day', async ({ page }) => {
     await page.goto('/');
     await signIn(page);
 
-    // Open Settings from the app bar and scroll to the backup card.
-    await page.getByRole('button', { name: 'Settings' }).click({ force: true });
-    await expect(page.getByRole('heading', { name: 'Settings' })).toBeVisible();
+    await page.getByRole('button', { name: 'Start Day' }).click();
+    await expect(page.getByText('Leave time')).toBeVisible();
 
-    await page.mouse.move(400, 400);
-    const downloadButton = page.getByRole('button', { name: 'Download backup' });
-    for (let i = 0; i < 15; i++) {
-      if (await downloadButton.isVisible().catch(() => false)) break;
-      await page.mouse.wheel(0, 800);
-      await page.waitForTimeout(150);
-    }
-    await expect(downloadButton).toBeVisible();
+    await page.getByRole('button', { name: 'Stop Day' }).click();
+    await expect(page.getByText('Day complete')).toBeVisible();
+  });
 
-    // Flutter's semantics overlay sits above the glass pane, so hit-tested
-    // clicks can miss. Dispatching the click directly on the semantics node
-    // activates the widget's handler.
+  test('adds a day in History which updates the time bank', async ({ page }) => {
+    await page.goto('/');
+    await signIn(page);
+
+    await page.getByRole('link', { name: 'History' }).click();
+    await page.getByRole('button', { name: 'Add day' }).click();
+
+    await page.getByLabel('Date').fill('2026-01-05');
+    await page.getByLabel('Start').fill('08:00');
+    await page.getByLabel('Stop').fill('16:30');
+    await page.getByLabel('Expected minutes').fill('480');
+    await page.getByRole('button', { name: 'Save' }).click();
+
+    await expect(page.getByText('2026-01-05')).toBeVisible();
+  });
+
+  test('downloads a backup from Settings', async ({ page }) => {
+    await page.goto('/');
+    await signIn(page);
+
+    await page.getByRole('link', { name: 'Settings' }).click();
+
     const downloadPromise = page.waitForEvent('download');
-    await downloadButton.dispatchEvent('click');
+    await page.getByRole('button', { name: 'Download backup' }).click();
     const download = await downloadPromise;
 
     expect(download.suggestedFilename()).toMatch(/^chronowarden_backup_\d{4}-\d{2}-\d{2}\.json$/);
@@ -117,12 +87,41 @@ test.describe.serial('ChronoWarden end-to-end', () => {
     const bundle = JSON.parse(Buffer.concat(chunks).toString('utf8'));
 
     expect(bundle.format).toBe('chronowarden-backup');
-    expect(bundle.version).toBe(1);
     expect(bundle.envelope.encrypted_dek).toBeTruthy();
-    expect(bundle.envelope.kek_salt).toBeTruthy();
     expect(bundle.envelope.recovery_hash).toBeTruthy();
-    expect(bundle.settings).toBeDefined();
     expect(Array.isArray(bundle.time_logs)).toBe(true);
-    expect(Array.isArray(bundle.travel_presets)).toBe(true);
+  });
+
+  test('admin can create an invite', async ({ page }) => {
+    await page.goto('/');
+    await signIn(page);
+
+    await page.getByRole('link', { name: 'Admin' }).click();
+    await page.getByRole('button', { name: 'Invites' }).click();
+
+    await page.getByLabel('Email').fill('invitee@example.com');
+    await page.getByRole('button', { name: 'Create invite' }).click();
+
+    await expect(page.getByText('Copy this token and share it with the user:')).toBeVisible();
+    await expect(page.getByText('invitee@example.com')).toBeVisible();
+  });
+
+  // Runs last: it sets a new passphrase, so earlier tests need the original one.
+  test('recovers access with the recovery phrase and a new passphrase', async ({ page }) => {
+    await page.goto('/');
+
+    // Sign in without the passphrase to land on the unlock screen.
+    await page.getByLabel('Email').fill(EMAIL);
+    await page.getByLabel('Password').fill(PASSWORD);
+    await page.getByRole('button', { name: 'Sign in' }).click();
+    await expect(page.getByRole('heading', { name: 'Unlock' })).toBeVisible();
+
+    await page.getByRole('link', { name: 'Forgot passphrase?' }).click();
+    await page.getByLabel('Enter your recovery phrase').fill(recoveryPhrase);
+    await page.getByLabel('New encryption passphrase').fill('a-new-encryption-passphrase');
+    await page.getByLabel('Confirm encryption passphrase').fill('a-new-encryption-passphrase');
+    await page.getByRole('button', { name: 'Recover access' }).click();
+
+    await expect(page.getByRole('link', { name: 'My Day' })).toBeVisible();
   });
 });

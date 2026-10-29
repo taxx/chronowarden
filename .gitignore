@@ -1,16 +1,17 @@
-# Secrets — never commit API credentials
+# Secrets — never commit credentials
 secrets.json
 .env
+.env.db
 
-# Flutter / build output & dependencies (match at any depth so the apps/ layout works)
-**/.dart_tool/
-**/.flutter-plugins
-**/.flutter-plugins-dependencies
-**/build/
-**/node_modules/
-**/dist/
-*.iml
-**/.metadata
+# Node / build output
+node_modules/
+dist/
+coverage/
+
+# Playwright
+e2e/test-results/
+e2e/playwright-report/
+e2e/.playwright/
 
 # IDE
 .idea/
@@ -21,36 +22,9 @@ secrets.json
 # Mac
 .DS_Store
 
-# Android
-**/android/.gradle/
-**/android/app/src/main/assets/
-**/android/local.properties
-**/android/*.jks
-**/android/key.properties
-
-# iOS
-**/ios/Flutter/Generated.xcconfig
-**/ios/Flutter/ephemeral/
-**/ios/Flutter/ephemeral2/
-**/ios/Flutter/Flutter.podspec
-**/ios/Flutter/flutter_export_environment.sh
-**/ios/Runner/GeneratedPluginRegistrant.*
-**/ios/Pods/
-**/*.xcworkspace/
-
-# Playwright (E2E)
-e2e/test-results/
-e2e/playwright-report/
-e2e/.playwright/
-e2e-next/test-results/
-e2e-next/playwright-report/
-e2e-next/.playwright/
-
-# Coverage
-coverage/
+# Logs
+*.log
 
 # Database backups
 chronowarden_backup_*.tar
 chronowarden_backup_*.tar.gz
-# Flutter crash logs
-flutter_*.log

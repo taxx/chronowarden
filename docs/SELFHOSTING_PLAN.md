@@ -5,6 +5,10 @@
 > document is kept as the design record; see `AGENTS.md` and `README.md` for the
 > current architecture, and `AUTH.md` for the auth model.
 >
+> Note: the client described here was later rewritten from Flutter/Dart to
+> React/TypeScript — see [`UI_REWRITE_PLAN.md`](UI_REWRITE_PLAN.md). The API,
+> database and deployment are unchanged by that.
+>
 > Deviations from the original plan:
 > - Auth uses **opaque session tokens** (hashed in `sessions`) rather than JWTs —
 >   simpler for the client and instantly revocable.
@@ -21,8 +25,9 @@
 
 ## 1. What we depend on today (inventory)
 
-ChronoWarden is a Flutter **web** app talking to Supabase. The client uses a
-small slice of Supabase — which is why a replacement is cheap:
+At the time of this plan, ChronoWarden was a Flutter **web** app talking to
+Supabase. The client used a small slice of Supabase — which is why a
+replacement was cheap:
 
 | Supabase feature | Where it is used | Notes |
 |---|---|---|
@@ -41,8 +46,8 @@ ciphertext. That makes swapping the backend a **transport change, not a data
 model change** — no re-encryption, no key rotation, and the DEK cache in
 `localStorage` stays valid.
 
-Hard dependency: **Dart/Flutter client stays** (rewriting the UI would be a
-massive waste). The *backend* is where we are free.
+Hard dependency at the time: the **Dart/Flutter client stayed** — this plan
+only replaced the backend. (The UI was rewritten later, on a separate branch.)
 
 ---
 
@@ -100,8 +105,8 @@ and **the existing SL slimming logic is TypeScript**.
 Rationale: least code, reuses the only non-trivial backend logic we already
 have (SL slimming), built-in password hashing, and dead-simple SSE.
 
-> The client remains Flutter/Dart. Only `supabase_flutter` is removed and
-> replaced by a ~200-line `ApiClient`.
+> The client was Flutter/Dart at this point. Only `supabase_flutter` was removed
+> and replaced by a ~200-line `ApiClient`. (It was later rewritten in React too.)
 
 ---
 

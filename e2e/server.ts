@@ -1,9 +1,8 @@
 /**
- * E2E server: starts a throwaway Postgres + the real API, then serves the built
- * Flutter web app on the same origin (mirroring the production nginx proxy).
- *
- * Run with bun:  bun run e2e/server.ts
+ * E2E server for the React client: throwaway Postgres + the real API + the
+ * built `apps/web-next/dist` on one origin (mirroring the production proxy).
  */
+import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { startTestPostgres } from '../apps/api/test/helpers/postgres.ts';
 
@@ -16,16 +15,14 @@ const { migrate } = await import('../apps/api/src/migrate.ts');
 const { app } = await import('../apps/api/src/app.ts');
 await migrate(sql);
 
-const webRoot = join(import.meta.dirname, '..', 'apps', 'web', 'build', 'web');
-const port = Number(process.env['E2E_PORT'] ?? '8099');
+const webRoot = join(import.meta.dirname, '..', 'apps', 'web', 'dist');
+const port = Number(process.env['E2E_PORT'] ?? '8098');
 
 const server = Bun.serve({
   port,
   hostname: '127.0.0.1',
   async fetch(request) {
     const url = new URL(request.url);
-
-    // API and web app share an origin, exactly like the production proxy.
     if (url.pathname.startsWith('/api')) return app.fetch(request);
 
     const path = url.pathname === '/' ? '/index.html' : url.pathname;
@@ -35,7 +32,7 @@ const server = Bun.serve({
   },
 });
 
-console.log(`[e2e] server ready at http://127.0.0.1:${server.port}`);
+console.log(`[e2e-next] server ready at http://127.0.0.1:${server.port}`);
 
 async function shutdown() {
   server.stop();

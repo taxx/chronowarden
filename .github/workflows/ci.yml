@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [main, feat/selfhost]
+    branches: [main, feat/selfhost, feat/ui-rewrite]
   pull_request:
 
 jobs:
@@ -52,87 +52,32 @@ jobs:
         run: bun test test/integration
 
   web:
-    name: Web (analyze + tests)
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: subosito/flutter-action@v2
-        with:
-          channel: stable
-          cache: true
-
-      - name: Dependencies
-        working-directory: apps/web
-        run: flutter pub get
-
-      - name: Analyze
-        working-directory: apps/web
-        run: flutter analyze
-
-      - name: Tests
-        working-directory: apps/web
-        run: flutter test
-
-  web-next:
-    name: Web-next (typecheck + tests + build)
+    name: Web (typecheck + tests + build)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
       - uses: actions/setup-node@v4
         with:
-          node-version-file: apps/web-next/.nvmrc
+          node-version-file: apps/web/.nvmrc
           cache: npm
-          cache-dependency-path: apps/web-next/package-lock.json
+          cache-dependency-path: apps/web/package-lock.json
 
       - name: Install dependencies
-        working-directory: apps/web-next
+        working-directory: apps/web
         run: npm ci
 
       - name: Typecheck
-        working-directory: apps/web-next
+        working-directory: apps/web
         run: npm run typecheck
 
       - name: Tests
-        working-directory: apps/web-next
+        working-directory: apps/web
         run: npm test
 
       - name: Build
-        working-directory: apps/web-next
+        working-directory: apps/web
         run: npm run build
-
-  e2e-next:
-    name: Web-next E2E (Playwright)
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version-file: apps/web-next/.nvmrc
-          cache: npm
-          cache-dependency-path: apps/web-next/package-lock.json
-
-      - uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: latest
-
-      - name: Install the client
-        working-directory: apps/web-next
-        run: npm ci
-
-      - name: Install E2E dependencies
-        working-directory: e2e-next
-        run: npm ci
-
-      - name: Install Chromium
-        working-directory: e2e-next
-        run: npx playwright install --with-deps chromium
-
-      - name: Run E2E tests
-        working-directory: e2e-next
-        run: npx playwright test
 
   e2e:
     name: Web E2E (Playwright)
@@ -140,14 +85,19 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: subosito/flutter-action@v2
+      - uses: actions/setup-node@v4
         with:
-          channel: stable
-          cache: true
+          node-version-file: apps/web/.nvmrc
+          cache: npm
+          cache-dependency-path: apps/web/package-lock.json
 
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: latest
+
+      - name: Install the client
+        working-directory: apps/web
+        run: npm ci
 
       - name: Install E2E dependencies
         working-directory: e2e

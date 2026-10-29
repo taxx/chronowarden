@@ -1,9 +1,9 @@
-# UI Rewrite Plan — Chrome-free client (React)
+# UI Rewrite Plan — React client
 
-Status: **feature-complete for v1** on branch `feat/ui-rewrite` (branched from
-`feat/selfhost`). The API, database, backups and deployment stay as they are;
-only the client is replaced. Parity with the Flutter client is complete; the
-remaining step is the cutover (see below).
+> **Historical record.** The rewrite is **complete**: the React client is now
+> `apps/web`, the previous canvas-based client has been retired, and this
+> document is kept for the rationale and the decisions taken. The API, database,
+> backups and deployment did not change.
 
 ## Progress
 
@@ -19,11 +19,11 @@ remaining step is the cutover (see below).
 
 ### Cutover checklist
 
-1. Add a Dockerfile for `web-next` (Vite build → nginx).
-2. Point the compose `web` service at it and rebuild.
-3. Rename `apps/web-next` → `apps/web`, retire the Flutter app.
-4. Repoint the `e2e/` harness (or keep `e2e-next` as the only one).
-5. Confirm HAProxy/DNS, then deploy.
+- ✅ Dockerfile for the client (Node 26 build → nginx).
+- ✅ Compose `web` service builds `./src/apps/web`.
+- ✅ The client replaced `apps/web`; the previous app was retired.
+- ✅ The `e2e/` harness targets the new client.
+- ⏳ Deploy (HAProxy/DNS) — pending, not yet done.
 
 ## Why
 
@@ -96,14 +96,13 @@ non-work, leave time, overtime), `format`, `notification_service`
 ```
 apps/
   api/                unchanged Bun + Hono API
-  web/                current Flutter client (kept working for beta testers)
-  web-next/           the React rewrite (this branch)
+  web/                the React client (the canvas-based app was kept alongside
+                      it during the rewrite, then retired)
 packages/
   shared/             API DTO types shared by the API and the new client
 ```
 
-At cutover the Flutter app is retired and `web-next` becomes `apps/web`. Until
-then both build from the same repo and either can be served.
+At cutover the canvas-based app was retired and the rewrite became `apps/web`.
 
 ## API changes (small, backwards compatible)
 
@@ -129,7 +128,7 @@ then both build from the same repo and either can be served.
 6. **Transit** — SL search, trips, pinned journey, back-off card.
 7. **Admin** — users, invites, roles/status.
 8. **PWA + polish** — installability, update prompt, accessibility.
-9. **Cutover** — parity QA, swap clients, retire Flutter.
+9. **Cutover** — parity QA, swap clients, retire the old app. *(done)*
 
 Each phase lands with Vitest/Testing Library coverage and Playwright E2E against
 the real DOM (no semantics hacks).

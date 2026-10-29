@@ -47,8 +47,7 @@ services:
 
   web:
     build:
-      context: ./src
-      dockerfile: apps/web/Dockerfile
+      context: ./src/apps/web
     restart: unless-stopped
     depends_on:
       - api
