@@ -31,6 +31,8 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
+      // Registration happens in `src/lib/pwa.ts` (so the update banner can drive it).
+      injectRegister: false,
       includeAssets: ['icons/*.png'],
       manifest: {
         name: 'ChronoWarden',

@@ -8,6 +8,20 @@ import { create } from 'zustand';
 export type Locale = 'en' | 'sv';
 
 const sv: Record<string, string> = {
+  ' in the bank': ' i banken',
+  Change: 'Ändring',
+  'Daily overtime relative to your time bank — green bars mean you earned time back.':
+      'Daglig övertid i förhållande till din tidsbank — gröna staplar betyder att du tjänade tillbaka tid.',
+  'Days logged': 'Loggade dagar',
+  'Ends with ': 'Slutar på ',
+  'Expected work': 'Förväntat arbete',
+  'Net overtime': 'Nettoövertid',
+  'No logs in this period': 'Inga loggar i denna period',
+  'Overhead buffer': 'Tidsbuffert',
+  'Period total: ': 'Periodsumma: ',
+  'Started with ': 'Startade med ',
+  'Time Bank': 'Tidsbank',
+  'Total hours worked': 'Total arbetad tid',
   'Both work and home stations must be set.': 'Både hem- och arbetsstation måste anges.',
   'Commute scenarios with overhead buffer.': 'Pendlingsscenarier med tidsbuffert.',
   'Configure your expected work time per day.': 'Ange din förväntade arbetstid per dag.',
@@ -73,7 +87,6 @@ const sv: Record<string, string> = {
       'Grönt betyder att du behöll din tid; rött betyder att du arbetade över.',
   Next: 'Nästa',
   Previous: 'Föregående',
-  Total: 'Totalt',
   '1 change': '1 byte',
   '{count} changes': '{count} byten',
   Departed: 'Avgått',

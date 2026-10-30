@@ -8,6 +8,7 @@ import { router } from './router';
 import { useAuthStore } from './state/auth';
 import { useNotificationsStore } from './state/notifications';
 import { initTheme } from './state/theme';
+import { registerServiceWorker } from './lib/pwa';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -21,6 +22,7 @@ const queryClient = new QueryClient({
  */
 async function start() {
   initTheme();
+  registerServiceWorker();
   useNotificationsStore.getState().init();
   await useAuthStore.getState().bootstrap();
 

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 
 import { useT } from '../i18n';
+import { reloadToUpdate } from '../lib/pwa';
 import { Button } from './ui';
 
 /** Commit id this bundle was built from (injected by Vite at build time). */
@@ -63,7 +64,7 @@ export function UpdateBanner() {
     <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-sky-700 bg-sky-950/50 p-4 text-sky-100">
       <p className="text-sm">{t('A new version is available — reload to update.')}</p>
       <div className="flex gap-2">
-        <Button variant="ghost" onClick={() => window.location.reload()}>
+        <Button variant="ghost" onClick={() => void reloadToUpdate()}>
           {t('Reload')}
         </Button>
         <Button

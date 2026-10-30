@@ -2,20 +2,23 @@ import { useMemo, useState } from 'react';
 import { ChevronLeft, ChevronRight, Info } from 'lucide-react';
 
 import { DayDialog } from '../components/DayDialog';
+import { TimeBankChart } from '../components/TimeBankChart';
 import { Button, Card, CardContent, CardHeader, Tabs } from '../components/ui';
 import { useSaveDay } from '../hooks/useSaveDay';
 import { useT } from '../i18n';
 import { toDateStr } from '../lib/date';
 import type { TimeLog } from '../lib/domain/time-log';
+import { buildTimeBankChart, summarizePeriod, type ChartPeriod } from '../lib/domain/time-bank-chart';
 import { isoWeekNumber } from '../lib/domain/work-config';
-import { formatSignedMinutes, overtimeTextClass } from '../lib/format';
-import { useWorkConfig } from '../queries/settings';
+import { formatDurationMinutes, overtimeTextClass } from '../lib/format';
+import { usePreferences, useWorkConfig } from '../queries/settings';
 import { useTimeLogs } from '../queries/time-logs';
 import { useToastStore } from '../state/toast';
 
-type Period = 'week' | 'month' | 'year';
+type Period = ChartPeriod;
 
 const PERIOD_KEY = 'cw_overview_period';
+const TREND_KEY = 'cw_overview_trend';
 const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
 function startOfIsoWeek(date: Date): Date {
@@ -23,16 +26,11 @@ function startOfIsoWeek(date: Date): Date {
   return new Date(date.getFullYear(), date.getMonth(), date.getDate() - weekday);
 }
 
-function sumOvertime(logs: Iterable<TimeLog>): number {
-  let total = 0;
-  for (const log of logs) total += log.overtimeMinutes;
-  return total;
-}
-
 export function OverviewPage() {
   const t = useT();
   const logsQuery = useTimeLogs();
   const configQuery = useWorkConfig();
+  const prefsQuery = usePreferences();
   const { saveDay } = useSaveDay();
   const pushToast = useToastStore((state) => state.push);
 
@@ -40,6 +38,7 @@ export function OverviewPage() {
     const stored = localStorage.getItem(PERIOD_KEY);
     return stored === 'week' || stored === 'month' || stored === 'year' ? stored : 'week';
   });
+  const [showTrend, setShowTrend] = useState(() => localStorage.getItem(TREND_KEY) === 'true');
   const [cursor, setCursor] = useState(() => new Date());
   const [dialog, setDialog] = useState<{ date: string; log: TimeLog | null } | null>(null);
 
@@ -48,11 +47,29 @@ export function OverviewPage() {
     setPeriodState(next);
   }
 
+  function toggleTrend(value: boolean) {
+    localStorage.setItem(TREND_KEY, String(value));
+    setShowTrend(value);
+  }
+
+  const logs = logsQuery.data ?? [];
+  const showWeekends = prefsQuery.data?.showWeekends ?? true;
+
   const byDate = useMemo(() => {
     const map = new Map<string, TimeLog>();
-    for (const log of logsQuery.data ?? []) map.set(log.date, log);
+    for (const log of logs) map.set(log.date, log);
     return map;
-  }, [logsQuery.data]);
+  }, [logs]);
+
+  const summary = useMemo(
+    () => summarizePeriod(logs, period, cursor, showWeekends),
+    [logs, period, cursor, showWeekends],
+  );
+
+  const chart = useMemo(
+    () => buildTimeBankChart(logs, period, cursor, showWeekends),
+    [logs, period, cursor, showWeekends],
+  );
 
   const weekDays = useMemo(() => {
     const monday = startOfIsoWeek(cursor);
@@ -76,15 +93,6 @@ export function OverviewPage() {
       }),
     );
   }, [cursor, byDate]);
-
-  const weekTotal = weekDays.reduce((sum, date) => sum + (byDate.get(toDateStr(date))?.overtimeMinutes ?? 0), 0);
-  const monthLogs = [...byDate.values()].filter((log) => {
-    const [y, m] = log.date.split('-').map(Number) as [number, number];
-    return y === cursor.getFullYear() && m === cursor.getMonth() + 1;
-  });
-  const yearLogs = [...byDate.values()].filter(
-    (log) => Number(log.date.slice(0, 4)) === cursor.getFullYear(),
-  );
 
   function label(): string {
     if (period === 'year') return String(cursor.getFullYear());
@@ -128,154 +136,180 @@ export function OverviewPage() {
     );
   }
 
-  const total = period === 'week' ? weekTotal : sumOvertime(period === 'month' ? monthLogs : yearLogs);
+  function Stat({ label: statLabel, value, tone }: { label: string; value: string; tone?: string }) {
+    return (
+      <div className="rounded-lg border bg-card p-3">
+        <p className="text-xs uppercase tracking-wide text-muted-foreground">{statLabel}</p>
+        <p className={'mt-1 text-lg font-semibold ' + (tone ?? '')}>{value}</p>
+      </div>
+    );
+  }
 
   return (
     <>
-      <Card>
-        <CardHeader
-          title={<span className="capitalize">{label()}</span>}
-          description={
-            <span className="flex items-center gap-1.5">
-              <Info className="h-3.5 w-3.5" />
-              {t('Green means you kept your time; red means you worked over.')}
-            </span>
-          }
-          action={
-            <div className="flex flex-wrap items-center gap-2">
-              <Tabs
-                value={period}
-                onChange={setPeriod}
-                items={[
-                  { value: 'week', label: t('Week') },
-                  { value: 'month', label: t('Month') },
-                  { value: 'year', label: t('Year') },
-                ]}
-              />
-              <div className="flex items-center gap-1">
-                <Button variant="ghost" size="icon" aria-label={t('Previous')} onClick={() => shift(-1)}>
-                  <ChevronLeft className="h-4 w-4" />
-                </Button>
-                <Button variant="ghost" size="sm" onClick={() => setCursor(new Date())}>
-                  {t('Today')}
-                </Button>
-                <Button variant="ghost" size="icon" aria-label={t('Next')} onClick={() => shift(1)}>
-                  <ChevronRight className="h-4 w-4" />
-                </Button>
+      <div className="space-y-4">
+        <Card>
+          <CardHeader
+            title={<span className="capitalize">{label()}</span>}
+            description={
+              <span className="flex items-center gap-1.5">
+                <Info className="h-3.5 w-3.5" />
+                {t('Green means you kept your time; red means you worked over.')}
+              </span>
+            }
+            action={
+              <div className="flex flex-wrap items-center gap-2">
+                <Tabs
+                  value={period}
+                  onChange={setPeriod}
+                  items={[
+                    { value: 'week', label: t('Week') },
+                    { value: 'month', label: t('Month') },
+                    { value: 'year', label: t('Year') },
+                  ]}
+                />
+                <div className="flex items-center gap-1">
+                  <Button variant="ghost" size="icon" aria-label={t('Previous')} onClick={() => shift(-1)}>
+                    <ChevronLeft className="h-4 w-4" />
+                  </Button>
+                  <Button variant="ghost" size="sm" onClick={() => setCursor(new Date())}>
+                    {t('Today')}
+                  </Button>
+                  <Button variant="ghost" size="icon" aria-label={t('Next')} onClick={() => shift(1)}>
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </div>
               </div>
+            }
+          />
+          <CardContent className="space-y-5">
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+              <Stat label={t('Days logged')} value={String(summary.daysLogged)} />
+              <Stat label={t('Total hours worked')} value={formatDurationMinutes(summary.workedMinutes)} />
+              <Stat label={t('Expected work')} value={formatDurationMinutes(summary.expectedMinutes)} />
+              <Stat label={t('Overhead buffer')} value={formatDurationMinutes(summary.overheadBufferMinutes)} />
+              <Stat
+                label={t('Net overtime')}
+                value={formatDurationMinutes(summary.overtimeMinutes)}
+                tone={overtimeTextClass(summary.overtimeMinutes)}
+              />
             </div>
-          }
-        />
-        <CardContent>
-          <div className="mb-4 flex items-baseline gap-2">
-            <span className="text-xs uppercase tracking-wide text-muted-foreground">{t('Total')}</span>
-            <span className={'text-2xl font-semibold ' + overtimeTextClass(total)}>
-              {logsQuery.data && logsQuery.data.length > 0 ? formatSignedMinutes(total) : '—'}
-            </span>
-          </div>
 
-          {period === 'week' ? (
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-7">
-              {weekDays.map((date, index) => {
-                const key = toDateStr(date);
-                const log = byDate.get(key) ?? null;
-                return (
-                  <button
-                    key={key}
-                    type="button"
-                    onClick={() => setDialog({ date: key, log })}
-                    className="rounded-lg border border-border bg-card p-3 text-left transition hover:bg-accent"
-                  >
-                    <p className="text-xs uppercase tracking-wide text-muted-foreground">{WEEKDAYS[index]}</p>
-                    <p className="mt-0.5 text-sm">{date.getDate()}</p>
-                    <p className={'mt-2 text-sm ' + overtimeTextClass(log?.overtimeMinutes ?? 0)}>
-                      {log ? formatSignedMinutes(log.overtimeMinutes) : '—'}
-                    </p>
-                  </button>
-                );
-              })}
-            </div>
-          ) : period === 'month' ? (
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[640px] border-collapse text-sm">
-                <thead>
-                  <tr>
-                    <th className="w-10 px-1 py-2 text-left text-xs uppercase tracking-wide text-muted-foreground">
-                      {t('Week')}
-                    </th>
-                    {WEEKDAYS.map((day) => (
-                      <th key={day} className="px-1 py-2 text-left text-xs uppercase tracking-wide text-muted-foreground">
-                        {day}
+            {summary.daysLogged === 0 ? (
+              <p className="py-4 text-center text-sm text-muted-foreground">{t('No logs in this period')}</p>
+            ) : period === 'week' ? (
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-7">
+                {weekDays.map((date, index) => {
+                  const key = toDateStr(date);
+                  const log = byDate.get(key) ?? null;
+                  return (
+                    <button
+                      key={key}
+                      type="button"
+                      onClick={() => setDialog({ date: key, log })}
+                      className="rounded-lg border bg-card p-3 text-left transition hover:bg-accent"
+                    >
+                      <p className="text-xs uppercase tracking-wide text-muted-foreground">{WEEKDAYS[index]}</p>
+                      <p className="mt-0.5 text-sm">{date.getDate()}</p>
+                      <p className={'mt-2 text-sm ' + overtimeTextClass(log?.overtimeMinutes ?? 0)}>
+                        {log ? formatDurationMinutes(log.overtimeMinutes) : '—'}
+                      </p>
+                    </button>
+                  );
+                })}
+              </div>
+            ) : period === 'month' ? (
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[640px] border-collapse text-sm">
+                  <thead>
+                    <tr>
+                      <th className="w-10 px-1 py-2 text-left text-xs uppercase tracking-wide text-muted-foreground">
+                        {t('Week')}
                       </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {months.map((week, weekIndex) => (
-                    <tr key={weekIndex}>
-                      <td className="px-1 py-1 align-top text-xs text-muted-foreground">
-                        {isoWeekNumber(week[0]!.date)}
-                      </td>
-                      {week.map((cell) => {
-                        const key = toDateStr(cell.date);
-                        return (
-                          <td key={key} className="px-1 py-1 align-top">
-                            <button
-                              type="button"
-                              onClick={() => setDialog({ date: key, log: cell.log })}
-                              className={
-                                'h-16 w-full rounded-lg border p-1.5 text-left transition hover:bg-accent ' +
-                                (cell.inMonth ? 'border-border bg-card' : 'border-transparent')
-                              }
-                            >
-                              <div className={cell.inMonth ? '' : 'text-muted-foreground'}>
-                                {cell.date.getDate()}
-                              </div>
-                              {cell.log ? (
-                                <div className={'mt-1 text-xs ' + overtimeTextClass(cell.log.overtimeMinutes)}>
-                                  {formatSignedMinutes(cell.log.overtimeMinutes)}
-                                </div>
-                              ) : null}
-                            </button>
-                          </td>
-                        );
-                      })}
+                      {WEEKDAYS.map((day) => (
+                        <th key={day} className="px-1 py-2 text-left text-xs uppercase tracking-wide text-muted-foreground">
+                          {day}
+                        </th>
+                      ))}
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          ) : (
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-              {Array.from({ length: 12 }, (_, month) => {
-                const monthTotal = sumOvertime(
-                  yearLogs.filter((log) => Number(log.date.slice(5, 7)) === month + 1),
-                );
-                const hasData = yearLogs.some((log) => Number(log.date.slice(5, 7)) === month + 1);
-                const name = new Intl.DateTimeFormat(undefined, { month: 'long' }).format(
-                  new Date(cursor.getFullYear(), month, 1),
-                );
-                return (
-                  <button
-                    key={month}
-                    type="button"
-                    onClick={() => {
-                      setCursor(new Date(cursor.getFullYear(), month, 1));
-                      setPeriod('month');
-                    }}
-                    className="rounded-lg border border-border bg-card p-3 text-left transition hover:bg-accent"
-                  >
-                    <p className="text-sm capitalize">{name}</p>
-                    <p className={'mt-2 text-lg font-semibold ' + overtimeTextClass(monthTotal)}>
-                      {hasData ? formatSignedMinutes(monthTotal) : '—'}
-                    </p>
-                  </button>
-                );
-              })}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+                  </thead>
+                  <tbody>
+                    {months.map((week, weekIndex) => (
+                      <tr key={weekIndex}>
+                        <td className="px-1 py-1 align-top text-xs text-muted-foreground">
+                          {isoWeekNumber(week[0]!.date)}
+                        </td>
+                        {week.map((cell) => {
+                          const key = toDateStr(cell.date);
+                          return (
+                            <td key={key} className="px-1 py-1 align-top">
+                              <button
+                                type="button"
+                                onClick={() => setDialog({ date: key, log: cell.log })}
+                                className={
+                                  'h-16 w-full rounded-lg border p-1.5 text-left transition hover:bg-accent ' +
+                                  (cell.inMonth ? 'bg-card' : 'border-transparent')
+                                }
+                              >
+                                <div className={cell.inMonth ? '' : 'text-muted-foreground'}>
+                                  {cell.date.getDate()}
+                                </div>
+                                {cell.log ? (
+                                  <div className={'mt-1 text-xs ' + overtimeTextClass(cell.log.overtimeMinutes)}>
+                                    {formatDurationMinutes(cell.log.overtimeMinutes)}
+                                  </div>
+                                ) : null}
+                              </button>
+                            </td>
+                          );
+                        })}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                {Array.from({ length: 12 }, (_, month) => {
+                  const monthTotal = logs
+                    .filter(
+                      (log) =>
+                        Number(log.date.slice(0, 4)) === cursor.getFullYear() &&
+                        Number(log.date.slice(5, 7)) === month + 1,
+                    )
+                    .reduce((sum, log) => sum + log.overtimeMinutes, 0);
+                  const hasData = logs.some(
+                    (log) =>
+                      Number(log.date.slice(0, 4)) === cursor.getFullYear() &&
+                      Number(log.date.slice(5, 7)) === month + 1,
+                  );
+                  const name = new Intl.DateTimeFormat(undefined, { month: 'long' }).format(
+                    new Date(cursor.getFullYear(), month, 1),
+                  );
+                  return (
+                    <button
+                      key={month}
+                      type="button"
+                      onClick={() => {
+                        setCursor(new Date(cursor.getFullYear(), month, 1));
+                        setPeriod('month');
+                      }}
+                      className="rounded-lg border bg-card p-3 text-left transition hover:bg-accent"
+                    >
+                      <p className="text-sm capitalize">{name}</p>
+                      <p className={'mt-2 text-lg font-semibold ' + overtimeTextClass(monthTotal)}>
+                        {hasData ? formatDurationMinutes(monthTotal) : '—'}
+                      </p>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        <TimeBankChart data={chart} showTrend={showTrend} onToggleTrend={toggleTrend} />
+      </div>
 
       <DayDialog
         open={dialog != null}

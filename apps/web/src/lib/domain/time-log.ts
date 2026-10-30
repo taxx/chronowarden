@@ -114,6 +114,14 @@ export function totalExpectedMinutes(log: TimeLog): number {
   return log.expectedMinutes + overheadMinutes(log);
 }
 
+/** Gross worked minutes (end − start, including breaks). */
+export function elapsedMinutes(log: TimeLog): number {
+  if (!log.endTime) return 0;
+  const start = combineDateAndTime(log.date, log.startTime);
+  const end = combineDateAndTime(log.date, log.endTime);
+  return Math.floor((end.getTime() - start.getTime()) / 60_000);
+}
+
 export function overtimeLabel(log: TimeLog): string {
   if (!log.endTime) return '— working —';
   const mins = log.overtimeMinutes;

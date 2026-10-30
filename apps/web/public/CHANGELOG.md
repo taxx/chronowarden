@@ -5,6 +5,7 @@
 
 ## 2026-10-29
 
+- web: single cycling theme toggle moved to the sidebar footer; consistent card padding in settings/transit (`3800686`)
 - docs: update gap analysis + framework plan after the M2 pass (`b95025a`)
 - Milestone M2: React UI rewrite (v0.2.0-react-ui) (`ab0073a`)
 - web: adopt shadcn/ui (Radix dialog, tabs, switch; cva variants; components.json + @ alias) (`41d2136`)
@@ -438,4 +439,3 @@
 - feat: add AuthService and ProfileService for auth/user management (`2160b29`)
 - feat: add UserProfile and Invite domain models (`560872f`)
 - feat: implement authentication and user management plan with roles and RLS policies (`2a7c922`)
-- feat: add lunch minutes handling and update functionality in time logs (`5a658a7`)

@@ -11,7 +11,7 @@ import {
   type StartDayValues,
   type StopDayValues,
 } from '../components/day-dialogs';
-import { Badge, Button, Card, CardContent, CardHeader, ConfirmDialog, Progress } from '../components/ui';
+import { Badge, Button, Card, CardContent, CardHeader, ConfirmDialog } from '../components/ui';
 import { useNow } from '../hooks/useNow';
 import { useT } from '../i18n';
 import { formatClock, toDateStr } from '../lib/date';
@@ -304,14 +304,11 @@ export function MyDayPage() {
       )}
 
       <Card>
-        <CardContent className="flex items-center justify-between gap-4">
-          <div>
-            <p className="text-sm text-muted-foreground">{t('Time bank')}</p>
-            <p className={'text-2xl font-semibold ' + overtimeTextClass(timeBank)}>
-              {formatSignedMinutes(timeBank)}
-            </p>
-          </div>
-          <Progress value={Math.min(100, Math.abs(timeBank) / 8)} />
+        <CardHeader title={t('Time bank')} />
+        <CardContent>
+          <p className={'whitespace-nowrap text-3xl font-semibold ' + overtimeTextClass(timeBank)}>
+            {formatSignedMinutes(timeBank)}
+          </p>
         </CardContent>
       </Card>
 
