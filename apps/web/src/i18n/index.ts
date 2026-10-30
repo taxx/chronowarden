@@ -8,6 +8,8 @@ import { create } from 'zustand';
 export type Locale = 'en' | 'sv';
 
 const sv: Record<string, string> = {
+  'View week': 'Visa vecka',
+  'Weekend days are shown in history and overview.': 'Helgdagar visas i historik och översikt.',
   ' in the bank': ' i banken',
   Change: 'Ändring',
   'Daily overtime relative to your time bank — green bars mean you earned time back.':

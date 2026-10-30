@@ -3,7 +3,16 @@ import { ChevronLeft, ChevronRight, Info } from 'lucide-react';
 
 import { DayDialog } from '../components/DayDialog';
 import { TimeBankChart } from '../components/TimeBankChart';
-import { Button, Card, CardContent, CardHeader, Tabs } from '../components/ui';
+import {
+  Button,
+  Card,
+  CardContent,
+  CardHeader,
+  Tabs,
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '../components/ui';
 import { useSaveDay } from '../hooks/useSaveDay';
 import { useT } from '../i18n';
 import { toDateStr } from '../lib/date';
@@ -73,10 +82,11 @@ export function OverviewPage() {
 
   const weekDays = useMemo(() => {
     const monday = startOfIsoWeek(cursor);
-    return Array.from({ length: 7 }, (_, i) =>
+    const all = Array.from({ length: 7 }, (_, i) =>
       new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() + i),
     );
-  }, [cursor]);
+    return showWeekends ? all : all.slice(0, 5);
+  }, [cursor, showWeekends]);
 
   const months = useMemo(() => {
     const first = new Date(cursor.getFullYear(), cursor.getMonth(), 1);
@@ -90,9 +100,11 @@ export function OverviewPage() {
           inMonth: date.getMonth() === cursor.getMonth(),
           log: byDate.get(toDateStr(date)) ?? null,
         };
-      }),
+      }).filter(
+        (cell) => showWeekends || (cell.date.getDay() !== 0 && cell.date.getDay() !== 6),
+      ),
     );
-  }, [cursor, byDate]);
+  }, [cursor, byDate, showWeekends]);
 
   function label(): string {
     if (period === 'year') return String(cursor.getFullYear());
@@ -226,7 +238,7 @@ export function OverviewPage() {
                       <th className="w-10 px-1 py-2 text-left text-xs uppercase tracking-wide text-muted-foreground">
                         {t('Week')}
                       </th>
-                      {WEEKDAYS.map((day) => (
+                      {(showWeekends ? WEEKDAYS : WEEKDAYS.slice(0, 5)).map((day) => (
                         <th key={day} className="px-1 py-2 text-left text-xs uppercase tracking-wide text-muted-foreground">
                           {day}
                         </th>
@@ -236,8 +248,23 @@ export function OverviewPage() {
                   <tbody>
                     {months.map((week, weekIndex) => (
                       <tr key={weekIndex}>
-                        <td className="px-1 py-1 align-top text-xs text-muted-foreground">
-                          {isoWeekNumber(week[0]!.date)}
+                        <td className="px-1 py-1 align-top">
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <button
+                                type="button"
+                                aria-label={t('View week')}
+                                onClick={() => {
+                                  setCursor(week[0]!.date);
+                                  setPeriod('week');
+                                }}
+                                className="rounded px-1.5 py-1 text-xs text-muted-foreground transition hover:bg-accent hover:text-foreground"
+                              >
+                                {isoWeekNumber(week[0]!.date)}
+                              </button>
+                            </TooltipTrigger>
+                            <TooltipContent>{t('View week')}</TooltipContent>
+                          </Tooltip>
                         </td>
                         {week.map((cell) => {
                           const key = toDateStr(cell.date);

@@ -62,8 +62,9 @@ at runtime.
    module. The old hand-rolled primitives file is gone; the barrel keeps imports stable.
 3. **Forms (next)** — React Hook Form + Zod for the day, preset and settings forms,
    with shadcn `Form`, `Calendar`/`DatePicker` and `Select`.
-4. **More shadcn components (next)** — `DropdownMenu` (user menu), `Sheet`
-   (mobile drawers), `Tooltip`, `DataTable` (History), `Sonner` (toasts).
+4. **More shadcn components (in progress)** — done: `Sonner` (toasts),
+   `Tooltip`, `DropdownMenu` (account menu with inline theme choice). Next:
+   `Sheet` (mobile drawers), `DataTable` (History), Radix `Select`.
 5. **Motion & polish** — subtle transitions, skeleton loading states, empty
    states, responsive sheets on mobile.
 6. **Accessibility** — Radix primitives give focus management and ARIA; verify

@@ -1,29 +1,21 @@
 import { create } from 'zustand';
+import { toast as sonnerToast } from 'sonner';
 
 export type ToastVariant = 'default' | 'success' | 'error';
 
-export interface Toast {
-  id: number;
-  message: string;
-  variant: ToastVariant;
-}
-
 interface ToastState {
-  toasts: Toast[];
   push: (message: string, variant?: ToastVariant) => void;
-  dismiss: (id: number) => void;
 }
 
-let nextId = 1;
-
-export const useToastStore = create<ToastState>((set) => ({
-  toasts: [],
+/**
+ * Thin adapter over Sonner so call sites keep the `push(message, variant)` API.
+ */
+export const useToastStore = create<ToastState>(() => ({
   push: (message, variant = 'default') => {
-    const id = nextId++;
-    set((state) => ({ toasts: [...state.toasts, { id, message, variant }] }));
-    setTimeout(() => set((state) => ({ toasts: state.toasts.filter((t) => t.id !== id) })), 4000);
+    if (variant === 'success') sonnerToast.success(message);
+    else if (variant === 'error') sonnerToast.error(message);
+    else sonnerToast(message);
   },
-  dismiss: (id) => set((state) => ({ toasts: state.toasts.filter((t) => t.id !== id) })),
 }));
 
 /** Convenience helpers usable outside React (services, event handlers). */

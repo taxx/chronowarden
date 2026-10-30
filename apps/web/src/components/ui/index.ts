@@ -12,3 +12,14 @@ export { Tabs } from './tabs';
 export { Switch } from './switch';
 export { Slider, Progress, Spinner, Skeleton, Separator } from './feedback';
 export { EmptyState } from './empty-state';
+export { Toaster } from './toaster';
+export { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from './tooltip';
+export {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+} from './dropdown-menu';
