@@ -8,13 +8,7 @@ function BrandHeader() {
   const t = useT();
   return (
     <div className="mb-6 flex flex-col items-center text-center">
-      <img
-        src="/icons/Icon-192.png"
-        alt=""
-        width={56}
-        height={56}
-        className="h-14 w-14 rounded-2xl shadow-soft"
-      />
+      <img src="/logo.png" alt="" width={64} height={64} className="h-16 w-16" />
       <h1 className="mt-3 text-2xl font-semibold tracking-tight">{t('ChronoWarden')}</h1>
       <p className="mt-1 text-sm text-muted-foreground">
         {t('Personal time-banking and overtime protection.')}
