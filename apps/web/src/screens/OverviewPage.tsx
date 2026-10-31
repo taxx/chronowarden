@@ -13,6 +13,7 @@ import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
+  cn,
 } from '../components/ui';
 import { useSaveDay } from '../hooks/useSaveDay';
 import { useT } from '../i18n';
@@ -34,6 +35,17 @@ const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 function startOfIsoWeek(date: Date): Date {
   const weekday = (date.getDay() + 6) % 7; // Monday = 0
   return new Date(date.getFullYear(), date.getMonth(), date.getDate() - weekday);
+}
+
+/**
+ * Subtle time-warding tint for a calendar cell: green when time was kept
+ * (negative overtime), amber when the user worked over. Zero/no log stays neutral.
+ */
+function cellTint(minutes: number | null): string {
+  if (minutes == null) return 'bg-card hover:bg-accent';
+  if (minutes < 0) return 'border-success/30 bg-success/10 hover:bg-success/20';
+  if (minutes > 0) return 'border-warning/30 bg-warning/10 hover:bg-warning/20';
+  return 'bg-card hover:bg-accent';
 }
 
 export function OverviewPage() {
@@ -217,8 +229,10 @@ export function OverviewPage() {
             </div>
 
             {summary.daysLogged === 0 ? (
-              <p className="py-4 text-center text-sm text-muted-foreground">{t('No logs in this period')}</p>
-            ) : period === 'week' ? (
+              <p className="text-sm text-muted-foreground">{t('No logs in this period')}</p>
+            ) : null}
+
+            {period === 'week' ? (
               <div className="grid grid-cols-2 gap-2 sm:grid-cols-7">
                 {weekDays.map((date, index) => {
                   const key = toDateStr(date);
@@ -228,7 +242,10 @@ export function OverviewPage() {
                       key={key}
                       type="button"
                       onClick={() => setDialog({ date: key, log })}
-                      className="rounded-lg border bg-card p-3 text-left transition hover:bg-accent"
+                      className={cn(
+                        'rounded-lg border p-3 text-left transition',
+                        cellTint(log?.overtimeMinutes ?? null),
+                      )}
                     >
                       <p className="text-xs uppercase tracking-wide text-muted-foreground">{WEEKDAYS[index]}</p>
                       <p className="mt-0.5 text-sm">{date.getDate()}</p>
@@ -282,10 +299,12 @@ export function OverviewPage() {
                               <button
                                 type="button"
                                 onClick={() => setDialog({ date: key, log: cell.log })}
-                                className={
-                                  'h-16 w-full rounded-lg border p-1.5 text-left transition hover:bg-accent ' +
-                                  (cell.inMonth ? 'bg-card' : 'border-transparent')
-                                }
+                                className={cn(
+                                  'h-16 w-full rounded-lg border p-1.5 text-left transition',
+                                  cell.inMonth
+                                    ? cellTint(cell.log?.overtimeMinutes ?? null)
+                                    : 'border-transparent',
+                                )}
                               >
                                 <div className={cell.inMonth ? '' : 'text-muted-foreground'}>
                                   {cell.date.getDate()}
@@ -330,7 +349,10 @@ export function OverviewPage() {
                         setCursor(new Date(cursor.getFullYear(), month, 1));
                         setPeriod('month');
                       }}
-                      className="rounded-lg border bg-card p-3 text-left transition hover:bg-accent"
+                      className={cn(
+                        'rounded-lg border p-3 text-left transition',
+                        cellTint(hasData ? monthTotal : null),
+                      )}
                     >
                       <p className="text-sm capitalize">{name}</p>
                       <p className={'mt-2 text-lg font-semibold ' + overtimeTextClass(monthTotal)}>
