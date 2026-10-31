@@ -19,7 +19,8 @@ else
   HAS_GIT=0
 fi
 
-VERSION="$(node -p "require('./package.json').version" 2>/dev/null || echo "0.0.0")"
+VERSION="$(sed -n 's/.*"version": *"\([^"]*\)".*/\1/p' package.json | head -1)"
+VERSION="${VERSION:-0.0.0}"
 BUILT_AT="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 
 mkdir -p public
