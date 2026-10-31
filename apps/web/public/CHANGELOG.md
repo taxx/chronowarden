@@ -5,6 +5,7 @@
 
 ## 2026-10-30
 
+- web: Sonner toasts, Tooltip, account dropdown; fix weekends preference + Overview grid; clickable ISO week (`a3e98ad`)
 - web: Overview timebank chart + period summary; tidy My Day bank; robust PWA reload (`2e1ec54`)
 
 ## 2026-10-29
@@ -441,4 +442,3 @@
 - refactor: scope data services to current authenticated user (`7dbdcd7`)
 - feat: add login, signup, admin shell, admin, and pending screens (`99b002d`)
 - feat: add AuthService and ProfileService for auth/user management (`2160b29`)
-- feat: add UserProfile and Invite domain models (`560872f`)

@@ -12,7 +12,7 @@ import { PreferencesCard } from '../components/PreferencesCard';
 import { RecoveryPhraseCard } from '../components/RecoveryPhraseCard';
 import { TravelPresetsCard } from '../components/TravelPresetsCard';
 import { WorkConfigCard } from '../components/WorkConfigCard';
-import { Button, Card, CardContent, CardHeader, Select } from '../components/ui';
+import { Button, Card, CardContent, CardHeader, SelectField } from '../components/ui';
 import { useLocaleStore, useT, type Locale } from '../i18n';
 import { useAuthStore } from '../state/auth';
 
@@ -63,15 +63,16 @@ export function SettingsPage() {
             <label htmlFor="locale" className="text-muted-foreground">
               {t('Language')}
             </label>
-            <Select
+            <SelectField
               id="locale"
-              className="ml-auto max-w-40"
+              className="ml-auto w-40"
               value={locale}
-              onChange={(event) => setLocale(event.target.value as Locale)}
-            >
-              <option value="en">English</option>
-              <option value="sv">Svenska</option>
-            </Select>
+              onValueChange={(value) => setLocale(value as Locale)}
+              options={[
+                { value: 'en', label: 'English' },
+                { value: 'sv', label: 'Svenska' },
+              ]}
+            />
           </div>
           <Button variant="outline" onClick={() => setConfirmingLogout(true)}>
             <LogOut className="h-4 w-4" />

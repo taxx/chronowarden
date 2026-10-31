@@ -40,12 +40,14 @@ export function PreferencesCard() {
   const save = useSavePreferences();
 
   const [defaultFlex, setDefaultFlex] = useState('0');
+  const [defaultLunch, setDefaultLunch] = useState('0');
   const [sliderStep, setSliderStep] = useState('5');
   const [initialised, setInitialised] = useState(false);
 
   useEffect(() => {
     if (!prefsQuery.data || initialised) return;
     setDefaultFlex(String(prefsQuery.data.defaultFlexMinutes));
+    setDefaultLunch(String(prefsQuery.data.defaultLunchMinutes));
     setSliderStep(String(prefsQuery.data.sliderStepMinutes));
     setInitialised(true);
   }, [prefsQuery.data, initialised]);
@@ -71,7 +73,7 @@ export function PreferencesCard() {
           onChange={(value) => patch({ nonWorkEnabled: value })}
         />
 
-        <div className="grid gap-4 pt-2 sm:grid-cols-2">
+        <div className="grid gap-4 pt-2 sm:grid-cols-2 lg:grid-cols-3">
           <Field label={t('Default flex minutes')} htmlFor="defaultFlex">
             <Input
               id="defaultFlex"
@@ -80,6 +82,16 @@ export function PreferencesCard() {
               value={defaultFlex}
               onChange={(event) => setDefaultFlex(event.target.value)}
               onBlur={() => patch({ defaultFlexMinutes: Number(defaultFlex) || 0 })}
+            />
+          </Field>
+          <Field label={t('Default lunch minutes')} htmlFor="defaultLunch">
+            <Input
+              id="defaultLunch"
+              type="number"
+              inputMode="numeric"
+              value={defaultLunch}
+              onChange={(event) => setDefaultLunch(event.target.value)}
+              onBlur={() => patch({ defaultLunchMinutes: Number(defaultLunch) || 0 })}
             />
           </Field>
           <Field label={t('Slider step (min)')} htmlFor="sliderStep">

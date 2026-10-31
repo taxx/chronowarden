@@ -2,9 +2,10 @@ import { useState } from 'react';
 
 import { useT } from '../i18n';
 import { parseCsvTimeLogs, type ImportResult } from '../lib/domain/csv';
-import { Button, Modal } from './ui';
+import { FilePickerButton } from './FilePickerButton';
+import { Button, Modal, Textarea } from './ui';
 
-/** Paste-a-CSV dialog (the export/import format is documented in `csv.ts`). */
+/** Import time logs from a CSV file or pasted text (format in `csv.ts`). */
 export function CsvImportDialog({
   open,
   onClose,
@@ -50,16 +51,37 @@ export function CsvImportDialog({
   }
 
   return (
-    <Modal open={open} onClose={close} title={t('Import CSV')}>
-      <p className="text-sm text-muted-foreground">{t('Paste your CSV data below.')}</p>
-      <textarea
+    <Modal
+      open={open}
+      onClose={close}
+      title={t('Import CSV')}
+      description={t('Paste your CSV data below.')}
+      footer={
+        <div className="flex justify-end gap-2">
+          <Button variant="ghost" onClick={close}>
+            {t('Cancel')}
+          </Button>
+          <Button onClick={() => void submit()} disabled={busy || !text.trim()}>
+            {t('Import CSV')}
+          </Button>
+        </div>
+      }
+    >
+      <div className="mb-2 flex justify-end">
+        <FilePickerButton
+          accept=".csv,text/csv,text/plain"
+          label={t('Choose a CSV file')}
+          onLoad={(content) => setText(content)}
+        />
+      </div>
+      <Textarea
         aria-label={t('Paste your CSV data below.')}
-        className="mt-2 h-40 w-full rounded-lg border border-input bg-background p-3 font-mono text-xs text-foreground"
+        className="h-40 font-mono text-xs"
         value={text}
         onChange={(event) => setText(event.target.value)}
       />
 
-      {summary ? <p className="mt-3 text-sm text-foreground">{summary}</p> : null}
+      {summary ? <p className="mt-3 text-sm">{summary}</p> : null}
       {errors.length > 0 ? (
         <ul className="mt-2 max-h-32 overflow-auto text-xs text-destructive">
           {errors.map((error) => (
@@ -67,15 +89,6 @@ export function CsvImportDialog({
           ))}
         </ul>
       ) : null}
-
-      <div className="mt-4 flex justify-end gap-2">
-        <Button variant="ghost" onClick={close}>
-          {t('Cancel')}
-        </Button>
-        <Button onClick={() => void submit()} disabled={busy || !text.trim()}>
-          {t('Import CSV')}
-        </Button>
-      </div>
     </Modal>
   );
 }

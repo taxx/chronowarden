@@ -27,6 +27,7 @@ import {
 import { expectedMinutesForDate, type WorkConfig } from '../lib/domain/work-config';
 import { formatDurationMinutes, formatSignedMinutes, overtimeTextClass } from '../lib/format';
 import { usePreferences, useWorkConfig } from '../queries/settings';
+import { defaultPreferences } from '../services/settings';
 import {
   useCreateTimeLog,
   useDeleteTimeLog,
@@ -100,7 +101,7 @@ export function MyDayPage() {
   const today = todayQuery.data ?? null;
   const logs = logsQuery.data ?? [];
   const config = workConfigQuery.data ?? DEFAULT_CONFIG;
-  const prefs = prefsQuery.data ?? { showWeekends: true, nonWorkEnabled: true, defaultFlexMinutes: 0, sliderStepMinutes: 5 };
+  const prefs = prefsQuery.data ?? defaultPreferences;
   const timeBank = logs.reduce((sum, log) => sum + log.overtimeMinutes, 0);
   const presets = presetsQuery.data ?? [];
   const selectedPreset = presets.find((preset) => preset.id === selectedPresetId) ?? presets[0] ?? null;
@@ -319,6 +320,7 @@ export function MyDayPage() {
         presets={presets}
         defaultPresetId={selectedPreset?.id ?? ''}
         defaultFlex={prefs.defaultFlexMinutes}
+        defaultLunch={prefs.defaultLunchMinutes}
         showNonWork={prefs.nonWorkEnabled}
         busy={createLog.isPending}
         onSubmit={startDay}

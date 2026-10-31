@@ -1,8 +1,8 @@
 import { useState } from 'react';
-import { Download, NotebookPen, Pencil, Plus, Trash2, Upload } from 'lucide-react';
+import { ArrowDown, ArrowUp, ArrowUpDown, Download, NotebookPen, Pencil, Plus, Trash2, Upload } from 'lucide-react';
 
-import { CsvImportDialog } from '../components/CsvImportDialog';
 import { CsvFormatGuide } from '../components/CsvFormatGuide';
+import { CsvImportDialog } from '../components/CsvImportDialog';
 import { DayDialog, type DayFormValues } from '../components/DayDialog';
 import {
   Badge,
@@ -13,25 +13,32 @@ import {
   ConfirmDialog,
   EmptyState,
   Spinner,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
 } from '../components/ui';
+import { useSaveDay } from '../hooks/useSaveDay';
 import { useT } from '../i18n';
 import { todayStr } from '../lib/date';
 import { timeLogsToCsv, type ImportResult } from '../lib/domain/csv';
 import { calculateOvertimeMinutes, type TimeLog } from '../lib/domain/time-log';
 import { downloadText } from '../lib/download';
 import { formatDurationMinutes, formatSignedMinutes, overtimeBadgeVariant } from '../lib/format';
+import { useCreateTimeLog, useDeleteTimeLog, useTimeLogs } from '../queries/time-logs';
 import { usePreferences, useWorkConfig } from '../queries/settings';
-import { useSaveDay } from '../hooks/useSaveDay';
-import {
-  useCreateTimeLog,
-  useDeleteTimeLog,
-  useTimeLogs,
-} from '../queries/time-logs';
 import { useToastStore } from '../state/toast';
 
-function weekdayLabel(dateStr: string): string {
-  const date = new Date(`${dateStr}T00:00:00`);
-  return new Intl.DateTimeFormat(undefined, { weekday: 'short', day: 'numeric', month: 'short' }).format(date);
+type SortKey = 'date' | 'startTime' | 'lunchMinutes' | 'nonWorkMinutes' | 'overtimeMinutes';
+
+function compare(a: TimeLog, b: TimeLog, key: SortKey): number {
+  if (key === 'date' || key === 'startTime') return a[key].localeCompare(b[key]);
+  return a[key] - b[key];
 }
 
 export function HistoryPage() {
@@ -50,6 +57,7 @@ export function HistoryPage() {
   const [csvOpen, setCsvOpen] = useState(false);
   const [csvGuideOpen, setCsvGuideOpen] = useState(false);
   const [deleting, setDeleting] = useState<TimeLog | null>(null);
+  const [sort, setSort] = useState<{ key: SortKey; desc: boolean }>({ key: 'date', desc: true });
 
   const showWeekends = prefsQuery.data?.showWeekends ?? true;
   const logs = [...(logsQuery.data ?? [])]
@@ -58,8 +66,29 @@ export function HistoryPage() {
       const day = new Date(`${log.date}T00:00:00`).getDay();
       return day >= 1 && day <= 5;
     })
-    .sort((a, b) => b.date.localeCompare(a.date));
+    .sort((a, b) => compare(a, b, sort.key) * (sort.desc ? -1 : 1));
   const defaultExpected = configQuery.data?.defaultExpectedMinutes ?? 480;
+
+  function toggleSort(key: SortKey) {
+    setSort((prev) =>
+      prev.key === key ? { key, desc: !prev.desc } : { key, desc: key === 'date' },
+    );
+  }
+
+  function SortHeader({ label, sortKey }: { label: string; sortKey: SortKey }) {
+    const active = sort.key === sortKey;
+    const Icon = !active ? ArrowUpDown : sort.desc ? ArrowDown : ArrowUp;
+    return (
+      <button
+        type="button"
+        onClick={() => toggleSort(sortKey)}
+        className={'inline-flex items-center gap-1 transition hover:text-foreground ' + (active ? 'text-foreground' : '')}
+      >
+        {label}
+        <Icon className="h-3 w-3" />
+      </button>
+    );
+  }
 
   function openAdd() {
     setEditing(null);
@@ -87,10 +116,7 @@ export function HistoryPage() {
 
   async function importCsv(result: ImportResult) {
     for (const imported of result.imported) {
-      await createLog.mutateAsync({
-        ...imported,
-        overtimeMinutes: calculateOvertimeMinutes(imported),
-      });
+      await createLog.mutateAsync({ ...imported, overtimeMinutes: calculateOvertimeMinutes(imported) });
     }
     pushToast(t('Imported {count} day(s)', { count: result.imported.length }), 'success');
   }
@@ -147,54 +173,83 @@ export function HistoryPage() {
           {logs.length === 0 ? (
             <EmptyState title={t('No days recorded yet')} description={t('Add a past day')} />
           ) : (
-            <ul className="divide-y divide-border">
-              {logs.map((log) => {
-                const overtime = log.overtimeMinutes;
-                return (
-                  <li
-                    key={log.id ?? log.date}
-                    className="flex flex-wrap items-center gap-3 py-3 first:pt-0 last:pb-0"
-                  >
-                    <div className="min-w-40 flex-1">
+            <Table>
+              <TableHeader>
+                <TableRow className="hover:bg-transparent">
+                  <TableHead>
+                    <SortHeader label={t('Date')} sortKey="date" />
+                  </TableHead>
+                  <TableHead>
+                    <SortHeader label={t('Start')} sortKey="startTime" />
+                  </TableHead>
+                  <TableHead>{t('Stop')}</TableHead>
+                  <TableHead>
+                    <SortHeader label={t('Lunch')} sortKey="lunchMinutes" />
+                  </TableHead>
+                  <TableHead>
+                    <SortHeader label={t('Non-work')} sortKey="nonWorkMinutes" />
+                  </TableHead>
+                  <TableHead>
+                    <SortHeader label={t('Overtime')} sortKey="overtimeMinutes" />
+                  </TableHead>
+                  <TableHead className="text-right" />
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {logs.map((log) => (
+                  <TableRow key={log.id ?? log.date}>
+                    <TableCell>
                       <div className="flex items-center gap-2">
-                        <p className="font-medium">{log.date}</p>
-                        <span className="text-xs text-muted-foreground">{weekdayLabel(log.date)}</span>
+                        <span className="font-medium">{log.date}</span>
                         {log.note ? <NotebookPen className="h-3.5 w-3.5 text-muted-foreground" /> : null}
                       </div>
-                      <p className="text-xs text-muted-foreground">
-                        {log.startTime.slice(0, 5)}
-                        {log.endTime ? ` – ${log.endTime.slice(0, 5)}` : ` · ${t('active')}`}
-                        {log.lunchMinutes > 0 ? ` · ${t('Lunch')} ${formatDurationMinutes(log.lunchMinutes)}` : ''}
-                        {log.nonWorkMinutes > 0
-                          ? ` · ${t('Non-work')} ${formatDurationMinutes(log.nonWorkMinutes)}`
-                          : ''}
-                      </p>
-                    </div>
-                    <Badge variant={overtimeBadgeVariant(overtime)}>
-                      {formatSignedMinutes(overtime)}
-                    </Badge>
-                    <div className="flex gap-1">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        aria-label={t('Edit day')}
-                        onClick={() => openEdit(log)}
-                      >
-                        <Pencil className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        aria-label={t('Delete day')}
-                        onClick={() => setDeleting(log)}
-                      >
-                        <Trash2 className="h-4 w-4 text-destructive" />
-                      </Button>
-                    </div>
-                  </li>
-                );
-              })}
-            </ul>
+                    </TableCell>
+                    <TableCell>
+                      <span className="font-mono text-xs">{log.startTime.slice(0, 5)}</span>
+                    </TableCell>
+                    <TableCell>
+                      {log.endTime ? (
+                        <span className="font-mono text-xs">{log.endTime.slice(0, 5)}</span>
+                      ) : (
+                        <Badge variant="secondary">{t('active')}</Badge>
+                      )}
+                    </TableCell>
+                    <TableCell>{formatDurationMinutes(log.lunchMinutes)}</TableCell>
+                    <TableCell>{formatDurationMinutes(log.nonWorkMinutes)}</TableCell>
+                    <TableCell>
+                      <Badge variant={overtimeBadgeVariant(log.overtimeMinutes)}>
+                        {formatSignedMinutes(log.overtimeMinutes)}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex justify-end gap-1">
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button variant="ghost" size="icon" aria-label={t('Edit day')} onClick={() => openEdit(log)}>
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>{t('Edit day')}</TooltipContent>
+                        </Tooltip>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              aria-label={t('Delete day')}
+                              onClick={() => setDeleting(log)}
+                            >
+                              <Trash2 className="h-4 w-4 text-destructive" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>{t('Delete day')}</TooltipContent>
+                        </Tooltip>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
           )}
         </CardContent>
       </Card>
@@ -204,6 +259,7 @@ export function HistoryPage() {
         onClose={() => setDialogOpen(false)}
         initial={editing}
         defaultExpectedMinutes={defaultExpected}
+        defaultLunchMinutes={prefsQuery.data?.defaultLunchMinutes ?? 0}
         onSubmit={submit}
       />
 

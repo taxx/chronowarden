@@ -1,6 +1,7 @@
 import { useState } from 'react';
 
 import { backupApi } from '../api/backup';
+import { FilePickerButton } from './FilePickerButton';
 import { useT } from '../i18n';
 import { downloadJson } from '../lib/download';
 import { useAuthStore } from '../state/auth';
@@ -86,6 +87,13 @@ export function BackupCard() {
           value={bundleText}
           onChange={(event) => setBundleText(event.target.value)}
         />
+        <div className="mt-2 flex justify-end">
+          <FilePickerButton
+            accept="application/json,.json"
+            label={t('Choose a backup file')}
+            onLoad={(content) => setBundleText(content)}
+          />
+        </div>
       </Modal>
     </Card>
   );

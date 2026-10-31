@@ -22,6 +22,7 @@ export function DayDialog({
   initial,
   defaultDate,
   defaultExpectedMinutes,
+  defaultLunchMinutes = 0,
   onSubmit,
 }: {
   open: boolean;
@@ -29,6 +30,7 @@ export function DayDialog({
   initial?: TimeLog | null;
   defaultDate?: string;
   defaultExpectedMinutes: number;
+  defaultLunchMinutes?: number;
   onSubmit: (values: DayFormValues) => void | Promise<void>;
 }) {
   const t = useT();
@@ -48,10 +50,10 @@ export function DayDialog({
     setStartTime((initial?.startTime ?? '08:00:00').slice(0, 5));
     setEndTime((initial?.endTime ?? '').slice(0, 5));
     setExpected(String(initial?.expectedMinutes ?? defaultExpectedMinutes));
-    setLunch(String(initial?.lunchMinutes ?? 0));
+    setLunch(String(initial?.lunchMinutes ?? defaultLunchMinutes));
     setNonWork(String(initial?.nonWorkMinutes ?? 0));
     setNote(initial?.note ?? '');
-  }, [open, initial, defaultDate, defaultExpectedMinutes]);
+  }, [open, initial, defaultDate, defaultExpectedMinutes, defaultLunchMinutes]);
 
   async function submit() {
     setBusy(true);

@@ -1,10 +1,12 @@
 import { Link, Outlet, useNavigate } from '@tanstack/react-router';
+import { useState } from 'react';
 import {
   CalendarDays,
   Check,
   ChevronUp,
   History,
   Home,
+  Lock,
   LogOut,
   Monitor,
   Moon,
@@ -14,6 +16,7 @@ import {
   Sun,
   TrainFront,
   TrendingUp,
+  UserRound,
 } from 'lucide-react';
 
 import { useT } from '../i18n';
@@ -30,6 +33,7 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
+  Sheet,
   Toaster,
   Tooltip,
   TooltipContent,
@@ -145,6 +149,93 @@ function AccountMenu() {
   );
 }
 
+function AccountSheet() {
+  const t = useT();
+  const navigate = useNavigate();
+  const user = useAuthStore((state) => state.user);
+  const logout = useAuthStore((state) => state.logout);
+  const preference = useThemeStore((state) => state.preference);
+  const setPreference = useThemeStore((state) => state.setPreference);
+  const [open, setOpen] = useState(false);
+
+  const themes: Array<{ value: ThemePreference; label: string; icon: typeof Sun }> = [
+    { value: 'light', label: t('Light'), icon: Sun },
+    { value: 'dark', label: t('Dark'), icon: Moon },
+    { value: 'system', label: t('System'), icon: Monitor },
+  ];
+
+  async function onLogout() {
+    setOpen(false);
+    await logout();
+    await navigate({ to: '/login' });
+  }
+
+  return (
+    <>
+      <Button
+        variant="ghost"
+        size="icon"
+        aria-label={t('Account')}
+        className="h-8 w-8"
+        onClick={() => setOpen(true)}
+      >
+        <UserRound className="h-4 w-4" />
+      </Button>
+      <Sheet open={open} onOpenChange={setOpen} title={t('Account')} side="right">
+        <p className="text-sm text-muted-foreground">{user?.email}</p>
+
+        <p className="mt-5 text-xs uppercase tracking-wide text-muted-foreground">
+          {t('Appearance')}
+        </p>
+        <div className="mt-2 space-y-1">
+          {themes.map((theme) => {
+            const Icon = theme.icon;
+            return (
+              <button
+                key={theme.value}
+                type="button"
+                onClick={() => setPreference(theme.value)}
+                className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm transition hover:bg-accent"
+              >
+                <Icon className="h-4 w-4" />
+                {theme.label}
+                {preference === theme.value ? <Check className="ml-auto h-4 w-4 text-primary" /> : null}
+              </button>
+            );
+          })}
+        </div>
+
+        <div className="mt-5 space-y-1 border-t border-border pt-3">
+          <Link
+            to="/encryption"
+            onClick={() => setOpen(false)}
+            className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition hover:bg-accent"
+          >
+            <Lock className="h-4 w-4" />
+            {t('Encryption')}
+          </Link>
+          <Link
+            to="/changelog"
+            onClick={() => setOpen(false)}
+            className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition hover:bg-accent"
+          >
+            <Sparkles className="h-4 w-4" />
+            {t("What's New")}
+          </Link>
+          <button
+            type="button"
+            onClick={() => void onLogout()}
+            className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm text-destructive transition hover:bg-accent"
+          >
+            <LogOut className="h-4 w-4" />
+            {t('Log out')}
+          </button>
+        </div>
+      </Sheet>
+    </>
+  );
+}
+
 function NavLinks() {
   const nav = useNav();
   return (
@@ -223,7 +314,10 @@ export function AppShell() {
             </div>
             <span className="font-semibold tracking-tight">{t('ChronoWarden')}</span>
           </div>
-          <ThemeToggle />
+          <div className="flex items-center gap-1">
+            <ThemeToggle />
+            <AccountSheet />
+          </div>
         </header>
 
         <main className="lg:pl-60">

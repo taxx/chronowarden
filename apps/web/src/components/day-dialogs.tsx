@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 
 import { useT } from '../i18n';
 import type { TravelPreset } from '../lib/domain/travel-preset';
-import { Button, Field, Input, Modal, Select, Slider, Textarea } from './ui';
+import { Button, Field, Input, Modal, SelectField, Slider, Textarea } from './ui';
 
 /* -------------------------------------------------------------------------- */
 /* Start Day                                                                  */
@@ -25,6 +25,7 @@ export function StartDayDialog({
   presets,
   defaultPresetId,
   defaultFlex,
+  defaultLunch,
   showNonWork,
   busy,
   onSubmit,
@@ -35,6 +36,7 @@ export function StartDayDialog({
   presets: TravelPreset[];
   defaultPresetId: string;
   defaultFlex: number;
+  defaultLunch: number;
   showNonWork: boolean;
   busy?: boolean;
   onSubmit: (values: StartDayValues) => void;
@@ -53,12 +55,12 @@ export function StartDayDialog({
     const now = new Date();
     setStartTime(`${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`);
     setExpected(String(expectedMinutes));
-    setLunch('0');
+    setLunch(String(defaultLunch));
     setNonWork('0');
     setFlex(String(defaultFlex));
     setPresetId(defaultPresetId);
     setNote('');
-  }, [open, expectedMinutes, defaultFlex, defaultPresetId]);
+  }, [open, expectedMinutes, defaultLunch, defaultFlex, defaultPresetId]);
 
   return (
     <Modal
@@ -106,13 +108,15 @@ export function StartDayDialog({
         {presets.length > 0 ? (
           <div className="sm:col-span-2">
             <Field label={t('Travel preset')} htmlFor="preset">
-              <Select id="preset" value={presetId} onChange={(e) => setPresetId(e.target.value)}>
-                {presets.map((preset) => (
-                  <option key={preset.id ?? preset.name} value={preset.id ?? ''}>
-                    {preset.name}
-                  </option>
-                ))}
-              </Select>
+              <SelectField
+                id="preset"
+                value={presetId}
+                onValueChange={setPresetId}
+                options={presets.map((preset) => ({
+                  value: preset.id ?? '',
+                  label: preset.name,
+                }))}
+              />
             </Field>
           </div>
         ) : null}
@@ -376,13 +380,12 @@ export function CommuteDialog({
         <p className="text-sm text-muted-foreground">{t('No travel presets available. Add one in Settings.')}</p>
       ) : (
         <Field label={t('Travel preset')} htmlFor="commutePreset">
-          <Select id="commutePreset" value={presetId} onChange={(e) => setPresetId(e.target.value)}>
-            {presets.map((preset) => (
-              <option key={preset.id ?? preset.name} value={preset.id ?? ''}>
-                {preset.name}
-              </option>
-            ))}
-          </Select>
+          <SelectField
+            id="commutePreset"
+            value={presetId}
+            onValueChange={setPresetId}
+            options={presets.map((preset) => ({ value: preset.id ?? '', label: preset.name }))}
+          />
         </Field>
       )}
     </Modal>

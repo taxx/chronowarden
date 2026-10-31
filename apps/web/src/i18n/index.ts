@@ -8,6 +8,10 @@ import { create } from 'zustand';
 export type Locale = 'en' | 'sv';
 
 const sv: Record<string, string> = {
+  Account: 'Konto',
+  'Choose a CSV file': 'Välj en CSV-fil',
+  'Choose a backup file': 'Välj en backup-fil',
+  'Default lunch minutes': 'Standardlunch (minuter)',
   'View week': 'Visa vecka',
   'Weekend days are shown in history and overview.': 'Helgdagar visas i historik och översikt.',
   ' in the bank': ' i banken',

@@ -25,7 +25,7 @@ import {
   Field,
   Input,
   Modal,
-  Select,
+  SelectField,
   Spinner,
 } from './ui';
 
@@ -151,18 +151,19 @@ function PresetDialog({
         </Field>
         <div className="sm:col-span-2">
           <Field label={t('Commute mode')} htmlFor="commuteMode">
-            <Select
+            <SelectField
               id="commuteMode"
               value={values.commuteMode}
-              onChange={(event) =>
-                setValues((prev) => ({ ...prev, commuteMode: event.target.value as CommuteMode }))
+              onValueChange={(value) =>
+                setValues((prev) => ({ ...prev, commuteMode: value as CommuteMode }))
               }
-            >
-              <option value="none">{t('None')}</option>
-              <option value="transit">{t('Transit')}</option>
-              <option value="car">{t('Car')}</option>
-              <option value="vespa">{t('Vespa')}</option>
-            </Select>
+              options={[
+                { value: 'none', label: t('None') },
+                { value: 'transit', label: t('Transit') },
+                { value: 'car', label: t('Car') },
+                { value: 'vespa', label: t('Vespa') },
+              ]}
+            />
           </Field>
         </div>
       </div>

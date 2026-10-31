@@ -63,6 +63,7 @@ export interface Preferences {
   showWeekends: boolean;
   nonWorkEnabled: boolean;
   defaultFlexMinutes: number;
+  defaultLunchMinutes: number;
   sliderStepMinutes: number;
 }
 
@@ -70,6 +71,7 @@ export const defaultPreferences: Preferences = {
   showWeekends: true,
   nonWorkEnabled: true,
   defaultFlexMinutes: 0,
+  defaultLunchMinutes: 0,
   sliderStepMinutes: 5,
 };
 
@@ -80,6 +82,8 @@ export async function getPreferences(dek: Uint8Array | null): Promise<Preference
     nonWorkEnabled: (settings['non_work_enabled'] as boolean | null) ?? defaultPreferences.nonWorkEnabled,
     defaultFlexMinutes:
       (settings['default_flex_minutes'] as number | null) ?? defaultPreferences.defaultFlexMinutes,
+    defaultLunchMinutes:
+      (settings['default_lunch_minutes'] as number | null) ?? defaultPreferences.defaultLunchMinutes,
     sliderStepMinutes:
       (settings['slider_step_minutes'] as number | null) ?? defaultPreferences.sliderStepMinutes,
   };
@@ -93,6 +97,7 @@ export async function savePreferences(
   if (patch.showWeekends !== undefined) settings['show_weekends'] = patch.showWeekends;
   if (patch.nonWorkEnabled !== undefined) settings['non_work_enabled'] = patch.nonWorkEnabled;
   if (patch.defaultFlexMinutes !== undefined) settings['default_flex_minutes'] = patch.defaultFlexMinutes;
+  if (patch.defaultLunchMinutes !== undefined) settings['default_lunch_minutes'] = patch.defaultLunchMinutes;
   if (patch.sliderStepMinutes !== undefined) settings['slider_step_minutes'] = patch.sliderStepMinutes;
   await writeSettings(settings, dek);
 }

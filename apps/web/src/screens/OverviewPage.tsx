@@ -344,6 +344,7 @@ export function OverviewPage() {
         initial={dialog?.log ?? null}
         defaultDate={dialog?.date}
         defaultExpectedMinutes={configQuery.data?.defaultExpectedMinutes ?? 480}
+        defaultLunchMinutes={prefsQuery.data?.defaultLunchMinutes ?? 0}
         onSubmit={submit}
       />
     </>
