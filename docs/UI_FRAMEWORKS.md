@@ -63,9 +63,9 @@ at runtime.
 4. **More shadcn components (done)** — `Sonner` (toasts), `Tooltip`,
    `DropdownMenu` (sidebar account menu), `Sheet` (mobile account drawer),
    Radix `Select` (`SelectField`) and Table primitives (sortable History table).
-5. **Forms (done for day entry)** — React Hook Form + Zod (via shadcn `Form`
-   primitives) drives the Add/Edit day dialog, with a themed Calendar/DatePicker.
-   Next: migrate the Start/Stop day and settings forms too.
+5. **Forms (done)** — React Hook Form + Zod (via shadcn `Form` primitives) now
+   drives the Add/Edit day, Start Day, Stop Day, travel preset, work hours and
+   change-passphrase forms, with a themed Calendar/DatePicker for day entry.
 6. **Motion & polish** — subtle transitions, skeleton loading states, empty
    states, responsive sheets on mobile.
 7. **Accessibility** — Radix primitives give focus management and ARIA; verify

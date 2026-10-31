@@ -1,9 +1,36 @@
-import { useEffect, useState } from 'react';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { useEffect } from 'react';
+import { useForm } from 'react-hook-form';
+import { z } from 'zod';
 
-import { Button, Card, CardContent, CardHeader, Field, Input } from '../components/ui';
 import { useT } from '../i18n';
 import { useSaveWorkConfig, useWorkConfig } from '../queries/settings';
 import { useToastStore } from '../state/toast';
+import {
+  Button,
+  Card,
+  CardContent,
+  CardHeader,
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+  Input,
+} from './ui';
+
+const NUM_RE = /^\d+$/;
+const WEEK_RE = /^$|^([1-9]|[1-4][0-9]|5[0-3])$/;
+
+function makeSchema(t: (key: string) => string) {
+  return z.object({
+    defaultExpectedMinutes: z.string().regex(NUM_RE, t('Enter a number')),
+    reducedExpectedMinutes: z.string(),
+    reducedStartWeek: z.string().regex(WEEK_RE, t('Weeks must be between 1 and 53')),
+    reducedEndWeek: z.string().regex(WEEK_RE, t('Weeks must be between 1 and 53')),
+  });
+}
 
 /** Edit the per-user expected work time, including the seasonal reduced period. */
 export function WorkConfigCard() {
@@ -12,32 +39,42 @@ export function WorkConfigCard() {
   const save = useSaveWorkConfig();
   const pushToast = useToastStore((state) => state.push);
 
-  const [defaultMinutes, setDefaultMinutes] = useState('480');
-  const [reducedMinutes, setReducedMinutes] = useState('');
-  const [startWeek, setStartWeek] = useState('');
-  const [endWeek, setEndWeek] = useState('');
+  const form = useForm<z.infer<ReturnType<typeof makeSchema>>>({
+    resolver: zodResolver(makeSchema(t)),
+    defaultValues: {
+      defaultExpectedMinutes: '480',
+      reducedExpectedMinutes: '',
+      reducedStartWeek: '',
+      reducedEndWeek: '',
+    },
+  });
 
   useEffect(() => {
     const config = query.data;
-    setDefaultMinutes(String(config?.defaultExpectedMinutes ?? 480));
-    setReducedMinutes(config?.reducedExpectedMinutes != null ? String(config.reducedExpectedMinutes) : '');
-    setStartWeek(config?.reducedStartWeek != null ? String(config.reducedStartWeek) : '');
-    setEndWeek(config?.reducedEndWeek != null ? String(config.reducedEndWeek) : '');
-  }, [query.data]);
+    form.reset({
+      defaultExpectedMinutes: String(config?.defaultExpectedMinutes ?? 480),
+      reducedExpectedMinutes:
+        config?.reducedExpectedMinutes != null ? String(config.reducedExpectedMinutes) : '',
+      reducedStartWeek: config?.reducedStartWeek != null ? String(config.reducedStartWeek) : '',
+      reducedEndWeek: config?.reducedEndWeek != null ? String(config.reducedEndWeek) : '',
+    });
+  }, [query.data, form]);
 
-  async function onSave() {
+  const submit = form.handleSubmit(async (values) => {
     try {
       await save.mutateAsync({
-        defaultExpectedMinutes: Number(defaultMinutes) || 480,
-        reducedExpectedMinutes: reducedMinutes ? Number(reducedMinutes) : null,
-        reducedStartWeek: startWeek ? Number(startWeek) : null,
-        reducedEndWeek: endWeek ? Number(endWeek) : null,
+        defaultExpectedMinutes: Number(values.defaultExpectedMinutes) || 480,
+        reducedExpectedMinutes: values.reducedExpectedMinutes
+          ? Number(values.reducedExpectedMinutes)
+          : null,
+        reducedStartWeek: values.reducedStartWeek ? Number(values.reducedStartWeek) : null,
+        reducedEndWeek: values.reducedEndWeek ? Number(values.reducedEndWeek) : null,
       });
       pushToast(t('Saved'), 'success');
     } catch {
       pushToast(t('Could not save'), 'error');
     }
-  }
+  });
 
   return (
     <Card>
@@ -45,54 +82,74 @@ export function WorkConfigCard() {
         title={t('Work hours')}
         description={t('Configure your expected work time per day.')}
       />
-      <CardContent className="space-y-4">
-        <div className="grid gap-4 sm:grid-cols-2">
-          <Field label={t('Default expected minutes')} htmlFor="defaultMinutes">
-            <Input
-              id="defaultMinutes"
-              type="number"
-              inputMode="numeric"
-              value={defaultMinutes}
-              onChange={(event) => setDefaultMinutes(event.target.value)}
-            />
-          </Field>
-          <Field label={t('Reduced expected minutes')} htmlFor="reducedMinutes">
-            <Input
-              id="reducedMinutes"
-              type="number"
-              inputMode="numeric"
-              value={reducedMinutes}
-              onChange={(event) => setReducedMinutes(event.target.value)}
-            />
-          </Field>
-          <Field
-            label={t('Reduced start week')}
-            htmlFor="startWeek"
-            hint={t('Leave reduced fields empty to disable the reduced period.')}
-          >
-            <Input
-              id="startWeek"
-              type="number"
-              inputMode="numeric"
-              value={startWeek}
-              onChange={(event) => setStartWeek(event.target.value)}
-            />
-          </Field>
-          <Field label={t('Reduced end week')} htmlFor="endWeek">
-            <Input
-              id="endWeek"
-              type="number"
-              inputMode="numeric"
-              value={endWeek}
-              onChange={(event) => setEndWeek(event.target.value)}
-            />
-          </Field>
-        </div>
-        <div>
-          <Button onClick={() => void onSave()} disabled={save.isPending}>
-            {t('Save')}
-          </Button>
-        </div>
+      <CardContent>
+        <Form {...form}>
+          <form onSubmit={submit} className="space-y-4">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <FormField
+                control={form.control}
+                name="defaultExpectedMinutes"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t('Default expected minutes')}</FormLabel>
+                    <FormControl>
+                      <Input type="number" inputMode="numeric" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="reducedExpectedMinutes"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t('Reduced expected minutes')}</FormLabel>
+                    <FormControl>
+                      <Input type="number" inputMode="numeric" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="reducedStartWeek"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t('Reduced start week')}</FormLabel>
+                    <FormControl>
+                      <Input type="number" inputMode="numeric" {...field} />
+                    </FormControl>
+                    <FormMessage>
+                      {field.value === ''
+                        ? t('Leave reduced fields empty to disable the reduced period.')
+                        : null}
+                    </FormMessage>
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="reducedEndWeek"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t('Reduced end week')}</FormLabel>
+                    <FormControl>
+                      <Input type="number" inputMode="numeric" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+            <div>
+              <Button type="submit" disabled={save.isPending}>
+                {t('Save')}
+              </Button>
+            </div>
+          </form>
+        </Form>
       </CardContent>
     </Card>
   );

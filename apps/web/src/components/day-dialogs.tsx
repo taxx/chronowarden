@@ -1,8 +1,30 @@
+import { zodResolver } from '@hookform/resolvers/zod';
 import { useEffect, useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { z } from 'zod';
 
 import { useT } from '../i18n';
 import type { TravelPreset } from '../lib/domain/travel-preset';
-import { Button, Field, Input, Modal, SelectField, Slider, Textarea } from './ui';
+import {
+  Button,
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+  Input,
+  Modal,
+  SelectField,
+  Slider,
+  Textarea,
+} from './ui';
+
+const NUM_RE = /^\d+$/;
+
+function numberField(t: (key: string) => string) {
+  return z.string().regex(NUM_RE, t('Enter a number'));
+}
 
 /* -------------------------------------------------------------------------- */
 /* Start Day                                                                  */
@@ -16,6 +38,18 @@ export interface StartDayValues {
   flexMinutes: number;
   presetId: string;
   note: string;
+}
+
+function makeStartSchema(t: (key: string) => string) {
+  return z.object({
+    startTime: z.string().min(1, t('Required')),
+    expectedMinutes: numberField(t),
+    presetId: z.string(),
+    lunchMinutes: numberField(t),
+    nonWorkMinutes: numberField(t),
+    flexMinutes: numberField(t),
+    note: z.string(),
+  });
 }
 
 export function StartDayDialog({
@@ -42,25 +76,44 @@ export function StartDayDialog({
   onSubmit: (values: StartDayValues) => void;
 }) {
   const t = useT();
-  const [startTime, setStartTime] = useState('08:00');
-  const [expected, setExpected] = useState(String(expectedMinutes));
-  const [lunch, setLunch] = useState('0');
-  const [nonWork, setNonWork] = useState('0');
-  const [flex, setFlex] = useState(String(defaultFlex));
-  const [presetId, setPresetId] = useState(defaultPresetId);
-  const [note, setNote] = useState('');
+  const form = useForm<z.infer<ReturnType<typeof makeStartSchema>>>({
+    resolver: zodResolver(makeStartSchema(t)),
+    defaultValues: {
+      startTime: '08:00',
+      expectedMinutes: String(expectedMinutes),
+      presetId: defaultPresetId,
+      lunchMinutes: String(defaultLunch ?? 0),
+      nonWorkMinutes: '0',
+      flexMinutes: String(defaultFlex ?? 0),
+      note: '',
+    },
+  });
 
   useEffect(() => {
     if (!open) return;
     const now = new Date();
-    setStartTime(`${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`);
-    setExpected(String(expectedMinutes));
-    setLunch(String(defaultLunch));
-    setNonWork('0');
-    setFlex(String(defaultFlex));
-    setPresetId(defaultPresetId);
-    setNote('');
-  }, [open, expectedMinutes, defaultLunch, defaultFlex, defaultPresetId]);
+    form.reset({
+      startTime: `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`,
+      expectedMinutes: String(expectedMinutes),
+      presetId: defaultPresetId,
+      lunchMinutes: String(defaultLunch ?? 0),
+      nonWorkMinutes: '0',
+      flexMinutes: String(defaultFlex ?? 0),
+      note: '',
+    });
+  }, [open, expectedMinutes, defaultLunch, defaultFlex, defaultPresetId, form]);
+
+  const submit = form.handleSubmit((values) =>
+    onSubmit({
+      startTime: values.startTime,
+      expectedMinutes: Number(values.expectedMinutes) || 0,
+      lunchMinutes: Number(values.lunchMinutes) || 0,
+      nonWorkMinutes: Number(values.nonWorkMinutes) || 0,
+      flexMinutes: Number(values.flexMinutes) || 0,
+      presetId: values.presetId,
+      note: values.note,
+    }),
+  );
 
   return (
     <Modal
@@ -73,70 +126,122 @@ export function StartDayDialog({
           <Button variant="ghost" onClick={onClose}>
             {t('Cancel')}
           </Button>
-          <Button
-            disabled={busy}
-            onClick={() =>
-              onSubmit({
-                startTime,
-                expectedMinutes: Number(expected) || 0,
-                lunchMinutes: Number(lunch) || 0,
-                nonWorkMinutes: Number(nonWork) || 0,
-                flexMinutes: Number(flex) || 0,
-                presetId,
-                note,
-              })
-            }
-          >
+          <Button type="button" onClick={submit} disabled={busy}>
             {t('Start Day')}
           </Button>
         </div>
       }
     >
-      <div className="grid gap-4 sm:grid-cols-2">
-        <Field label={t('Start time')} htmlFor="startTime">
-          <Input id="startTime" type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)} />
-        </Field>
-        <Field label={t('Expected minutes')} htmlFor="expected">
-          <Input
-            id="expected"
-            type="number"
-            inputMode="numeric"
-            value={expected}
-            onChange={(e) => setExpected(e.target.value)}
+      <Form {...form}>
+        <form id="start-day-form" onSubmit={submit} className="grid gap-4 sm:grid-cols-2">
+          <FormField
+            control={form.control}
+            name="startTime"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>{t('Start time')}</FormLabel>
+                <FormControl>
+                  <Input type="time" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
           />
-        </Field>
-        {presets.length > 0 ? (
-          <div className="sm:col-span-2">
-            <Field label={t('Travel preset')} htmlFor="preset">
-              <SelectField
-                id="preset"
-                value={presetId}
-                onValueChange={setPresetId}
-                options={presets.map((preset) => ({
-                  value: preset.id ?? '',
-                  label: preset.name,
-                }))}
+          <FormField
+            control={form.control}
+            name="expectedMinutes"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>{t('Expected minutes')}</FormLabel>
+                <FormControl>
+                  <Input type="number" inputMode="numeric" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          {presets.length > 0 ? (
+            <div className="sm:col-span-2">
+              <FormField
+                control={form.control}
+                name="presetId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t('Travel preset')}</FormLabel>
+                    <FormControl>
+                      <SelectField
+                        value={field.value}
+                        onValueChange={field.onChange}
+                        options={presets.map((preset) => ({
+                          value: preset.id ?? '',
+                          label: preset.name,
+                        }))}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
               />
-            </Field>
+            </div>
+          ) : null}
+          <FormField
+            control={form.control}
+            name="lunchMinutes"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>{t('Lunch minutes')}</FormLabel>
+                <FormControl>
+                  <Input type="number" inputMode="numeric" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          {showNonWork ? (
+            <FormField
+              control={form.control}
+              name="nonWorkMinutes"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>{t('Non-work minutes')}</FormLabel>
+                  <FormControl>
+                    <Input type="number" inputMode="numeric" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          ) : null}
+          <FormField
+            control={form.control}
+            name="flexMinutes"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>{t('Banked time to withdraw')}</FormLabel>
+                <FormControl>
+                  <Input type="number" inputMode="numeric" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <div className="sm:col-span-2">
+            <FormField
+              control={form.control}
+              name="note"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>{t('Note')}</FormLabel>
+                  <FormControl>
+                    <Textarea placeholder={t('Optional note...')} {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
           </div>
-        ) : null}
-        <Field label={t('Lunch minutes')} htmlFor="lunch">
-          <Input id="lunch" type="number" inputMode="numeric" value={lunch} onChange={(e) => setLunch(e.target.value)} />
-        </Field>
-        {showNonWork ? (
-          <Field label={t('Non-work minutes')} htmlFor="nonWork">
-            <Input id="nonWork" type="number" inputMode="numeric" value={nonWork} onChange={(e) => setNonWork(e.target.value)} />
-          </Field>
-        ) : null}
-        <Field label={t('Banked time to withdraw')} htmlFor="flex">
-          <Input id="flex" type="number" inputMode="numeric" value={flex} onChange={(e) => setFlex(e.target.value)} />
-        </Field>
-        <div className="sm:col-span-2">
-          <Field label={t('Note')} htmlFor="note">
-            <Textarea id="note" placeholder={t('Optional note...')} value={note} onChange={(e) => setNote(e.target.value)} />
-          </Field>
-        </div>
-      </div>
+        </form>
+      </Form>
     </Modal>
   );
 }
@@ -150,6 +255,15 @@ export interface StopDayValues {
   lunchMinutes: number;
   nonWorkMinutes: number;
   note: string;
+}
+
+function makeStopSchema(t: (key: string) => string) {
+  return z.object({
+    endTime: z.string().min(1, t('Required')),
+    lunchMinutes: numberField(t),
+    nonWorkMinutes: numberField(t),
+    note: z.string(),
+  });
 }
 
 export function StopDayDialog({
@@ -172,19 +286,35 @@ export function StopDayDialog({
   onSubmit: (values: StopDayValues) => void;
 }) {
   const t = useT();
-  const [endTime, setEndTime] = useState('16:00');
-  const [lunch, setLunch] = useState(String(lunchMinutes));
-  const [nonWork, setNonWork] = useState(String(nonWorkMinutes));
-  const [comment, setComment] = useState(note);
+  const form = useForm<z.infer<ReturnType<typeof makeStopSchema>>>({
+    resolver: zodResolver(makeStopSchema(t)),
+    defaultValues: {
+      endTime: '16:00',
+      lunchMinutes: String(lunchMinutes),
+      nonWorkMinutes: String(nonWorkMinutes),
+      note,
+    },
+  });
 
   useEffect(() => {
     if (!open) return;
     const now = new Date();
-    setEndTime(`${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`);
-    setLunch(String(lunchMinutes));
-    setNonWork(String(nonWorkMinutes));
-    setComment(note);
-  }, [open, lunchMinutes, nonWorkMinutes, note]);
+    form.reset({
+      endTime: `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`,
+      lunchMinutes: String(lunchMinutes),
+      nonWorkMinutes: String(nonWorkMinutes),
+      note,
+    });
+  }, [open, lunchMinutes, nonWorkMinutes, note, form]);
+
+  const submit = form.handleSubmit((values) =>
+    onSubmit({
+      endTime: values.endTime,
+      lunchMinutes: Number(values.lunchMinutes) || 0,
+      nonWorkMinutes: Number(values.nonWorkMinutes) || 0,
+      note: values.note,
+    }),
+  );
 
   return (
     <Modal
@@ -197,41 +327,72 @@ export function StopDayDialog({
           <Button variant="ghost" onClick={onClose}>
             {t('Cancel')}
           </Button>
-          <Button
-            variant="destructive"
-            disabled={busy}
-            onClick={() =>
-              onSubmit({
-                endTime,
-                lunchMinutes: Number(lunch) || 0,
-                nonWorkMinutes: Number(nonWork) || 0,
-                note: comment,
-              })
-            }
-          >
+          <Button type="button" onClick={submit} variant="destructive" disabled={busy}>
             {t('Stop Day')}
           </Button>
         </div>
       }
     >
-      <div className="grid gap-4 sm:grid-cols-2">
-        <Field label={t('End time')} htmlFor="endTime">
-          <Input id="endTime" type="time" value={endTime} onChange={(e) => setEndTime(e.target.value)} />
-        </Field>
-        <Field label={t('Lunch minutes')} htmlFor="stopLunch">
-          <Input id="stopLunch" type="number" inputMode="numeric" value={lunch} onChange={(e) => setLunch(e.target.value)} />
-        </Field>
-        {showNonWork ? (
-          <Field label={t('Non-work minutes')} htmlFor="stopNonWork">
-            <Input id="stopNonWork" type="number" inputMode="numeric" value={nonWork} onChange={(e) => setNonWork(e.target.value)} />
-          </Field>
-        ) : null}
-        <div className="sm:col-span-2">
-          <Field label={t('Note')} htmlFor="stopNote">
-            <Textarea id="stopNote" placeholder={t('Optional note...')} value={comment} onChange={(e) => setComment(e.target.value)} />
-          </Field>
-        </div>
-      </div>
+      <Form {...form}>
+        <form id="stop-day-form" onSubmit={submit} className="grid gap-4 sm:grid-cols-2">
+          <FormField
+            control={form.control}
+            name="endTime"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>{t('End time')}</FormLabel>
+                <FormControl>
+                  <Input type="time" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="lunchMinutes"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>{t('Lunch minutes')}</FormLabel>
+                <FormControl>
+                  <Input type="number" inputMode="numeric" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          {showNonWork ? (
+            <FormField
+              control={form.control}
+              name="nonWorkMinutes"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>{t('Non-work minutes')}</FormLabel>
+                  <FormControl>
+                    <Input type="number" inputMode="numeric" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          ) : null}
+          <div className="sm:col-span-2">
+            <FormField
+              control={form.control}
+              name="note"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>{t('Note')}</FormLabel>
+                  <FormControl>
+                    <Textarea placeholder={t('Optional note...')} {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
+        </form>
+      </Form>
     </Modal>
   );
 }
@@ -281,11 +442,9 @@ export function MinutesDialog({
         </div>
       }
     >
-      <div className="space-y-4">
-        <div className="flex items-center gap-4">
-          <Slider value={minutes} min={min} max={max} step={step} onChange={setMinutes} />
-          <span className="w-16 text-right font-semibold">{minutes} min</span>
-        </div>
+      <div className="flex items-center gap-4">
+        <Slider value={minutes} min={min} max={max} step={step} onChange={setMinutes} />
+        <span className="w-16 text-right font-semibold">{minutes} min</span>
       </div>
     </Modal>
   );
@@ -367,10 +526,7 @@ export function CommuteDialog({
           <Button variant="ghost" onClick={onClose}>
             {t('Cancel')}
           </Button>
-          <Button
-            disabled={!selected}
-            onClick={() => selected && onApply(selected)}
-          >
+          <Button disabled={!selected} onClick={() => selected && onApply(selected)}>
             {t('Apply')}
           </Button>
         </div>
@@ -379,14 +535,14 @@ export function CommuteDialog({
       {presets.length === 0 ? (
         <p className="text-sm text-muted-foreground">{t('No travel presets available. Add one in Settings.')}</p>
       ) : (
-        <Field label={t('Travel preset')} htmlFor="commutePreset">
+        <div className="space-y-1.5">
+          <label className="text-sm font-medium">{t('Travel preset')}</label>
           <SelectField
-            id="commutePreset"
             value={presetId}
             onValueChange={setPresetId}
             options={presets.map((preset) => ({ value: preset.id ?? '', label: preset.name }))}
           />
-        </Field>
+        </div>
       )}
     </Modal>
   );

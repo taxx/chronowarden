@@ -1,4 +1,7 @@
+import { zodResolver } from '@hookform/resolvers/zod';
 import { useEffect, useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { z } from 'zod';
 import { Pencil, Plus, Trash2 } from 'lucide-react';
 
 import { useT } from '../i18n';
@@ -22,7 +25,12 @@ import {
   CardHeader,
   ConfirmDialog,
   EmptyState,
-  Field,
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
   Input,
   Modal,
   SelectField,
@@ -38,14 +46,19 @@ interface FormValues {
   commuteMode: CommuteMode;
 }
 
-const EMPTY: FormValues = {
-  name: '',
-  morningOverheadMinutes: 0,
-  morningProductiveCommuteMinutes: 0,
-  eveningOverheadMinutes: 0,
-  eveningProductiveCommuteMinutes: 0,
-  commuteMode: 'none',
-};
+const NUM_RE = /^\d+$/;
+
+function makeSchema(t: (key: string) => string) {
+  const num = z.string().regex(NUM_RE, t('Enter a number'));
+  return z.object({
+    name: z.string().trim().min(1, t('Required')),
+    morningOverheadMinutes: num,
+    morningProductiveCommuteMinutes: num,
+    eveningOverheadMinutes: num,
+    eveningProductiveCommuteMinutes: num,
+    commuteMode: z.enum(['none', 'transit', 'car', 'vespa']),
+  });
+}
 
 function PresetDialog({
   open,
@@ -59,27 +72,40 @@ function PresetDialog({
   onSubmit: (values: FormValues) => Promise<void>;
 }) {
   const t = useT();
-  const [values, setValues] = useState<FormValues>(EMPTY);
-  const [busy, setBusy] = useState(false);
+  const form = useForm<z.infer<ReturnType<typeof makeSchema>>>({
+    resolver: zodResolver(makeSchema(t)),
+    defaultValues: {
+      name: '',
+      morningOverheadMinutes: '0',
+      morningProductiveCommuteMinutes: '0',
+      eveningOverheadMinutes: '0',
+      eveningProductiveCommuteMinutes: '0',
+      commuteMode: 'none',
+    },
+  });
 
   useEffect(() => {
     if (!open) return;
-    setValues(
-      initial
-        ? {
-            name: initial.name,
-            morningOverheadMinutes: initial.morningOverheadMinutes,
-            morningProductiveCommuteMinutes: initial.morningProductiveCommuteMinutes,
-            eveningOverheadMinutes: initial.eveningOverheadMinutes,
-            eveningProductiveCommuteMinutes: initial.eveningProductiveCommuteMinutes,
-            commuteMode: initial.commuteMode,
-          }
-        : EMPTY,
-    );
-  }, [open, initial]);
+    form.reset({
+      name: initial?.name ?? '',
+      morningOverheadMinutes: String(initial?.morningOverheadMinutes ?? 0),
+      morningProductiveCommuteMinutes: String(initial?.morningProductiveCommuteMinutes ?? 0),
+      eveningOverheadMinutes: String(initial?.eveningOverheadMinutes ?? 0),
+      eveningProductiveCommuteMinutes: String(initial?.eveningProductiveCommuteMinutes ?? 0),
+      commuteMode: initial?.commuteMode ?? 'none',
+    });
+  }, [open, initial, form]);
 
-  const setNumber = (key: keyof FormValues) => (value: string) =>
-    setValues((prev) => ({ ...prev, [key]: Number(value) || 0 }));
+  const submit = form.handleSubmit((values) =>
+    onSubmit({
+      name: values.name,
+      morningOverheadMinutes: Number(values.morningOverheadMinutes) || 0,
+      morningProductiveCommuteMinutes: Number(values.morningProductiveCommuteMinutes) || 0,
+      eveningOverheadMinutes: Number(values.eveningOverheadMinutes) || 0,
+      eveningProductiveCommuteMinutes: Number(values.eveningProductiveCommuteMinutes) || 0,
+      commuteMode: values.commuteMode,
+    }),
+  );
 
   return (
     <Modal
@@ -91,82 +117,107 @@ function PresetDialog({
           <Button variant="ghost" onClick={onClose}>
             {t('Cancel')}
           </Button>
-          <Button
-            disabled={busy || !values.name.trim()}
-            onClick={() => {
-              setBusy(true);
-              void onSubmit(values).finally(() => setBusy(false));
-            }}
-          >
+          <Button type="button" onClick={submit} disabled={form.formState.isSubmitting}>
             {t('Save')}
           </Button>
         </div>
       }
     >
-      <div className="grid gap-4 sm:grid-cols-2">
-        <div className="sm:col-span-2">
-          <Field label={t('Name')} htmlFor="presetName">
-            <Input
-              id="presetName"
-              value={values.name}
-              onChange={(event) => setValues((prev) => ({ ...prev, name: event.target.value }))}
+      <Form {...form}>
+        <form id="preset-form" onSubmit={submit} className="grid gap-4 sm:grid-cols-2">
+          <div className="sm:col-span-2">
+            <FormField
+              control={form.control}
+              name="name"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>{t('Name')}</FormLabel>
+                  <FormControl>
+                    <Input {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
             />
-          </Field>
-        </div>
-        <Field label={t('Morning overhead')} htmlFor="morningOverhead">
-          <Input
-            id="morningOverhead"
-            type="number"
-            inputMode="numeric"
-            value={String(values.morningOverheadMinutes)}
-            onChange={(event) => setNumber('morningOverheadMinutes')(event.target.value)}
+          </div>
+          <FormField
+            control={form.control}
+            name="morningOverheadMinutes"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>{t('Morning overhead')}</FormLabel>
+                <FormControl>
+                  <Input type="number" inputMode="numeric" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
           />
-        </Field>
-        <Field label={t('Morning productive')} htmlFor="morningProductive">
-          <Input
-            id="morningProductive"
-            type="number"
-            inputMode="numeric"
-            value={String(values.morningProductiveCommuteMinutes)}
-            onChange={(event) => setNumber('morningProductiveCommuteMinutes')(event.target.value)}
+          <FormField
+            control={form.control}
+            name="morningProductiveCommuteMinutes"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>{t('Morning productive')}</FormLabel>
+                <FormControl>
+                  <Input type="number" inputMode="numeric" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
           />
-        </Field>
-        <Field label={t('Evening overhead')} htmlFor="eveningOverhead">
-          <Input
-            id="eveningOverhead"
-            type="number"
-            inputMode="numeric"
-            value={String(values.eveningOverheadMinutes)}
-            onChange={(event) => setNumber('eveningOverheadMinutes')(event.target.value)}
+          <FormField
+            control={form.control}
+            name="eveningOverheadMinutes"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>{t('Evening overhead')}</FormLabel>
+                <FormControl>
+                  <Input type="number" inputMode="numeric" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
           />
-        </Field>
-        <Field label={t('Evening productive')} htmlFor="eveningProductive">
-          <Input
-            id="eveningProductive"
-            type="number"
-            inputMode="numeric"
-            value={String(values.eveningProductiveCommuteMinutes)}
-            onChange={(event) => setNumber('eveningProductiveCommuteMinutes')(event.target.value)}
+          <FormField
+            control={form.control}
+            name="eveningProductiveCommuteMinutes"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>{t('Evening productive')}</FormLabel>
+                <FormControl>
+                  <Input type="number" inputMode="numeric" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
           />
-        </Field>
-        <div className="sm:col-span-2">
-          <Field label={t('Commute mode')} htmlFor="commuteMode">
-            <SelectField
-              id="commuteMode"
-              value={values.commuteMode}
-              onValueChange={(value) =>
-                setValues((prev) => ({ ...prev, commuteMode: value as CommuteMode }))
-              }
-              options={[
-                { value: 'none', label: t('None') },
-                { value: 'transit', label: t('Transit') },
-                { value: 'car', label: t('Car') },
-                { value: 'vespa', label: t('Vespa') },
-              ]}
+          <div className="sm:col-span-2">
+            <FormField
+              control={form.control}
+              name="commuteMode"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>{t('Commute mode')}</FormLabel>
+                  <FormControl>
+                    <SelectField
+                      value={field.value}
+                      onValueChange={field.onChange}
+                      options={[
+                        { value: 'none', label: t('None') },
+                        { value: 'transit', label: t('Transit') },
+                        { value: 'car', label: t('Car') },
+                        { value: 'vespa', label: t('Vespa') },
+                      ]}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
             />
-          </Field>
-        </div>
-      </div>
+          </div>
+        </form>
+      </Form>
     </Modal>
   );
 }

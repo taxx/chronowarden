@@ -59,7 +59,13 @@ beforeEach(() => {
   mocked.useTimeLogs.mockReturnValue({ data: [], isLoading: false } as never);
   mocked.useWorkConfig.mockReturnValue({ data: { defaultExpectedMinutes: 480 } } as never);
   mocked.usePreferences.mockReturnValue({
-    data: { showWeekends: true, nonWorkEnabled: true, defaultFlexMinutes: 0, sliderStepMinutes: 5 },
+    data: {
+      showWeekends: true,
+      nonWorkEnabled: true,
+      defaultFlexMinutes: 0,
+      defaultLunchMinutes: 0,
+      sliderStepMinutes: 5,
+    },
   } as never);
   vi.mocked(useTravelPresets).mockReturnValue({ data: [], isLoading: false } as never);
   mocked.useCreateTimeLog.mockReturnValue({

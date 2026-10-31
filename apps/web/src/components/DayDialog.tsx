@@ -115,7 +115,7 @@ export function DayDialog({
           <Button variant="ghost" onClick={onClose}>
             {t('Cancel')}
           </Button>
-          <Button type="submit" form="day-form" disabled={form.formState.isSubmitting}>
+          <Button type="button" onClick={submit} disabled={form.formState.isSubmitting}>
             {t('Save')}
           </Button>
         </div>

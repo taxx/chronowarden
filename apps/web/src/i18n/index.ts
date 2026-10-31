@@ -8,6 +8,7 @@ import { create } from 'zustand';
 export type Locale = 'en' | 'sv';
 
 const sv: Record<string, string> = {
+  'Weeks must be between 1 and 53': 'Veckor måste vara mellan 1 och 53',
   Required: 'Obligatoriskt',
   'Enter a number': 'Ange ett nummer',
   'Generated straight from the git history.': 'Genereras direkt från git-historiken.',
