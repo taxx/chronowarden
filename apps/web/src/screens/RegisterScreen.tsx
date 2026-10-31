@@ -76,7 +76,7 @@ export function RegisterScreen() {
   }
 
   return (
-    <AuthCard title={t('Create account')}>
+    <AuthCard brand title={t('Create account')}>
       <form className="space-y-4" onSubmit={onSubmit}>
         <Field label={t('Invite token')} htmlFor="inviteToken" error={inviteError}>
           <div className="flex items-center gap-2">

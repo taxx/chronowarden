@@ -46,6 +46,7 @@ export function SetupScreen() {
 
   return (
     <AuthCard
+      brand
       title={t('First-time setup')}
       description={t('You are the first user. This account will be an administrator.')}
     >

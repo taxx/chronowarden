@@ -8,6 +8,13 @@ import { create } from 'zustand';
 export type Locale = 'en' | 'sv';
 
 const sv: Record<string, string> = {
+  'Open source': 'Öppen källkod',
+  'Personal time-banking and overtime protection.':
+      'Personlig tidsbank och skydd mot övertid.',
+  'Self-hosted': 'Egen drift',
+  'Your data is encrypted end-to-end. Only you can read it — not even the administrator.':
+      'Din data är krypterad från början till slut. Endast du kan läsa den — inte ens administratören.',
+  'Zero-knowledge': 'Zero-knowledge',
   'Weeks must be between 1 and 53': 'Veckor måste vara mellan 1 och 53',
   Required: 'Obligatoriskt',
   'Enter a number': 'Ange ett nummer',
