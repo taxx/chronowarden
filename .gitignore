@@ -1,3 +1,9 @@
+# Generated build metadata — produced at deploy/build time by
+# apps/web/tool/generate_metadata.sh (kept out of git so it always reflects
+# the deployed revision).
+apps/web/public/version.json
+apps/web/public/CHANGELOG.md
+
 # Secrets — never commit credentials
 secrets.json
 .env

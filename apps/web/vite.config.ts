@@ -63,8 +63,8 @@ export default defineConfig({
         navigateFallback: '/index.html',
         // Never serve the app shell for API navigations.
         navigateFallbackDenylist: [/^\/api\//],
-        // The changelog is regenerated per deploy; don't precache a stale copy.
-        globIgnores: ['**/CHANGELOG.md'],
+        // Deploy-time metadata must always come from the network, never the cache.
+        globIgnores: ['**/CHANGELOG.md', '**/version.json'],
         runtimeCaching: [
           {
             // Data is live and encrypted per-session: never cache the API.

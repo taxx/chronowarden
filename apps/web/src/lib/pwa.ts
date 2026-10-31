@@ -21,17 +21,35 @@ export function registerServiceWorker(): void {
   });
 }
 
-/** Reload onto the newest deployment (falls back to a hard refresh). */
+/**
+ * Reload onto the newest deployment.
+ *
+ * Tries the service worker's update path first; if that doesn't take control we
+ * drop the worker and its caches and do a hard reload, so a single click always
+ * lands on the freshly served bundle.
+ */
 export async function reloadToUpdate(): Promise<void> {
   const update = updateServiceWorker;
   if (update) {
     try {
-      // `true` reloads the page once the new service worker has taken control.
       await update(true);
-      return;
+      // `update(true)` reloads when a new worker activates; if it was already
+      // current there is nothing to install, so continue to the hard reset.
     } catch {
       // fall through
     }
   }
+
+  try {
+    const registrations = (await navigator.serviceWorker?.getRegistrations?.()) ?? [];
+    await Promise.all(registrations.map((registration) => registration.unregister()));
+    if ('caches' in window) {
+      const keys = await caches.keys();
+      await Promise.all(keys.map((key) => caches.delete(key)));
+    }
+  } catch {
+    // ignore — a plain reload is still better than nothing
+  }
+
   window.location.reload();
 }
