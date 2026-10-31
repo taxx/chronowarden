@@ -8,6 +8,8 @@ import { create } from 'zustand';
 export type Locale = 'en' | 'sv';
 
 const sv: Record<string, string> = {
+  Collapse: 'Fäll ihop',
+  Expand: 'Expandera',
   'Open source': 'Öppen källkod',
   'Personal time-banking and overtime protection.':
       'Personlig tidsbank och skydd mot övertid.',
