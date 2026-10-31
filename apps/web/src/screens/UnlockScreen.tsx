@@ -1,7 +1,8 @@
 import { Link, useNavigate } from '@tanstack/react-router';
 import { useState, type FormEvent } from 'react';
 
-import { Button, Card, Field, Input, Spinner } from '../components/ui';
+import { AuthCard } from '../components/AuthCard';
+import { Button, Field, Input, Spinner } from '../components/ui';
 import { useT } from '../i18n';
 import { useAuthStore } from '../state/auth';
 
@@ -30,37 +31,32 @@ export function UnlockScreen() {
   }
 
   return (
-    <div className="grid min-h-dvh place-items-center p-6">
-      <Card className="w-full max-w-md">
-        <h1 className="text-xl font-semibold text-foreground">{t('Unlock')}</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          {t('Your data is encrypted. Enter your encryption passphrase to unlock it.')}
-        </p>
+    <AuthCard
+      title={t('Unlock')}
+      description={t('Your data is encrypted. Enter your encryption passphrase to unlock it.')}
+      footer={
+        <Link to="/recover" className="text-sm text-primary hover:underline">
+          {t('Forgot passphrase?')}
+        </Link>
+      }
+    >
+      <form className="space-y-4" onSubmit={onSubmit}>
+        <Field label={t('Encryption passphrase')} htmlFor="passphrase">
+          <Input
+            id="passphrase"
+            type="password"
+            value={passphrase}
+            onChange={(e) => setPassphrase(e.target.value)}
+            autoComplete="current-password"
+          />
+        </Field>
 
-        <form className="mt-6 space-y-4" onSubmit={onSubmit}>
-          <Field label={t('Encryption passphrase')} htmlFor="passphrase">
-            <Input
-              id="passphrase"
-              type="password"
-              value={passphrase}
-              onChange={(e) => setPassphrase(e.target.value)}
-              autoComplete="current-password"
-            />
-          </Field>
+        {storeError ? <p className="text-sm text-destructive">{storeError}</p> : null}
 
-          {storeError ? <p className="text-sm text-destructive">{storeError}</p> : null}
-
-          <Button type="submit" disabled={busy} className="w-full">
-            {busy ? <Spinner /> : t('Unlock')}
-          </Button>
-        </form>
-
-        <div className="mt-4 text-center">
-          <Link to="/recover" className="text-sm text-primary hover:text-primary">
-            {t('Forgot passphrase?')}
-          </Link>
-        </div>
-      </Card>
-    </div>
+        <Button type="submit" disabled={busy} className="w-full">
+          {busy ? <Spinner /> : t('Unlock')}
+        </Button>
+      </form>
+    </AuthCard>
   );
 }

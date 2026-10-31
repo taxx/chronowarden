@@ -2,7 +2,8 @@ import { useNavigate } from '@tanstack/react-router';
 import { useState, type FormEvent } from 'react';
 
 import { authApi } from '../api/auth';
-import { Button, Card, Field, Input, Spinner } from '../components/ui';
+import { AuthCard } from '../components/AuthCard';
+import { Button, Field, Input, Spinner } from '../components/ui';
 import { useT } from '../i18n';
 import { useAuthStore } from '../state/auth';
 
@@ -75,77 +76,69 @@ export function RegisterScreen() {
   }
 
   return (
-    <div className="grid min-h-dvh place-items-center p-6">
-      <Card className="w-full max-w-md">
-        <h1 className="text-xl font-semibold text-foreground">{t('Create account')}</h1>
-
-        <form className="mt-6 space-y-4" onSubmit={onSubmit}>
-          <Field
-            label={t('Invite token')}
-            htmlFor="inviteToken"
-            error={inviteError}
-          >
-            <div className="flex items-center gap-2">
-              <Input
-                id="inviteToken"
-                value={token}
-                onChange={(e) => setToken(e.target.value)}
-                onBlur={() => void checkInvite()}
-              />
-              {checking ? <Spinner /> : null}
-            </div>
-            <p className="text-xs text-muted-foreground">{t('Ask your administrator for an invite token')}</p>
-          </Field>
-
-          <Field label={t('Full name')} htmlFor="fullName">
-            <Input id="fullName" value={fullName} onChange={(e) => setFullName(e.target.value)} />
-          </Field>
-          <Field label={t('Email')} htmlFor="email">
+    <AuthCard title={t('Create account')}>
+      <form className="space-y-4" onSubmit={onSubmit}>
+        <Field label={t('Invite token')} htmlFor="inviteToken" error={inviteError}>
+          <div className="flex items-center gap-2">
             <Input
-              id="email"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              autoComplete="email"
+              id="inviteToken"
+              value={token}
+              onChange={(e) => setToken(e.target.value)}
+              onBlur={() => void checkInvite()}
             />
-          </Field>
-          <Field label={t('Password')} htmlFor="password">
-            <Input
-              id="password"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              autoComplete="new-password"
-            />
-          </Field>
-          <Field label={t('Encryption passphrase')} htmlFor="passphrase">
-            <Input
-              id="passphrase"
-              type="password"
-              value={passphrase}
-              onChange={(e) => setPassphrase(e.target.value)}
-              autoComplete="new-password"
-            />
-          </Field>
-          <Field label={t('Confirm encryption passphrase')} htmlFor="confirm">
-            <Input
-              id="confirm"
-              type="password"
-              value={confirm}
-              onChange={(e) => setConfirm(e.target.value)}
-              autoComplete="new-password"
-            />
-          </Field>
+            {checking ? <Spinner /> : null}
+          </div>
+          <p className="text-xs text-muted-foreground">{t('Ask your administrator for an invite token')}</p>
+        </Field>
 
-          {localError || storeError ? (
-            <p className="text-sm text-destructive">{localError ?? storeError}</p>
-          ) : null}
+        <Field label={t('Full name')} htmlFor="fullName">
+          <Input id="fullName" value={fullName} onChange={(e) => setFullName(e.target.value)} />
+        </Field>
+        <Field label={t('Email')} htmlFor="email">
+          <Input
+            id="email"
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            autoComplete="email"
+          />
+        </Field>
+        <Field label={t('Password')} htmlFor="password">
+          <Input
+            id="password"
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            autoComplete="new-password"
+          />
+        </Field>
+        <Field label={t('Encryption passphrase')} htmlFor="passphrase">
+          <Input
+            id="passphrase"
+            type="password"
+            value={passphrase}
+            onChange={(e) => setPassphrase(e.target.value)}
+            autoComplete="new-password"
+          />
+        </Field>
+        <Field label={t('Confirm encryption passphrase')} htmlFor="confirm">
+          <Input
+            id="confirm"
+            type="password"
+            value={confirm}
+            onChange={(e) => setConfirm(e.target.value)}
+            autoComplete="new-password"
+          />
+        </Field>
 
-          <Button type="submit" disabled={busy} className="w-full">
-            {busy ? <Spinner /> : t('Create account')}
-          </Button>
-        </form>
-      </Card>
-    </div>
+        {localError || storeError ? (
+          <p className="text-sm text-destructive">{localError ?? storeError}</p>
+        ) : null}
+
+        <Button type="submit" disabled={busy} className="w-full">
+          {busy ? <Spinner /> : t('Create account')}
+        </Button>
+      </form>
+    </AuthCard>
   );
 }

@@ -1,7 +1,8 @@
 import { useNavigate } from '@tanstack/react-router';
 import { useState, type FormEvent } from 'react';
 
-import { Button, Card, Field, Input, Spinner } from '../components/ui';
+import { AuthCard } from '../components/AuthCard';
+import { Button, Field, Input, Spinner } from '../components/ui';
 import { useT } from '../i18n';
 import { useAuthStore } from '../state/auth';
 
@@ -44,68 +45,64 @@ export function SetupScreen() {
   }
 
   return (
-    <div className="grid min-h-dvh place-items-center p-6">
-      <Card className="w-full max-w-md">
-        <h1 className="text-xl font-semibold text-foreground">{t('First-time setup')}</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          {t('You are the first user. This account will be an administrator.')}
-        </p>
+    <AuthCard
+      title={t('First-time setup')}
+      description={t('You are the first user. This account will be an administrator.')}
+    >
+      <form className="space-y-4" onSubmit={onSubmit}>
+        <Field label={t('Full name')} htmlFor="fullName">
+          <Input
+            id="fullName"
+            value={fullName}
+            onChange={(e) => setFullName(e.target.value)}
+            autoComplete="name"
+          />
+        </Field>
+        <Field label={t('Email')} htmlFor="email">
+          <Input
+            id="email"
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            autoComplete="email"
+          />
+        </Field>
+        <Field label={t('Password')} htmlFor="password">
+          <Input
+            id="password"
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            autoComplete="new-password"
+          />
+        </Field>
+        <Field label={t('Encryption passphrase')} htmlFor="passphrase">
+          <Input
+            id="passphrase"
+            type="password"
+            value={passphrase}
+            onChange={(e) => setPassphrase(e.target.value)}
+            autoComplete="new-password"
+          />
+        </Field>
+        <Field label={t('Confirm encryption passphrase')} htmlFor="confirm">
+          <Input
+            id="confirm"
+            type="password"
+            value={confirm}
+            onChange={(e) => setConfirm(e.target.value)}
+            autoComplete="new-password"
+          />
+        </Field>
 
-        <form className="mt-6 space-y-4" onSubmit={onSubmit}>
-          <Field label={t('Full name')} htmlFor="fullName">
-            <Input
-              id="fullName"
-              value={fullName}
-              onChange={(e) => setFullName(e.target.value)}
-              autoComplete="name"
-            />
-          </Field>
-          <Field label={t('Email')} htmlFor="email">
-            <Input
-              id="email"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              autoComplete="email"
-            />
-          </Field>
-          <Field label={t('Password')} htmlFor="password">
-            <Input
-              id="password"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              autoComplete="new-password"
-            />
-          </Field>
-          <Field label={t('Encryption passphrase')} htmlFor="passphrase">
-            <Input
-              id="passphrase"
-              type="password"
-              value={passphrase}
-              onChange={(e) => setPassphrase(e.target.value)}
-              autoComplete="new-password"
-            />
-          </Field>
-          <Field label={t('Confirm encryption passphrase')} htmlFor="confirm">
-            <Input
-              id="confirm"
-              type="password"
-              value={confirm}
-              onChange={(e) => setConfirm(e.target.value)}
-              autoComplete="new-password"
-            />
-          </Field>
+        {localError || storeError ? (
+          <p className="text-sm text-destructive">{localError ?? storeError}</p>
+        ) : null}
 
-          {localError || storeError ? (
-            <p className="text-sm text-destructive">{localError ?? storeError}</p>
-          ) : null}
-
-          <Button type="submit" disabled={busy} className="w-full">
-            {busy ? <Spinner /> : t('Create admin account')}
-          </Button>
-        </form>
-      </Card>
-    </div>
+        <Button type="submit" disabled={busy} className="w-full">
+          {busy ? <Spinner /> : t('Create admin account')}
+        </Button>
+      </form>
+    </AuthCard>
   );
 }

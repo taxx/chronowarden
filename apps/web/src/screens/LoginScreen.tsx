@@ -1,7 +1,8 @@
 import { Link, useNavigate } from '@tanstack/react-router';
 import { useState, type FormEvent } from 'react';
 
-import { Button, Card, Field, Input, Spinner } from '../components/ui';
+import { AuthCard } from '../components/AuthCard';
+import { Button, Field, Input, Spinner } from '../components/ui';
 import { useT } from '../i18n';
 import { useAuthStore } from '../state/auth';
 
@@ -44,65 +45,62 @@ export function LoginScreen() {
   }
 
   return (
-    <div className="grid min-h-dvh place-items-center p-6">
-      <Card className="w-full max-w-md">
-        <h1 className="text-xl font-semibold text-foreground">{t('Sign in')}</h1>
+    <AuthCard
+      title={t('Sign in')}
+      footer={
+        <Link to="/register" className="text-sm text-primary hover:underline">
+          {t('Have an invite?')}
+        </Link>
+      }
+    >
+      <form className="space-y-4" onSubmit={onSubmit}>
+        <Field label={t('Email')} htmlFor="email">
+          <Input
+            id="email"
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            autoComplete="email"
+          />
+        </Field>
+        <Field label={t('Password')} htmlFor="password">
+          <Input
+            id="password"
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            autoComplete="current-password"
+          />
+        </Field>
 
-        <form className="mt-6 space-y-4" onSubmit={onSubmit}>
-          <Field label={t('Email')} htmlFor="email">
+        {showPassphrase ? (
+          <Field label={t('Encryption passphrase')} htmlFor="passphrase">
             <Input
-              id="email"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              autoComplete="email"
-            />
-          </Field>
-          <Field label={t('Password')} htmlFor="password">
-            <Input
-              id="password"
+              id="passphrase"
               type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
+              value={passphrase}
+              onChange={(e) => setPassphrase(e.target.value)}
               autoComplete="current-password"
             />
           </Field>
+        ) : (
+          <button
+            type="button"
+            className="text-sm text-primary hover:underline"
+            onClick={() => setShowPassphrase(true)}
+          >
+            {t('I have an encryption passphrase')}
+          </button>
+        )}
 
-          {showPassphrase ? (
-            <Field label={t('Encryption passphrase')} htmlFor="passphrase">
-              <Input
-                id="passphrase"
-                type="password"
-                value={passphrase}
-                onChange={(e) => setPassphrase(e.target.value)}
-                autoComplete="current-password"
-              />
-            </Field>
-          ) : (
-            <button
-              type="button"
-              className="text-sm text-primary hover:text-primary"
-              onClick={() => setShowPassphrase(true)}
-            >
-              {t('I have an encryption passphrase')}
-            </button>
-          )}
+        {localError || storeError ? (
+          <p className="text-sm text-destructive">{localError ?? storeError}</p>
+        ) : null}
 
-          {localError || storeError ? (
-            <p className="text-sm text-destructive">{localError ?? storeError}</p>
-          ) : null}
-
-          <Button type="submit" disabled={busy} className="w-full">
-            {busy ? <Spinner /> : t('Sign in')}
-          </Button>
-        </form>
-
-        <div className="mt-4 text-center">
-          <Link to="/register" className="text-sm text-primary hover:text-primary">
-            {t('Have an invite?')}
-          </Link>
-        </div>
-      </Card>
-    </div>
+        <Button type="submit" disabled={busy} className="w-full">
+          {busy ? <Spinner /> : t('Sign in')}
+        </Button>
+      </form>
+    </AuthCard>
   );
 }
