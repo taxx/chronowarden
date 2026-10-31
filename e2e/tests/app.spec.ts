@@ -61,15 +61,20 @@ test.describe.serial('ChronoWarden web', () => {
     await signIn(page);
 
     await page.getByRole('link', { name: 'History' }).click();
+    const rowsBefore = await page.locator('tbody tr').count();
+
     await page.getByRole('button', { name: 'Add day' }).click();
 
-    await page.getByLabel('Date').fill('2026-01-05');
+    // Pick a date through the calendar picker.
+    await page.getByLabel('Date').click();
+    await page.getByRole('button', { name: '15', exact: true }).first().click();
+
     await page.getByLabel('Start').fill('08:00');
     await page.getByLabel('Stop').fill('16:30');
     await page.getByLabel('Expected minutes').fill('480');
     await page.getByRole('button', { name: 'Save' }).click();
 
-    await expect(page.getByText('2026-01-05')).toBeVisible();
+    await expect.poll(() => page.locator('tbody tr').count()).toBeGreaterThan(rowsBefore);
   });
 
   test('downloads a backup from Settings', async ({ page }) => {

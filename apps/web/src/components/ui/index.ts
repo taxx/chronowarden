@@ -15,6 +15,19 @@ export { Slider, Progress, Spinner, Skeleton, Separator } from './feedback';
 export { EmptyState } from './empty-state';
 export { Sheet } from './sheet';
 export { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from './table';
+export { Popover, PopoverTrigger, PopoverContent } from './popover';
+export { Calendar } from './calendar';
+export { DatePicker } from './date-picker';
+export {
+  Form,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormControl,
+  FormDescription,
+  FormMessage,
+  useFormField,
+} from './form';
 export { Toaster } from './toaster';
 export { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from './tooltip';
 export {

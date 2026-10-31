@@ -8,6 +8,8 @@ import { create } from 'zustand';
 export type Locale = 'en' | 'sv';
 
 const sv: Record<string, string> = {
+  Required: 'Obligatoriskt',
+  'Enter a number': 'Ange ett nummer',
   'Generated straight from the git history.': 'Genereras direkt från git-historiken.',
   Account: 'Konto',
   'Choose a CSV file': 'Välj en CSV-fil',
