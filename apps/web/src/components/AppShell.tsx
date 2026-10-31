@@ -1,4 +1,4 @@
-import { Link, Outlet, useNavigate } from '@tanstack/react-router';
+import { Link, Outlet, useNavigate, useRouterState } from '@tanstack/react-router';
 import { useState } from 'react';
 import {
   CalendarDays,
@@ -286,6 +286,7 @@ function MobileNav() {
 
 export function AppShell() {
   const t = useT();
+  const pathname = useRouterState({ select: (state) => state.location.pathname });
 
   return (
     <TooltipProvider delayDuration={300}>
@@ -325,7 +326,9 @@ export function AppShell() {
             <RealtimeBridge />
             <UpdateBanner />
             <AlertBanner />
-            <Outlet />
+            <div key={pathname} className="animate-fade-in">
+              <Outlet />
+            </div>
           </div>
         </main>
 

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { ArrowDown, ArrowUp, ArrowUpDown, Download, NotebookPen, Pencil, Plus, Trash2, Upload } from 'lucide-react';
 
 import { CsvFormatGuide } from '../components/CsvFormatGuide';
+import { TableSkeleton } from '../components/skeletons';
 import { CsvImportDialog } from '../components/CsvImportDialog';
 import { DayDialog, type DayFormValues } from '../components/DayDialog';
 import {
@@ -12,7 +13,7 @@ import {
   CardHeader,
   ConfirmDialog,
   EmptyState,
-  Spinner,
+  
   Table,
   TableBody,
   TableCell,
@@ -134,13 +135,7 @@ export function HistoryPage() {
   }
 
   if (logsQuery.isLoading) {
-    return (
-      <Card>
-        <CardContent className="grid place-items-center py-10">
-          <Spinner />
-        </CardContent>
-      </Card>
-    );
+    return <TableSkeleton />;
   }
 
   return (

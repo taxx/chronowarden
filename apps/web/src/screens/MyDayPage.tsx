@@ -28,6 +28,7 @@ import { expectedMinutesForDate, type WorkConfig } from '../lib/domain/work-conf
 import { formatDurationMinutes, formatSignedMinutes, overtimeTextClass } from '../lib/format';
 import { usePreferences, useWorkConfig } from '../queries/settings';
 import { defaultPreferences } from '../services/settings';
+import { CardSkeleton } from '../components/skeletons';
 import {
   useCreateTimeLog,
   useDeleteTimeLog,
@@ -128,11 +129,10 @@ export function MyDayPage() {
 
   if (todayQuery.isLoading) {
     return (
-      <Card>
-        <CardContent className="grid place-items-center py-10">
-          <div className="h-6 w-6 animate-spin rounded-full border-2 border-border border-t-primary" />
-        </CardContent>
-      </Card>
+      <div className="space-y-4">
+        <CardSkeleton lines={2} />
+        <CardSkeleton lines={1} />
+      </div>
     );
   }
 

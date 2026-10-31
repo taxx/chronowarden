@@ -3,6 +3,7 @@ import { ChevronLeft, ChevronRight, Info } from 'lucide-react';
 
 import { DayDialog } from '../components/DayDialog';
 import { TimeBankChart } from '../components/TimeBankChart';
+import { ChartSkeleton, StatGridSkeleton } from '../components/skeletons';
 import {
   Button,
   Card,
@@ -140,11 +141,19 @@ export function OverviewPage() {
 
   if (logsQuery.isLoading) {
     return (
-      <Card>
-        <CardContent className="grid place-items-center py-10">
-          <div className="h-6 w-6 animate-spin rounded-full border-2 border-border border-t-primary" />
-        </CardContent>
-      </Card>
+      <div className="space-y-4">
+        <Card>
+          <CardContent className="space-y-5 p-5">
+            <StatGridSkeleton />
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-7">
+              {Array.from({ length: 7 }, (_, i) => (
+                <div key={i} className="h-20 rounded-lg border bg-card" />
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+        <ChartSkeleton />
+      </div>
     );
   }
 

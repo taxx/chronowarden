@@ -66,8 +66,8 @@ at runtime.
 5. **Forms (done)** — React Hook Form + Zod (via shadcn `Form` primitives) now
    drives the Add/Edit day, Start Day, Stop Day, travel preset, work hours and
    change-passphrase forms, with a themed Calendar/DatePicker for day entry.
-6. **Motion & polish** — subtle transitions, skeleton loading states, empty
-   states, responsive sheets on mobile.
+6. **Motion & polish (done)** — skeleton loading states across screens, consistent
+   empty states, page fade-in on navigation, and subtle button press feedback.
 7. **Accessibility** — Radix primitives give focus management and ARIA; verify
    with the Playwright suite.
 

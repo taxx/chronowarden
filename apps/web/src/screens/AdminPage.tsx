@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { KeyRound, ShieldCheck, UserPlus } from 'lucide-react';
 
 import type { Invite, User } from '../api/types';
+import { SkeletonRows } from '../components/skeletons';
 import {
   Badge,
   Button,
@@ -83,7 +84,10 @@ export function AdminPage() {
         />
         <CardContent>
           {tab === 'users' ? (
-            <ul className="divide-y divide-border">
+            usersQuery.isLoading ? (
+              <SkeletonRows rows={4} />
+            ) : (
+              <ul className="divide-y divide-border">
               {users.map((user: User) => (
                 <li key={user.id} className="flex flex-wrap items-center justify-between gap-3 py-3">
                   <div className="min-w-0">
@@ -165,7 +169,8 @@ export function AdminPage() {
                   </div>
                 </li>
               ))}
-            </ul>
+              </ul>
+            )
           ) : (
             <div className="space-y-4">
               <form

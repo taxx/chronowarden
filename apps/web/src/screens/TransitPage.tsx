@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 
 import { StationPicker } from '../components/StationPicker';
+import { ListSkeleton, SkeletonRows } from '../components/skeletons';
 import {
   Badge,
   Button,
@@ -10,7 +11,7 @@ import {
   EmptyState,
   Field,
   Input,
-  Spinner,
+  
   Switch,
 } from '../components/ui';
 import { useNow } from '../hooks/useNow';
@@ -99,11 +100,9 @@ export function TransitPage() {
 
   if (configQuery.isLoading || !initialised) {
     return (
-      <Card>
-        <CardContent className="grid place-items-center py-10">
-          <Spinner />
-        </CardContent>
-      </Card>
+      <div className="space-y-4">
+        <ListSkeleton rows={4} />
+      </div>
     );
   }
 
@@ -245,9 +244,7 @@ export function TransitPage() {
                 })}
               </p>
             ) : journeysQuery.isLoading ? (
-              <div className="flex justify-center py-6">
-                <Spinner />
-              </div>
+              <SkeletonRows rows={3} />
             ) : journeys.length === 0 && !pinForRoute ? (
               <EmptyState title={t('No journeys found')} />
             ) : (

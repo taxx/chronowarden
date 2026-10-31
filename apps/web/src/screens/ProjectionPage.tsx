@@ -10,9 +10,10 @@ import {
   YAxis,
 } from 'recharts';
 
-import { Button, Card, CardContent, CardHeader, Slider, Spinner } from '../components/ui';
+import { Button, Card, CardContent, CardHeader, Slider } from '../components/ui';
 import { useT } from '../i18n';
 import { computeProjection } from '../lib/domain/projection';
+import { CardSkeleton, ChartSkeleton } from '../components/skeletons';
 import { formatDurationMinutes, formatSignedMinutes, overtimeTextClass } from '../lib/format';
 import { useTimeLogs } from '../queries/time-logs';
 import { usePreferences } from '../queries/settings';
@@ -43,11 +44,11 @@ export function ProjectionPage() {
 
   if (logsQuery.isLoading) {
     return (
-      <Card>
-        <CardContent className="grid place-items-center py-10">
-          <Spinner />
-        </CardContent>
-      </Card>
+      <div className="space-y-4">
+        <CardSkeleton lines={1} />
+        <CardSkeleton lines={1} />
+        <ChartSkeleton />
+      </div>
     );
   }
 
