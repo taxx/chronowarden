@@ -4,28 +4,84 @@
 # -> src/docker-compose.yaml, so all relative paths here resolve to the PARENT
 # directory (/opt/appdata/chronowarden), where .env and .env.db live and where
 # `docker compose up` is run. The git repo itself lives in ./src.
+#
+# Stack:
+#   proxy  nginx front door: /api/* -> api, everything else -> web
+#   web    Flutter web client (static nginx build)
+#   api    Bun + Hono API (auth, encrypted CRUD, SSE sync, SL proxy)
+#   db     PostgreSQL 18 (only reachable inside the compose network)
+#   backup daily pg_dump + retention
+# The Compose project name is derived from the directory this file is invoked
+# from, so two instances (e.g. /opt/appdata/chronowarden and
+# /opt/appdata/chronowarden-beta) get separate containers and networks.
 services:
-  chronowarden:
-    build:
-      context: ./src
-      args:
-        SUPABASE_URL: ${SUPABASE_URL}
-        SUPABASE_ANON_KEY: ${SUPABASE_ANON_KEY}
-    ports:
-      - "8981:80"
+  db:
+    image: postgres:18-alpine
     restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-chronowarden}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set in .env}
+      POSTGRES_DB: ${POSTGRES_DB:-chronowarden}
+      PGDATA: /var/lib/postgresql/data/pgdata
+    volumes:
+      - ${DATA_DIR:-./data}/postgres:/var/lib/postgresql/data
+    healthcheck:
+      test:
+        ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-chronowarden} -d ${POSTGRES_DB:-chronowarden}']
+      interval: 5s
+      timeout: 5s
+      retries: 10
 
-  backup:
-    # Daily pg_dump backup of the Supabase database, gzipped, with retention.
+  api:
     build:
-      context: ./src/backup
-      dockerfile: Dockerfile
-    env_file:
-      - .env.db
+      context: ./src/apps/api
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER:-chronowarden}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-chronowarden}
+      PORT: 8080
+      SESSION_TTL_DAYS: ${SESSION_TTL_DAYS:-30}
+      SL_API_KEY: ${SL_API_KEY:-}
+
+  web:
+    build:
+      context: ./src/apps/web
+    restart: unless-stopped
+    depends_on:
+      - api
+
+  # Front door. Same-origin /api means the Flutter client needs no CORS and no
+  # baked-in API URL. Point the host reverse proxy (HAProxy) at this port.
+  proxy:
+    image: nginx:alpine
+    restart: unless-stopped
+    volumes:
+      - ./src/docker/proxy/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    ports:
+      - '${WEB_PORT:-8981}:80'
+    depends_on:
+      - web
+      - api
+
+  # Daily pg_dump backup, gzipped, with retention. Uses the same database
+  # credentials as the `db`/`api` services (from .env).
+  backup:
+    build:
+      context: ./src/docker/backup
     environment:
       BACKUP_DIR: /backups
       CRON_SCHEDULE: "${CRON_SCHEDULE:-0 2 * * *}"
       RETENTION_DAYS: "${RETENTION_DAYS:-62}"
+      PGHOST: db
+      PGPORT: "5432"
+      PGDATABASE: ${POSTGRES_DB:-chronowarden}
+      PGUSER: ${POSTGRES_USER:-chronowarden}
+      PGPASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set in .env}
+    depends_on:
+      db:
+        condition: service_healthy
     volumes:
       - "${BACKUP_VOLUME:-./backup}:/backups"
     restart: unless-stopped

@@ -1,0 +1,11 @@
+# Keep any repo-root Docker build context small.
+.git
+node_modules
+dist
+coverage
+e2e/test-results
+*.log
+.DS_Store
+.env
+.env.db
+secrets.json

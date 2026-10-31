@@ -1,29 +1,23 @@
-# Secrets — never commit API credentials
+# Generated build metadata — produced at deploy/build time by
+# apps/web/tool/generate_metadata.sh (kept out of git so it always reflects
+# the deployed revision).
+apps/web/public/version.json
+apps/web/public/CHANGELOG.md
+
+# Secrets — never commit credentials
 secrets.json
 .env
 .env.db
-.env.edge
 
-# Flutter build output
-/.dart_tool/
-/.flutter-plugins
-/.flutter-plugins-dependencies
-/build/
-*.iml
-.metadata
+# Node / build output
+node_modules/
+dist/
+coverage/
 
-# The apps/ monorepo layout (apps/web + apps/api) is developed on the
-# selfhost branch. Ignore it here so switching branches can't accidentally
-# stage the new tree; drop this rule when that branch is merged into main.
-/apps/
-
-# Build output & dependencies (any depth)
-**/node_modules/
-**/dist/
-**/.dart_tool/
-**/build/
-**/.flutter-plugins-dependencies
-**/.metadata
+# Playwright
+e2e/test-results/
+e2e/playwright-report/
+e2e/.playwright/
 
 # IDE
 .idea/
@@ -34,28 +28,9 @@ secrets.json
 # Mac
 .DS_Store
 
-# Android
-**/android/.gradle/
-**/android/app/src/main/assets/
-**/android/local.properties
-**/android/*.jks
-**/android/key.properties
-
-# iOS
-**/ios/Flutter/Generated.xcconfig
-**/ios/Flutter/ephemeral/
-**/ios/Flutter/ephemeral2/
-**/ios/Flutter/Flutter.podspec
-**/ios/Flutter/flutter_export_environment.sh
-**/ios/Runner/GeneratedPluginRegistrant.*
-**/ios/Pods/
-**/*.xcworkspace/
-
-# Coverage
-coverage/
+# Logs
+*.log
 
 # Database backups
 chronowarden_backup_*.tar
 chronowarden_backup_*.tar.gz
-# Flutter crash logs
-flutter_*.log
