@@ -361,19 +361,17 @@ Set `CORS_ORIGIN` on the API only if you bypass the Vite proxy.
 | **Branch** | `main` |
 | **Front door** | the `proxy` container on `${WEB_PORT}` (host HAProxy does TLS) |
 
-### Environments (during the self-hosting migration)
+### Environments
 
-| Environment | URL | Port | Host path | Branch |
+| Environment | URL | Port | Host path | Notes |
 |---|---|---|---|---|
-| Production | https://chronowarden.slumpen.com | 8981 | `/opt/appdata/chronowarden` | `main` |
-| Beta (React client) | https://chronowarden-beta.slumpen.com | 8982 | `/opt/appdata/chronowarden-beta` | `feat/ui-rewrite` |
-| Old (frozen Flutter instance) | https://chronowarden-old.slumpen.com | 8983 | `/opt/appdata/chronowarden-old` | `feat/selfhost` |
+| Production | https://chronowarden.slumpen.com | 8981 | `/opt/appdata/chronowarden` | React client + self-hosted API, `main` |
+| Legacy archive | https://chronowarden-old.slumpen.com | 8983 | `/opt/appdata/chronowarden-old` | Flutter + Supabase snapshot (not running) |
 
-All three sit behind HAProxy and each has its own Compose project (derived from
-the directory name, so containers/networks never collide). `chronowarden-old` is
-a frozen copy of the self-hosted instance **with the real data** (a rollback
-reference); `chronowarden-beta` runs the React client against an identical copy
-of that data. Beta becomes production at cutover.
+Production runs the React client from `main`. The previous Flutter + Supabase
+production is preserved as the annotated tag `legacy-flutter-supabase` (and
+archived at `/opt/appdata/chronowarden-old`). Only port 8981 is served; HAProxy
+points `chronowarden.slumpen.com` at it.
 
 ### Step 1 — commit and push
 

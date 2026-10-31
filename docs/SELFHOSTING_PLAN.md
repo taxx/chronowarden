@@ -1,6 +1,6 @@
 # ChronoWarden — Self-Hosting Migration Plan
 
-> Status: **implemented** on the `feat/selfhost` branch. The stack now runs as a
+> Status: **implemented** on `main` (originally the `feat/selfhost` branch). The stack runs as a
 > self-hosted Docker Compose deployment with **no Supabase dependency**. This
 > document is kept as the design record; see `AGENTS.md` and `README.md` for the
 > current architecture, and `AUTH.md` for the auth model.

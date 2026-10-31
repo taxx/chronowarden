@@ -1,8 +1,9 @@
 # UI Gap Analysis — Flutter → React parity
 
 Comparison of the retired Flutter client (`/opt/appdata/chronowarden-old`, branch
-`feat/selfhost`) against the React client (`apps/web`). The Flutter source used
-for this analysis is recoverable with `git archive feat/selfhost apps/web`.
+the `legacy-flutter-supabase` tag) against the React client (`apps/web`). The
+Flutter source is recoverable via `git archive legacy-flutter-supabase` (the
+pre-cutover `main`).
 
 Status legend: ✅ done · 🟡 partial · ⬜ open.
 
