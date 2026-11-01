@@ -18,6 +18,20 @@ await migrate(sql);
 const webRoot = join(import.meta.dirname, '..', 'apps', 'web', 'dist');
 const port = Number(process.env['E2E_PORT'] ?? '8098');
 
+/** Same security headers the production proxy sets, so the CSP is exercised. */
+const SECURITY_HEADERS: Record<string, string> = {
+  'Strict-Transport-Security': 'max-age=31536000; includeSubDomains',
+  'X-Content-Type-Options': 'nosniff',
+  'Referrer-Policy': 'strict-origin-when-cross-origin',
+  'X-Frame-Options': 'DENY',
+  'Permissions-Policy': 'camera=(), microphone=(), geolocation=()',
+  'Content-Security-Policy':
+    "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; " +
+    "img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self'; " +
+    "object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'; " +
+    "worker-src 'self' blob:; manifest-src 'self'",
+};
+
 const server = Bun.serve({
   port,
   hostname: '127.0.0.1',
@@ -28,7 +42,7 @@ const server = Bun.serve({
     const path = url.pathname === '/' ? '/index.html' : url.pathname;
     let file = Bun.file(join(webRoot, path));
     if (!(await file.exists())) file = Bun.file(join(webRoot, 'index.html')); // SPA fallback
-    return new Response(file);
+    return new Response(file, { headers: SECURITY_HEADERS });
   },
 });
 

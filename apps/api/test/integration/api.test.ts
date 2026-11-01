@@ -687,3 +687,172 @@ describe('backup pipeline', () => {
     }
   });
 });
+
+describe('security hardening', () => {
+  test('a rejected account loses access immediately and its sessions are revoked', async () => {
+    const user = await makeUser('reject-me@example.com');
+    expect((await call('GET', '/api/v1/me', { token: user.token })).status).toBe(200);
+
+    const patch = await call('PATCH', `/api/v1/admin/users/${user.id}`, {
+      token: adminToken,
+      body: { status: 'rejected' },
+    });
+    expect(patch.status).toBe(200);
+
+    // The already-issued session must stop working right away.
+    expect((await call('GET', '/api/v1/me', { token: user.token })).status).toBe(401);
+    const sessions = await sql`select count(*)::int as n from sessions where user_id = ${user.id}`;
+    expect(sessions[0].n).toBe(0);
+
+    const login = await call<{ error: { code: string } }>('POST', '/api/v1/auth/login', {
+      body: { email: 'reject-me@example.com', password: PASSWORD },
+    });
+    expect(login.status).toBe(400);
+    expect(login.body.error.code).toBe('ACCOUNT_DISABLED');
+  });
+
+  test('changing a password revokes every other session but keeps the current one', async () => {
+    const user = await makeUser('pw-rotate@example.com');
+    const second = await call<{ token: string }>('POST', '/api/v1/auth/login', {
+      body: { email: 'pw-rotate@example.com', password: PASSWORD },
+    });
+    const otherToken = second.body.token;
+
+    const change = await call('PATCH', '/api/v1/me/password', {
+      token: otherToken,
+      body: { currentPassword: PASSWORD, newPassword: 'brand-new-password' },
+    });
+    expect(change.status).toBe(200);
+
+    expect((await call('GET', '/api/v1/me', { token: otherToken })).status).toBe(200);
+    expect((await call('GET', '/api/v1/me', { token: user.token })).status).toBe(401);
+  });
+
+  test('sessions older than the absolute TTL are rejected', async () => {
+    const user = await makeUser('old-session@example.com');
+    const stale = generateToken();
+    await sql`
+      insert into sessions (token_hash, user_id, expires_at, created_at, last_seen_at)
+      values (
+        ${hashToken(stale)}, ${user.id},
+        now() + interval '30 days', now() - interval '120 days', now()
+      )
+    `;
+    expect((await call('GET', '/api/v1/me', { token: stale })).status).toBe(401);
+  });
+
+  test('rejects a mutation from a foreign Origin', async () => {
+    const res = await app.request('/api/v1/time-logs', {
+      method: 'POST',
+      headers: {
+        authorization: `Bearer ${adminToken}`,
+        'content-type': 'application/json',
+        origin: 'https://evil.example',
+      },
+      body: JSON.stringify({ date: '2026-01-01', encrypted_data: 'x' }),
+    });
+    expect(res.status).toBe(403);
+  });
+
+  test('allows a same-host mutation from a different port (dev proxy)', async () => {
+    const res = await app.request('/api/v1/time-logs', {
+      method: 'POST',
+      headers: {
+        authorization: `Bearer ${adminToken}`,
+        'content-type': 'application/json',
+        origin: 'http://localhost:5173',
+      },
+      body: JSON.stringify({ date: '2026-01-03', encrypted_data: 'dev-ok' }),
+    });
+    expect(res.status).toBe(201);
+  });
+
+  test('sets baseline security headers on API responses', async () => {
+    const res = await app.request('/api/health');
+    expect(res.headers.get('x-content-type-options')).toBe('nosniff');
+    expect(res.headers.get('x-frame-options')).toBe('DENY');
+    expect(res.headers.get('strict-transport-security') ?? '').toContain('max-age');
+    expect(res.headers.get('referrer-policy')).toBe('no-referrer');
+  });
+
+  test('rejects oversized ciphertext, malformed dates and weak KDF parameters', async () => {
+    const tooLong = await call('POST', '/api/v1/time-logs', {
+      token: adminToken,
+      body: { date: '2026-01-02', encrypted_data: 'x'.repeat(512_001) },
+    });
+    expect(tooLong.status).toBe(400);
+
+    const badDate = await call('POST', '/api/v1/time-logs', {
+      token: adminToken,
+      body: { date: '2026-13-40', encrypted_data: 'x' },
+    });
+    expect(badDate.status).toBe(400);
+
+    const weakKdf = await call('PATCH', '/api/v1/settings', {
+      token: adminToken,
+      body: { kek_iterations: 1 },
+    });
+    expect(weakKdf.status).toBe(400);
+  });
+
+  test('rejects a backup bundle with too many rows', async () => {
+    const logs = Array.from({ length: 5_001 }, () => ({
+      date: '2020-01-01',
+      encrypted_data: 'x',
+    }));
+    const res = await call<{ error: { code: string } }>('POST', '/api/v1/import', {
+      token: adminToken,
+      body: { format: 'chronowarden-backup', version: 1, time_logs: logs },
+    });
+    expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe('BUNDLE_TOO_LARGE');
+  });
+
+  test('cannot demote or disable the last approved administrator', async () => {
+    const demote = await call<{ error: { code: string } }>('PATCH', `/api/v1/admin/users/${adminId}`, {
+      token: adminToken,
+      body: { role: 'user' },
+    });
+    expect(demote.status).toBe(409);
+    expect(demote.body.error.code).toBe('LAST_ADMIN');
+
+    const reject = await call('PATCH', `/api/v1/admin/users/${adminId}`, {
+      token: adminToken,
+      body: { status: 'rejected' },
+    });
+    expect(reject.status).toBe(409);
+  });
+
+  test('rate limits invite validation from a single client', async () => {
+    const ip = '203.0.113.55';
+    let lastStatus = 0;
+    for (let i = 0; i < 61; i++) {
+      const res = await app.request('/api/v1/invites/validate', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', 'x-forwarded-for': ip },
+        body: JSON.stringify({ token: 'definitely-not-a-real-token' }),
+      });
+      lastStatus = res.status;
+      if (res.status === 429) break;
+    }
+    expect(lastStatus).toBe(429);
+  });
+
+  test('throttles repeated failed sign-ins for one account', async () => {
+    const email = 'lockout-target@example.com';
+    const ip = '203.0.113.77';
+    let sawRateLimit = false;
+    for (let i = 0; i < 13; i++) {
+      const res = await app.request('/api/v1/auth/login', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', 'x-forwarded-for': ip },
+        body: JSON.stringify({ email, password: 'wrong-password' }),
+      });
+      if (res.status === 429) {
+        sawRateLimit = true;
+        break;
+      }
+    }
+    expect(sawRateLimit).toBe(true);
+  });
+});

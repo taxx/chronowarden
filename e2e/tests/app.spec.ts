@@ -22,6 +22,22 @@ test.describe.serial('ChronoWarden web', () => {
     await expect(page.getByRole('link', { name: 'My Day' })).toBeVisible();
   }
 
+  test('loads under the Content-Security-Policy with no violations', async ({ page }) => {
+    const violations: string[] = [];
+    page.on('console', (message) => {
+      if (message.type() === 'error' && /Content Security Policy/i.test(message.text())) {
+        violations.push(message.text());
+      }
+    });
+
+    const response = await page.goto('/');
+    expect(response?.headers()['content-security-policy'] ?? '').toContain("default-src 'self'");
+    await expect(page.getByRole('heading', { name: 'First-time setup' })).toBeVisible();
+    // Let the app settle so any deferred CSP errors surface.
+    await page.waitForTimeout(500);
+    expect(violations).toEqual([]);
+  });
+
   test('first run: setup creates the admin and shows the recovery phrase', async ({ page }) => {
     await page.goto('/');
     await expect(page.getByRole('heading', { name: 'First-time setup' })).toBeVisible();

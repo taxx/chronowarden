@@ -218,7 +218,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       if (!settings?.encrypted_dek || !settings.kek_salt) {
         throw new Error('No encryption envelope found');
       }
-      const kek = await deriveMasterKey(passphrase, base64ToBytes(settings.kek_salt));
+      const kek = await deriveMasterKey(
+        passphrase,
+        base64ToBytes(settings.kek_salt),
+        settings.kek_iterations ?? KEK_ITERATIONS,
+      );
       const dek = await unwrapDek(settings.encrypted_dek, kek);
       cacheDek(dek);
       // Migrate the stored recovery hash to the official BIP39 phrase.

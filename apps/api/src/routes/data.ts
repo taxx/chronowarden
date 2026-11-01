@@ -4,6 +4,17 @@ import { requireAuth } from '../auth.ts';
 import { sql } from '../db.ts';
 import { publish } from '../events.ts';
 import { ApiError } from '../errors.ts';
+import {
+  MAX_ENCRYPTED,
+  MAX_ENVELOPE_FIELD,
+  MAX_KEK_ITERATIONS,
+  MAX_NAME,
+  MIN_KEK_ITERATIONS,
+  optionalInteger,
+  optionalText,
+  requireDate,
+  requireString,
+} from '../validation.ts';
 
 export const dataRoutes = new Hono<AppEnv>();
 
@@ -13,17 +24,8 @@ export const dataRoutes = new Hono<AppEnv>();
 const LOG_COLUMNS = "id, user_id, date::text as date, encrypted_data, created_at";
 const PRESET_COLUMNS = 'id, user_id, name, encrypted_data, created_at';
 
-async function json(c: { req: { json: () => Promise<unknown> } }): Promise<Record<string, any>> {
-  try {
-    return (await c.req.json()) as Record<string, any>;
-  } catch {
-    return {};
-  }
-}
-
-function requireString(value: unknown, field: string): string {
-  if (typeof value !== 'string') throw ApiError.badRequest('INVALID_BODY', `${field} is required`);
-  return value;
+function json(c: { req: { json: () => Promise<unknown> } }): Promise<Record<string, any>> {
+  return c.req.json().catch(() => ({})) as Promise<Record<string, any>>;
 }
 
 // ---------------------------------------------------------------------------
@@ -61,8 +63,8 @@ dataRoutes.get('/time-logs/:id', requireAuth, async (c) => {
 dataRoutes.post('/time-logs', requireAuth, async (c) => {
   const userId = c.get('user').id;
   const input = await json(c);
-  const date = requireString(input.date, 'date');
-  const encrypted = requireString(input.encrypted_data, 'encrypted_data');
+  const date = requireDate(input.date);
+  const encrypted = requireString(input.encrypted_data, 'encrypted_data', MAX_ENCRYPTED);
 
   const rows = await sql`
     insert into time_logs (user_id, date, encrypted_data)
@@ -78,7 +80,7 @@ dataRoutes.patch('/time-logs/:id', requireAuth, async (c) => {
   const userId = c.get('user').id;
   const id = c.req.param('id');
   const input = await json(c);
-  const encrypted = requireString(input.encrypted_data, 'encrypted_data');
+  const encrypted = requireString(input.encrypted_data, 'encrypted_data', MAX_ENCRYPTED);
 
   const rows = await sql`
     update time_logs set encrypted_data = ${encrypted}
@@ -129,8 +131,8 @@ dataRoutes.get('/travel-presets/:id', requireAuth, async (c) => {
 dataRoutes.post('/travel-presets', requireAuth, async (c) => {
   const userId = c.get('user').id;
   const input = await json(c);
-  const name = requireString(input.name, 'name');
-  const encrypted = requireString(input.encrypted_data, 'encrypted_data');
+  const name = requireString(input.name, 'name', MAX_NAME);
+  const encrypted = requireString(input.encrypted_data, 'encrypted_data', MAX_ENCRYPTED);
 
   const rows = await sql`
     insert into travel_presets (user_id, name, encrypted_data)
@@ -146,8 +148,8 @@ dataRoutes.patch('/travel-presets/:id', requireAuth, async (c) => {
   const userId = c.get('user').id;
   const id = c.req.param('id');
   const input = await json(c);
-  const name = typeof input.name === 'string' ? input.name : null;
-  const encrypted = requireString(input.encrypted_data, 'encrypted_data');
+  const name = input.name === undefined ? null : requireString(input.name, 'name', MAX_NAME);
+  const encrypted = requireString(input.encrypted_data, 'encrypted_data', MAX_ENCRYPTED);
 
   const rows = await sql`
     update travel_presets set
@@ -188,11 +190,25 @@ dataRoutes.patch('/settings', requireAuth, async (c) => {
   const userId = c.get('user').id;
   const input = await json(c);
 
-  const encryptedData = typeof input.encrypted_data === 'string' ? input.encrypted_data : null;
-  const encryptedDek = typeof input.encrypted_dek === 'string' ? input.encrypted_dek : null;
-  const kekSalt = typeof input.kek_salt === 'string' ? input.kek_salt : null;
-  const kekIterations = typeof input.kek_iterations === 'number' ? input.kek_iterations : null;
-  const recoveryHash = typeof input.recovery_hash === 'string' ? input.recovery_hash : null;
+  const encryptedData =
+    input.encrypted_data === undefined || input.encrypted_data === null
+      ? null
+      : requireString(input.encrypted_data, 'encrypted_data', MAX_ENCRYPTED);
+  const encryptedDek =
+    input.encrypted_dek === undefined || input.encrypted_dek === null
+      ? null
+      : requireString(input.encrypted_dek, 'encrypted_dek', MAX_ENVELOPE_FIELD);
+  const kekSalt =
+    input.kek_salt === undefined || input.kek_salt === null
+      ? null
+      : requireString(input.kek_salt, 'kek_salt', MAX_ENVELOPE_FIELD);
+  const kekIterations = optionalInteger(
+    input.kek_iterations,
+    'kek_iterations',
+    MIN_KEK_ITERATIONS,
+    MAX_KEK_ITERATIONS,
+  );
+  const recoveryHash = optionalText(input.recovery_hash, 'recovery_hash', MAX_ENVELOPE_FIELD);
 
   const rows = await sql`
     insert into user_settings (

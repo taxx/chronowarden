@@ -20,9 +20,19 @@ const PASSWORD_ALPHABET = 'abcdefghijkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456
 /**
  * A human-copyable temporary password for admin-assisted resets
  * (always longer than the 10-character minimum).
+ *
+ * Uses rejection sampling so every character is uniformly distributed.
  */
 export function generateTemporaryPassword(length = 14): string {
-  const buffer = new Uint8Array(length);
-  crypto.getRandomValues(buffer);
-  return Array.from(buffer, (b) => PASSWORD_ALPHABET[b % PASSWORD_ALPHABET.length]).join('');
+  const chars: string[] = [];
+  const limit = 256 - (256 % PASSWORD_ALPHABET.length);
+  while (chars.length < length) {
+    const buffer = new Uint8Array(Math.max(16, length - chars.length));
+    crypto.getRandomValues(buffer);
+    for (const byte of buffer) {
+      if (chars.length === length) break;
+      if (byte < limit) chars.push(PASSWORD_ALPHABET[byte % PASSWORD_ALPHABET.length]!);
+    }
+  }
+  return chars.join('');
 }

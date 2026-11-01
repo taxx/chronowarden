@@ -5,6 +5,7 @@ import { sql } from '../db.ts';
 import { ApiError } from '../errors.ts';
 import { generateTemporaryPassword, generateToken, hashToken } from '../tokens.ts';
 import { hashPassword } from '../password.ts';
+import { MAX_NAME, normalizeEmail, optionalText } from '../validation.ts';
 
 export const adminRoutes = new Hono<AppEnv>();
 
@@ -23,13 +24,34 @@ adminRoutes.patch('/admin/users/:id', requireAdmin, async (c) => {
 
   const status = input.status as string | undefined;
   const role = input.role as string | undefined;
-  const fullName = input.fullName as string | undefined;
+  const fullName = input.fullName === undefined ? undefined : optionalText(input.fullName, 'fullName', MAX_NAME);
 
   if (status !== undefined && !['pending', 'approved', 'rejected'].includes(status)) {
     throw ApiError.badRequest('INVALID_STATUS', 'Unknown status value');
   }
   if (role !== undefined && !['admin', 'user'].includes(role)) {
     throw ApiError.badRequest('INVALID_ROLE', 'Unknown role value');
+  }
+
+  const targetRows = await sql<{ id: string; role: string; status: string }[]>`
+    select id, role, status from users where id = ${id}
+  `;
+  const target = targetRows[0];
+  if (!target) throw ApiError.notFound('User not found');
+
+  // Never remove the last approved administrator (including by demoting or
+  // disabling oneself) — that would lock everyone out of administration.
+  const nextRole = role ?? target.role;
+  const nextStatus = status ?? target.status;
+  const losesAdmin = target.role === 'admin' && target.status === 'approved' && (nextRole !== 'admin' || nextStatus !== 'approved');
+  if (losesAdmin) {
+    const others = await sql<{ n: number }[]>`
+      select count(*)::int as n from users
+      where role = 'admin' and status = 'approved' and id <> ${id}
+    `;
+    if ((others[0]?.n ?? 0) === 0) {
+      throw ApiError.conflict('LAST_ADMIN', 'At least one approved administrator must remain');
+    }
   }
 
   const rows = await sql`
@@ -42,6 +64,12 @@ adminRoutes.patch('/admin/users/:id', requireAdmin, async (c) => {
     returning ${sql.unsafe(USER_COLUMNS)}
   `;
   if (rows.length === 0) throw ApiError.notFound('User not found');
+
+  // A non-approved account must take effect immediately, not when its session
+  // happens to expire.
+  if (rows[0]!.status !== 'approved') {
+    await sql`delete from sessions where user_id = ${id}`;
+  }
   return c.json(rows[0]);
 });
 
@@ -85,8 +113,7 @@ adminRoutes.get('/admin/invites', requireAdmin, async (c) => {
 /** Creates (or refreshes) an invitation and returns the raw token exactly once. */
 adminRoutes.post('/admin/invites', requireAdmin, async (c) => {
   const input = (await c.req.json().catch(() => ({}))) as Record<string, any>;
-  const email = typeof input.email === 'string' ? input.email.trim().toLowerCase() : '';
-  if (!email) throw ApiError.badRequest('INVALID_EMAIL', 'An email address is required');
+  const email = normalizeEmail(input.email);
 
   const role = input.role === 'admin' ? 'admin' : 'user';
   const ttlDays = Math.min(Math.max(Number(input.ttlDays) || 14, 1), 90);

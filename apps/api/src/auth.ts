@@ -56,17 +56,26 @@ export async function authenticateToken(token: string | null): Promise<AuthUser 
     select u.id, u.email, u.role, u.status, u.full_name, u.created_at
     from sessions s
     join users u on u.id = s.user_id
-    where s.token_hash = ${tokenHash} and s.expires_at > now()
+    where s.token_hash = ${tokenHash}
+      and s.expires_at > now()
+      and s.created_at > now() - make_interval(days => ${config.sessionAbsoluteTtlDays})
     limit 1
   `;
   const user = rows[0];
   if (!user) return null;
 
+  // A disabled or not-yet-approved account must not keep working through an
+  // already-issued session. Treat it as unauthenticated everywhere.
+  if (user.status !== 'approved') return null;
+
+  // Sliding expiry is refreshed at most once an hour to avoid writing to
+  // `sessions` on every single request (write amplification).
   const expiresAt = new Date(Date.now() + config.sessionTtlDays * 86_400_000);
   await sql`
     update sessions
     set last_seen_at = now(), expires_at = ${expiresAt}
     where token_hash = ${tokenHash}
+      and last_seen_at < now() - interval '1 hour'
   `;
   return user;
 }

@@ -2,7 +2,9 @@
 FROM node:26-alpine AS build
 WORKDIR /app
 
-# Node 26 LTS (see .nvmrc). Dependencies first for layer caching.
+# Node 26 LTS, at least 26.13.0 (see .nvmrc). The floating `26-alpine` tag
+# tracks the latest security patch in that line. Dependencies first for layer
+# caching.
 COPY package.json package-lock.json ./
 RUN npm ci
 

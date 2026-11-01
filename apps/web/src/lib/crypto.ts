@@ -78,7 +78,11 @@ export function generateDek(): Uint8Array {
 }
 
 /** Derive the 256-bit Master Key (KEK) from a passphrase + salt. */
-export async function deriveMasterKey(passphrase: string, salt: Uint8Array): Promise<CryptoKey> {
+export async function deriveMasterKey(
+  passphrase: string,
+  salt: Uint8Array,
+  iterations: number = KEK_ITERATIONS,
+): Promise<CryptoKey> {
   const baseKey = await subtle.importKey(
     'raw',
     toSource(encoder.encode(passphrase)),
@@ -87,7 +91,7 @@ export async function deriveMasterKey(passphrase: string, salt: Uint8Array): Pro
     ['deriveKey'],
   );
   return subtle.deriveKey(
-    { name: 'PBKDF2', salt: toSource(salt), iterations: KEK_ITERATIONS, hash: 'SHA-256' },
+    { name: 'PBKDF2', salt: toSource(salt), iterations, hash: 'SHA-256' },
     baseKey,
     { name: 'AES-GCM', length: 256 },
     false,

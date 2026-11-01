@@ -3,12 +3,26 @@ import type { AppEnv } from '../auth.ts';
 import { requireAuth } from '../auth.ts';
 import { sql } from '../db.ts';
 import { ApiError } from '../errors.ts';
+import {
+  MAX_ENCRYPTED,
+  MAX_ENVELOPE_FIELD,
+  MAX_KEK_ITERATIONS,
+  MAX_NAME,
+  MIN_KEK_ITERATIONS,
+  optionalInteger,
+  optionalText,
+  requireDate,
+  requireString,
+} from '../validation.ts';
 
 export const backupRoutes = new Hono<AppEnv>();
 
 
 const FORMAT = 'chronowarden-backup';
 const VERSION = 1;
+/** Hard cap on rows restored in one bundle (the request body is also capped). */
+const MAX_IMPORT_ROWS = 5_000;
+const IMPORT_CHUNK_SIZE = 500;
 
 /**
  * Full portable backup for the authenticated user.
@@ -64,8 +78,42 @@ backupRoutes.post('/import', requireAuth, async (c) => {
   }
 
   const envelope = bundle.envelope ?? {};
+  if (!Array.isArray(bundle.time_logs) && bundle.time_logs !== undefined) {
+    throw ApiError.badRequest('INVALID_BUNDLE', 'time_logs must be an array');
+  }
+  if (!Array.isArray(bundle.travel_presets) && bundle.travel_presets !== undefined) {
+    throw ApiError.badRequest('INVALID_BUNDLE', 'travel_presets must be an array');
+  }
   const logs = Array.isArray(bundle.time_logs) ? bundle.time_logs : [];
   const presets = Array.isArray(bundle.travel_presets) ? bundle.travel_presets : [];
+  if (logs.length > MAX_IMPORT_ROWS || presets.length > MAX_IMPORT_ROWS) {
+    throw ApiError.badRequest('BUNDLE_TOO_LARGE', `A backup may contain at most ${MAX_IMPORT_ROWS} rows per table`);
+  }
+
+  const settingsEncrypted = requireString(
+    bundle.settings?.encrypted_data ?? '',
+    'settings.encrypted_data',
+    MAX_ENCRYPTED,
+  );
+  const encryptedDek = requireString(envelope.encrypted_dek ?? '', 'envelope.encrypted_dek', MAX_ENVELOPE_FIELD);
+  const kekSalt = requireString(envelope.kek_salt ?? '', 'envelope.kek_salt', MAX_ENVELOPE_FIELD);
+  const kekIterations =
+    optionalInteger(envelope.kek_iterations, 'envelope.kek_iterations', MIN_KEK_ITERATIONS, MAX_KEK_ITERATIONS) ??
+    310_000;
+  const recoveryHash = optionalText(envelope.recovery_hash, 'envelope.recovery_hash', MAX_ENVELOPE_FIELD);
+
+  // Validate every row before writing anything, so a malformed bundle cannot
+  // partially replace the account's data.
+  const logRows = logs.map((log: any, index: number) => ({
+    user_id: userId,
+    date: requireDate(log?.date ?? undefined),
+    encrypted_data: requireString(log?.encrypted_data, `time_logs[${index}].encrypted_data`, MAX_ENCRYPTED),
+  }));
+  const presetRows = presets.map((preset: any, index: number) => ({
+    user_id: userId,
+    name: requireString(preset?.name, `travel_presets[${index}].name`, MAX_NAME),
+    encrypted_data: requireString(preset?.encrypted_data, `travel_presets[${index}].encrypted_data`, MAX_ENCRYPTED),
+  }));
 
   await sql.begin(async (tx) => {
     await tx`
@@ -73,11 +121,11 @@ backupRoutes.post('/import', requireAuth, async (c) => {
         user_id, encrypted_data, encrypted_dek, kek_salt, kek_iterations, recovery_hash
       ) values (
         ${userId},
-        ${String(bundle.settings?.encrypted_data ?? '')},
-        ${String(envelope.encrypted_dek ?? '')},
-        ${String(envelope.kek_salt ?? '')},
-        ${Number(envelope.kek_iterations) || 310000},
-        ${envelope.recovery_hash ? String(envelope.recovery_hash) : null}
+        ${settingsEncrypted},
+        ${encryptedDek},
+        ${kekSalt},
+        ${kekIterations},
+        ${recoveryHash}
       )
       on conflict (user_id) do update set
         encrypted_data = excluded.encrypted_data,
@@ -89,21 +137,15 @@ backupRoutes.post('/import', requireAuth, async (c) => {
     `;
 
     await tx`delete from time_logs where user_id = ${userId}`;
-    for (const log of logs) {
-      if (!log?.date || typeof log.encrypted_data !== 'string') continue;
-      await tx`
-        insert into time_logs (user_id, date, encrypted_data)
-        values (${userId}, ${String(log.date)}, ${log.encrypted_data})
-      `;
+    for (let i = 0; i < logRows.length; i += IMPORT_CHUNK_SIZE) {
+      const chunk = logRows.slice(i, i + IMPORT_CHUNK_SIZE);
+      await tx`insert into time_logs ${tx(chunk, 'user_id', 'date', 'encrypted_data')}`;
     }
 
     await tx`delete from travel_presets where user_id = ${userId}`;
-    for (const preset of presets) {
-      if (!preset?.name || typeof preset.encrypted_data !== 'string') continue;
-      await tx`
-        insert into travel_presets (user_id, name, encrypted_data)
-        values (${userId}, ${String(preset.name)}, ${preset.encrypted_data})
-      `;
+    for (let i = 0; i < presetRows.length; i += IMPORT_CHUNK_SIZE) {
+      const chunk = presetRows.slice(i, i + IMPORT_CHUNK_SIZE);
+      await tx`insert into travel_presets ${tx(chunk, 'user_id', 'name', 'encrypted_data')}`;
     }
   });
 

@@ -28,8 +28,22 @@ export interface SlimmedJourney {
 
 const BASE_URL = 'https://journeyplanner.integration.sl.se';
 const CACHE_TTL_MS = 30_000;
+/** Hard cap so a client sending many distinct query paths cannot grow memory. */
+const MAX_CACHE_ENTRIES = 500;
+const UPSTREAM_TIMEOUT_MS = 10_000;
 
 const cache = new Map<string, { at: number; body: string }>();
+
+/** Store in the insertion-ordered Map, evicting the oldest entry when full. */
+function cacheSet(path: string, body: string): void {
+  cache.delete(path);
+  cache.set(path, { at: Date.now(), body });
+  while (cache.size > MAX_CACHE_ENTRIES) {
+    const oldest = cache.keys().next().value;
+    if (oldest === undefined) break;
+    cache.delete(oldest);
+  }
+}
 
 /** Fetches an SL path, returning the (slimmed, for /v2/trips) JSON text. */
 export async function fetchSl(path: string, apiKey?: string): Promise<string> {
@@ -42,11 +56,23 @@ export async function fetchSl(path: string, apiKey?: string): Promise<string> {
   };
   if (apiKey) headers['X-Api-Key'] = apiKey;
 
-  const response = await fetch(`${BASE_URL}${path}`, { method: 'GET', headers });
+  let response: Response;
+  try {
+    response = await fetch(`${BASE_URL}${path}`, {
+      method: 'GET',
+      headers,
+      signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS),
+    });
+  } catch (error) {
+    const timedOut = (error as Error).name === 'TimeoutError' || (error as Error).name === 'AbortError';
+    const wrapped = new Error(timedOut ? 'Journey Planner request timed out' : 'Journey Planner is unreachable');
+    (wrapped as Error & { status?: number }).status = 504;
+    throw wrapped;
+  }
   const body = await response.text();
 
   if (!response.ok) {
-    const error = new Error(`SL API returned ${response.status}: ${body.slice(0, 500)}`);
+    const error = new Error(`SL API returned ${response.status}: ${body.slice(0, 200)}`);
     (error as Error & { status?: number }).status = response.status;
     throw error;
   }
@@ -60,7 +86,7 @@ export async function fetchSl(path: string, apiKey?: string): Promise<string> {
     }
   }
 
-  cache.set(path, { at: Date.now(), body: result });
+  cacheSet(path, result);
   return result;
 }
 
