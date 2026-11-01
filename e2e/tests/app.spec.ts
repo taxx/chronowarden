@@ -93,6 +93,19 @@ test.describe.serial('ChronoWarden web', () => {
     await expect.poll(() => page.locator('tbody tr').count()).toBeGreaterThan(rowsBefore);
   });
 
+  test('shows validation errors from the zod resolver', async ({ page }) => {
+    await page.goto('/');
+    await signIn(page);
+
+    await page.getByRole('link', { name: 'Settings' }).click();
+    await page.getByLabel('New passphrase').fill('a-long-enough-passphrase');
+    await page.getByLabel('Confirm passphrase').fill('a-different-passphrase');
+    await page.getByRole('button', { name: 'Change passphrase' }).click();
+
+    // The `.refine(..., { path: ['confirm'] })` error must map to the field.
+    await expect(page.getByText('Passphrases do not match')).toBeVisible();
+  });
+
   test('downloads a backup from Settings', async ({ page }) => {
     await page.goto('/');
     await signIn(page);

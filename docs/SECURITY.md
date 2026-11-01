@@ -88,9 +88,10 @@ metadata it cannot unwrap. See [`ENCRYPTION.md`](ENCRYPTION.md).
 
 ## Follow-ups / known gaps
 
-- **Dependency advisories**: `zod` (< 4.6.6) has a client-side memory
-  exhaustion advisory; upgrading to zod 4 is a larger change. Dev-only
-  toolchain advisories (vitest/vite-plugin-pwa/esbuild) track upstream fixes.
+- **Dependency advisories**: production dependencies are clean (`npm audit
+  --omit=dev` reports none). Remaining advisories are dev-only toolchain
+  packages (vitest / vite-plugin-pwa / esbuild) and track upstream fixes; a
+  major dev-toolchain upgrade is deferred.
 - **Backups at rest** are unencrypted (`pg_dump` + gzip). They contain emails,
   Argon2 hashes and ciphertext. Restrict host permissions and consider
   encrypting archives.
