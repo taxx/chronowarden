@@ -388,8 +388,15 @@ The metadata is generated on the host **after** pulling, so the deployed
 `version.json`/`CHANGELOG.md` match the exact revision.
 
 ```bash
-ssh tobbe@192.168.1.50 "cd /opt/appdata/chronowarden/src && git pull && apps/web/tool/generate_metadata.sh && cd /opt/appdata/chronowarden && docker compose up --build -d"
+ssh tobbe@192.168.1.50 "cd /opt/appdata/chronowarden/src && git pull && apps/web/tool/generate_metadata.sh && cd /opt/appdata/chronowarden && docker compose up --build -d && docker compose up -d --force-recreate proxy"
 ```
+
+> **Bind-mounted config:** `docker/proxy/nginx.conf` is bind-mounted into the
+> `proxy` container. `git pull` replaces the file's inode, but a running
+> container keeps the old inode, so the `--force-recreate proxy` step is
+> required for nginx changes to take effect. (Validate with
+> `docker compose exec proxy nginx -t`; reload with
+> `docker compose exec proxy nginx -s reload` if the inode is unchanged.)
 
 ### Step 3 — verify
 
