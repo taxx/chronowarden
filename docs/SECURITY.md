@@ -89,9 +89,12 @@ metadata it cannot unwrap. See [`ENCRYPTION.md`](ENCRYPTION.md).
 ## Follow-ups / known gaps
 
 - **Dependency advisories**: production dependencies are clean (`npm audit
-  --omit=dev` reports none). Remaining advisories are dev-only toolchain
-  packages (vitest / vite-plugin-pwa / esbuild) and track upstream fixes; a
-  major dev-toolchain upgrade is deferred.
+  --omit=dev` reports none) and the API (`bun audit`) reports none. The web
+  toolchain is current on Vite 8 / Vitest 5 / plugin-react 6 / jsdom 30. The
+  remaining advisories are confined to the build-time
+  `vite-plugin-pwa` → `workbox-build` transitive chain (deepmerge, ejs, glob,
+  minimatch, etc.), which is not shipped in the bundle; clearing them would
+  require downgrading `vite-plugin-pwa`, so they are accepted for now.
 - **Backups at rest** are unencrypted (`pg_dump` + gzip). They contain emails,
   Argon2 hashes and ciphertext. Restrict host permissions and consider
   encrypting archives.

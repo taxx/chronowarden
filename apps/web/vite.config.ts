@@ -94,11 +94,16 @@ export default defineConfig({
     rollupOptions: {
       output: {
         // Keep the vendor bundles stable so the service worker cache is reused.
-        manualChunks: {
-          react: ['react', 'react-dom'],
-          router: ['@tanstack/react-router', '@tanstack/react-query'],
-          charts: ['recharts'],
-          crypto: ['@scure/bip39'],
+        // Rolldown (Vite 8) only supports the function form.
+        manualChunks(id: string) {
+          if (!id.includes('node_modules')) return undefined;
+          if (id.includes('/react-dom/') || id.includes('/react/') || id.includes('/scheduler/')) {
+            return 'react';
+          }
+          if (id.includes('/@tanstack/')) return 'router';
+          if (id.includes('/recharts/') || id.includes('/d3-')) return 'charts';
+          if (id.includes('/@scure/') || id.includes('/@noble/')) return 'crypto';
+          return undefined;
         },
       },
     },
