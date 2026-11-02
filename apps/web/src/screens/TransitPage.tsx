@@ -183,7 +183,7 @@ export function TransitPage() {
                 inputMode="numeric"
                 value={String(draft.walkHomeMinutes)}
                 onChange={(event) =>
-                  setDraft({ ...draft, walkHomeMinutes: Number(event.target.value) || 0 })
+                  setDraft({ ...draft, walkHomeMinutes: Math.max(0, Number(event.target.value) || 0) })
                 }
               />
             </Field>
@@ -194,7 +194,7 @@ export function TransitPage() {
                 inputMode="numeric"
                 value={String(draft.walkWorkMinutes)}
                 onChange={(event) =>
-                  setDraft({ ...draft, walkWorkMinutes: Number(event.target.value) || 0 })
+                  setDraft({ ...draft, walkWorkMinutes: Math.max(0, Number(event.target.value) || 0) })
                 }
               />
             </Field>

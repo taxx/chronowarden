@@ -12,8 +12,31 @@ const control =
   'w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground shadow-sm transition-colors ' +
   'placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 disabled:cursor-not-allowed disabled:opacity-50';
 
-export function Input({ className, ...props }: InputHTMLAttributes<HTMLInputElement>) {
-  return <input className={cn(control, 'h-10', className)} {...props} />;
+export function Input({
+  className,
+  type,
+  min,
+  inputMode,
+  onKeyDown,
+  ...props
+}: InputHTMLAttributes<HTMLInputElement>) {
+  const isNumber = type === 'number';
+  return (
+    <input
+      type={type}
+      min={isNumber ? (min ?? 0) : min}
+      inputMode={isNumber ? (inputMode ?? 'numeric') : inputMode}
+      onKeyDown={(event) => {
+        // Every number in the app is a non-negative amount of minutes.
+        if (isNumber && ['-', '+', 'e', 'E'].includes(event.key)) {
+          event.preventDefault();
+        }
+        onKeyDown?.(event);
+      }}
+      className={cn(control, 'h-10', className)}
+      {...props}
+    />
+  );
 }
 
 export function Textarea({ className, ...props }: TextareaHTMLAttributes<HTMLTextAreaElement>) {

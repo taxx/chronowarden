@@ -81,7 +81,7 @@ export function PreferencesCard() {
               inputMode="numeric"
               value={defaultFlex}
               onChange={(event) => setDefaultFlex(event.target.value)}
-              onBlur={() => patch({ defaultFlexMinutes: Number(defaultFlex) || 0 })}
+              onBlur={() => patch({ defaultFlexMinutes: Math.max(0, Number(defaultFlex) || 0) })}
             />
           </Field>
           <Field label={t('Default lunch minutes')} htmlFor="defaultLunch">
@@ -91,7 +91,7 @@ export function PreferencesCard() {
               inputMode="numeric"
               value={defaultLunch}
               onChange={(event) => setDefaultLunch(event.target.value)}
-              onBlur={() => patch({ defaultLunchMinutes: Number(defaultLunch) || 0 })}
+              onBlur={() => patch({ defaultLunchMinutes: Math.max(0, Number(defaultLunch) || 0) })}
             />
           </Field>
           <Field label={t('Slider step (min)')} htmlFor="sliderStep">
@@ -101,7 +101,7 @@ export function PreferencesCard() {
               inputMode="numeric"
               value={sliderStep}
               onChange={(event) => setSliderStep(event.target.value)}
-              onBlur={() => patch({ sliderStepMinutes: Number(sliderStep) || 5 })}
+              onBlur={() => patch({ sliderStepMinutes: Math.max(1, Number(sliderStep) || 5) })}
             />
           </Field>
         </div>

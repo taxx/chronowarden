@@ -441,7 +441,7 @@ export function MinutesDialog({
     >
       <div className="flex items-center gap-4">
         <Slider value={minutes} min={min} max={max} step={step} onChange={setMinutes} />
-        <span className="w-16 text-right font-semibold">{minutes} min</span>
+        <span className="w-20 shrink-0 whitespace-nowrap text-right font-semibold">{minutes} min</span>
       </div>
     </Modal>
   );

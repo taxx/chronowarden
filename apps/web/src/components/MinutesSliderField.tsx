@@ -35,7 +35,7 @@ export function MinutesSliderField<T extends FieldValues>({
           <FormItem className="sm:col-span-2">
             <div className="flex items-baseline justify-between gap-3">
               <FormLabel>{label}</FormLabel>
-              <span className="text-sm font-medium tabular-nums text-muted-foreground">
+              <span className="w-20 shrink-0 whitespace-nowrap text-right text-sm font-medium tabular-nums text-muted-foreground">
                 {formatDurationMinutes(value)}
               </span>
             </div>

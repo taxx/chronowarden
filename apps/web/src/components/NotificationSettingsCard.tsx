@@ -64,7 +64,7 @@ export function NotificationSettingsCard() {
               type="number"
               inputMode="numeric"
               value={String(threshold)}
-              onChange={(e) => setThreshold(Number(e.target.value) || 1)}
+              onChange={(e) => setThreshold(Math.max(1, Number(e.target.value) || 1))}
             />
           </Field>
           <Field label={t('Snooze (min)')} htmlFor="snooze">
@@ -73,7 +73,7 @@ export function NotificationSettingsCard() {
               type="number"
               inputMode="numeric"
               value={String(snooze)}
-              onChange={(e) => setSnooze(Number(e.target.value) || 1)}
+              onChange={(e) => setSnooze(Math.max(1, Number(e.target.value) || 1))}
             />
           </Field>
         </div>
