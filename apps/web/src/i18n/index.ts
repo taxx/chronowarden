@@ -22,6 +22,7 @@ const sv: Record<string, string> = {
   'Enter a number': 'Ange ett nummer',
   'Generated straight from the git history.': 'Genereras direkt från git-historiken.',
   Account: 'Konto',
+  Menu: 'Meny',
   'Choose a CSV file': 'Välj en CSV-fil',
   'Choose a backup file': 'Välj en backup-fil',
   'Default lunch minutes': 'Standardlunch (minuter)',

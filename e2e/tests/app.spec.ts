@@ -22,6 +22,11 @@ test.describe.serial('ChronoWarden web', () => {
     await expect(page.getByRole('link', { name: 'My Day' })).toBeVisible();
   }
 
+  /** Settings and Admin now live under the account menu. */
+  async function openAccountMenu(page: Page) {
+    await page.getByRole('button', { name: 'Account' }).click();
+  }
+
   test('loads under the Content-Security-Policy with no violations', async ({ page }) => {
     const violations: string[] = [];
     page.on('console', (message) => {
@@ -97,7 +102,8 @@ test.describe.serial('ChronoWarden web', () => {
     await page.goto('/');
     await signIn(page);
 
-    await page.getByRole('link', { name: 'Settings' }).click();
+    await openAccountMenu(page);
+    await page.getByRole('menuitem', { name: 'Settings' }).click();
     await page.getByLabel('New passphrase').fill('a-long-enough-passphrase');
     await page.getByLabel('Confirm passphrase').fill('a-different-passphrase');
     await page.getByRole('button', { name: 'Change passphrase' }).click();
@@ -110,7 +116,8 @@ test.describe.serial('ChronoWarden web', () => {
     await page.goto('/');
     await signIn(page);
 
-    await page.getByRole('link', { name: 'Settings' }).click();
+    await openAccountMenu(page);
+    await page.getByRole('menuitem', { name: 'Settings' }).click();
 
     const downloadPromise = page.waitForEvent('download');
     await page.getByRole('button', { name: 'Download backup' }).click();
@@ -133,7 +140,8 @@ test.describe.serial('ChronoWarden web', () => {
     await page.goto('/');
     await signIn(page);
 
-    await page.getByRole('link', { name: 'Admin' }).click();
+    await openAccountMenu(page);
+    await page.getByRole('menuitem', { name: 'Admin' }).click();
     await page.getByRole('tab', { name: 'Invites' }).click();
 
     await page.getByLabel('Email').fill('invitee@example.com');

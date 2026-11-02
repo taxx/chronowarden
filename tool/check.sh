@@ -60,7 +60,8 @@ fi
 
 if [ "$TARGET" = "e2e" ]; then
   step "E2E · Playwright (builds the client, starts a throwaway API + Postgres)"
-  run bash -c "cd '$ROOT/e2e' && npm install --silent && npx playwright test"
+  # Force a fresh client build so E2E never runs against a stale dist/.
+  run bash -c "cd '$ROOT/e2e' && npm install --silent && E2E_FORCE_BUILD=1 npx playwright test"
 fi
 
 if [ "$FAILED" -ne 0 ]; then

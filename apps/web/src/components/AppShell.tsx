@@ -10,6 +10,7 @@ import {
   Home,
   Lock,
   LogOut,
+  Menu,
   Monitor,
   Moon,
   Settings as SettingsIcon,
@@ -46,20 +47,15 @@ import {
 
 const SIDEBAR_KEY = 'cw_sidebar_collapsed';
 
-/** Nav entries with literal routes + literal translation keys (i18n guard). */
+/** Primary navigation. Settings/Admin live in the account menu. */
 function useNav() {
   const t = useT();
-  const isAdmin = useAuthStore((state) => state.user?.role === 'admin');
   return [
     { to: '/' as const, label: t('My Day'), icon: Home, exact: true },
     { to: '/overview' as const, label: t('Overview'), icon: CalendarDays, exact: false },
     { to: '/history' as const, label: t('History'), icon: History, exact: false },
     { to: '/projection' as const, label: t('Projection'), icon: TrendingUp, exact: false },
     { to: '/transit' as const, label: t('Transit'), icon: TrainFront, exact: false },
-    { to: '/settings' as const, label: t('Settings'), icon: SettingsIcon, exact: false },
-    ...(isAdmin
-      ? [{ to: '/admin' as const, label: t('Admin'), icon: ShieldCheck, exact: false }]
-      : []),
   ];
 }
 
@@ -100,6 +96,7 @@ function AccountMenuItems() {
   const t = useT();
   const navigate = useNavigate();
   const logout = useAuthStore((state) => state.logout);
+  const isAdmin = useAuthStore((state) => state.user?.role === 'admin');
   const preference = useThemeStore((state) => state.preference);
   const setPreference = useThemeStore((state) => state.setPreference);
 
@@ -116,6 +113,21 @@ function AccountMenuItems() {
 
   return (
     <>
+      <DropdownMenuItem asChild>
+        <Link to="/settings" className="flex items-center gap-2">
+          <SettingsIcon />
+          {t('Settings')}
+        </Link>
+      </DropdownMenuItem>
+      {isAdmin ? (
+        <DropdownMenuItem asChild>
+          <Link to="/admin" className="flex items-center gap-2">
+            <ShieldCheck />
+            {t('Admin')}
+          </Link>
+        </DropdownMenuItem>
+      ) : null}
+      <DropdownMenuSeparator />
       <DropdownMenuLabel>{t('Appearance')}</DropdownMenuLabel>
       {themes.map((theme) => {
         const Icon = theme.icon;
@@ -154,7 +166,11 @@ function AccountMenu({ collapsed }: { collapsed: boolean }) {
             <UserRound className="h-4 w-4" />
           </Button>
         ) : (
-          <Button variant="ghost" className="w-full justify-between px-2">
+          <Button
+            variant="ghost"
+            className="w-full justify-between px-2"
+            aria-label={t('Account')}
+          >
             <span className="min-w-0 truncate text-xs text-muted-foreground">{user?.email}</span>
             <ChevronUp className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
           </Button>
@@ -323,6 +339,7 @@ function MobileAccountSheet() {
   const t = useT();
   const navigate = useNavigate();
   const user = useAuthStore((state) => state.user);
+  const isAdmin = useAuthStore((state) => state.user?.role === 'admin');
   const logout = useAuthStore((state) => state.logout);
   const preference = useThemeStore((state) => state.preference);
   const setPreference = useThemeStore((state) => state.setPreference);
@@ -345,13 +362,13 @@ function MobileAccountSheet() {
       <Button
         variant="ghost"
         size="icon"
-        aria-label={t('Account')}
+        aria-label={t('Menu')}
         className="h-8 w-8"
         onClick={() => setOpen(true)}
       >
-        <UserRound className="h-4 w-4" />
+        <Menu className="h-5 w-5" />
       </Button>
-      <Sheet open={open} onOpenChange={setOpen} title={t('Account')} side="right">
+      <Sheet open={open} onOpenChange={setOpen} title={t('Menu')} side="right">
         <p className="text-sm text-muted-foreground">{user?.email}</p>
 
         <p className="mt-5 text-xs uppercase tracking-wide text-muted-foreground">
@@ -378,6 +395,24 @@ function MobileAccountSheet() {
         </div>
 
         <div className="mt-5 space-y-1 border-t border-border pt-3">
+          <Link
+            to="/settings"
+            onClick={() => setOpen(false)}
+            className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition hover:bg-accent"
+          >
+            <SettingsIcon className="h-4 w-4" />
+            {t('Settings')}
+          </Link>
+          {isAdmin ? (
+            <Link
+              to="/admin"
+              onClick={() => setOpen(false)}
+              className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition hover:bg-accent"
+            >
+              <ShieldCheck className="h-4 w-4" />
+              {t('Admin')}
+            </Link>
+          ) : null}
           <Link
             to="/encryption"
             onClick={() => setOpen(false)}
