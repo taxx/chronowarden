@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'vitest';
 
 import {
+  formatCompactMinutes,
   formatDurationMinutes,
   formatMins,
   formatOvertimeStatus,
@@ -63,5 +64,16 @@ describe('overtime tone (time-warding semantics)', () => {
     expect(overtimeBadgeVariant(-30)).toBe('success');
     expect(overtimeBadgeVariant(30)).toBe('warning');
     expect(overtimeBadgeVariant(0)).toBe('secondary');
+  });
+});
+
+describe('formatCompactMinutes', () => {
+  test('stays short enough for a narrow calendar cell', () => {
+    expect(formatCompactMinutes(0)).toBe('0');
+    expect(formatCompactMinutes(-30)).toBe('-30m');
+    expect(formatCompactMinutes(45)).toBe('+45m');
+    expect(formatCompactMinutes(-120)).toBe('-2h');
+    expect(formatCompactMinutes(90)).toBe('+1:30');
+    expect(formatCompactMinutes(-7 * 60 - 5)).toBe('-7:05');
   });
 });

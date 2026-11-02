@@ -157,6 +157,21 @@ test.describe.serial('ChronoWarden web', () => {
     await expect(page.getByText('Both work and home stations must be set.')).toBeVisible();
   });
 
+  test('overview week and month fit the mobile width', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto('/');
+    await signIn(page);
+    await page.getByRole('link', { name: 'Overview' }).click();
+
+    const overflow = () =>
+      page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+    expect(await overflow()).toBeLessThanOrEqual(0);
+
+    await page.getByRole('tab', { name: 'Month' }).click();
+    await expect(page.getByRole('tab', { name: 'Month' })).toHaveAttribute('aria-selected', 'true');
+    expect(await overflow()).toBeLessThanOrEqual(0);
+  });
+
   test('shows validation errors from the zod resolver', async ({ page }) => {
     const violations: string[] = [];
     page.on('console', (message) => {

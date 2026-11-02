@@ -38,6 +38,21 @@ export function formatSignedMinutes(minutes: number): string {
   return `${sign}${h}h ${m}m`;
 }
 
+/**
+ * Very compact signed duration for narrow calendar cells.
+ * `-1:30`, `+45m`, `-2h`, `0` — no spaces, so it never wraps.
+ */
+export function formatCompactMinutes(minutes: number): string {
+  if (minutes === 0) return '0';
+  const sign = minutes < 0 ? '-' : '+';
+  const abs = Math.abs(minutes);
+  const h = Math.floor(abs / 60);
+  const m = abs % 60;
+  if (h === 0) return `${sign}${m}m`;
+  if (m === 0) return `${sign}${h}h`;
+  return `${sign}${h}:${String(m).padStart(2, '0')}`;
+}
+
 /** Overtime status chip label: `✓` when exactly on target, else the balance. */
 export function formatOvertimeStatus(minutes: number): string {
   return minutes === 0 ? '✓' : formatSignedMinutes(minutes);
