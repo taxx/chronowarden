@@ -80,17 +80,26 @@ export function TimePicker({
 
   function pickFromPointer(event: ReactPointerEvent<HTMLDivElement>) {
     const face = faceRef.current;
-    if (!face || mode !== 'minute') return;
+    if (!face) return;
     const rect = face.getBoundingClientRect();
     const dx = event.clientX - (rect.left + rect.width / 2);
     const dy = event.clientY - (rect.top + rect.height / 2);
+    const distance = Math.hypot(dx, dy);
     let angle = (Math.atan2(dy, dx) * 180) / Math.PI + 90;
     if (angle < 0) angle += 360;
-    setMinute(Math.round(angle / 6) % 60);
+    if (mode === 'hour') {
+      const index = Math.round(angle / 30) % 12;
+      // Inner ring (0–11) vs outer ring (12–23), split between the two radii.
+      const outer = distance > (INNER_RADIUS + OUTER_RADIUS) / 2;
+      setHour(outer ? index + 12 : index);
+    } else {
+      setMinute(Math.round(angle / 6) % 60);
+    }
   }
 
   const handAngle = mode === 'hour' ? (hour % 12) * 30 : minute * 6;
-  const handLength = mode === 'hour' && hour < 12 ? INNER_RADIUS : OUTER_RADIUS;
+  // Stop short of the number badges so the hand never covers the selection.
+  const handLength = (mode === 'hour' && hour < 12 ? INNER_RADIUS : OUTER_RADIUS) - 18;
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -137,10 +146,10 @@ export function TimePicker({
           {/* Clock face */}
           <div
             ref={faceRef}
+            data-testid="time-picker-face"
             className="relative touch-none select-none rounded-full bg-muted"
             style={{ width: DIAL_SIZE, height: DIAL_SIZE }}
             onPointerDown={(event) => {
-              if (mode !== 'minute') return;
               dragging.current = true;
               event.currentTarget.setPointerCapture(event.pointerId);
               pickFromPointer(event);
@@ -150,6 +159,8 @@ export function TimePicker({
             }}
             onPointerUp={() => {
               dragging.current = false;
+              // Like Android: picking the hour advances to the minute step.
+              if (mode === 'hour') setMode('minute');
             }}
             onPointerCancel={() => {
               dragging.current = false;

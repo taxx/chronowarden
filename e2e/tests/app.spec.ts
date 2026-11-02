@@ -74,6 +74,30 @@ test.describe.serial('ChronoWarden web', () => {
     await page.getByRole('button', { name: 'Cancel' }).click();
   });
 
+  test('dial time picker supports dragging to select the hour', async ({ page }) => {
+    await page.goto('/');
+    await signIn(page);
+
+    await page.getByRole('button', { name: 'Start Day' }).first().click();
+    await page.getByLabel('Start time').click();
+    await page.getByRole('button', { name: 'Hours' }).click(); // ensure the hour step
+
+    const box = await page.getByTestId('time-picker-face').boundingBox();
+    const cx = box!.x + box!.width / 2;
+    const cy = box!.y + box!.height / 2;
+    // Drag on the outer ring from 3 o'clock (hour 15) to the bottom (hour 18).
+    await page.mouse.move(cx + 92, cy);
+    await page.mouse.down();
+    await page.mouse.move(cx, cy + 92, { steps: 6 });
+    await page.mouse.up();
+
+    await expect(page.getByRole('button', { name: 'Hours' })).toHaveText('18');
+    await page.getByRole('button', { name: 'Done' }).click();
+    await expect(page.locator('[data-radix-popper-content-wrapper]')).toHaveCount(0);
+    await expect(page.getByLabel('Start time')).toContainText('18:');
+    await page.getByRole('button', { name: 'Cancel' }).click();
+  });
+
   test('signs in and runs a day', async ({ page }) => {
     await page.goto('/');
     await signIn(page);
