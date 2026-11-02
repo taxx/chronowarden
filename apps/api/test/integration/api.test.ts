@@ -12,6 +12,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { findPgBin, pgEnv, startTestPostgres, type TestPostgres } from '../helpers/postgres.ts';
 import { generateToken, hashToken } from '../../src/tokens.ts';
+import { MAX_SUBSCRIBERS_PER_USER } from '../../src/events.ts';
 
 let db: TestPostgres;
 let app: any;
@@ -606,6 +607,29 @@ describe('realtime (SSE)', () => {
     expect(received).toContain('event: ready');
     expect(received).toContain('"table":"time_logs"');
     expect(received).toContain('"type":"INSERT"');
+  });
+
+  test('caps streams per user and frees the slot as soon as one closes', async () => {
+    const user = await makeUser('sse-cap@example.com');
+    const streams: Response[] = [];
+    for (let i = 0; i < MAX_SUBSCRIBERS_PER_USER; i++) {
+      const res = await app.request(`/api/v1/events?token=${user.token}`);
+      expect(res.status).toBe(200);
+      streams.push(res);
+    }
+
+    const extra = await app.request(`/api/v1/events?token=${user.token}`);
+    expect(extra.status).toBe(429);
+
+    // Closing a stream frees a slot immediately (onAbort), so a reload does
+    // not have to wait for the next keep-alive tick.
+    await streams[0]!.body!.cancel().catch(() => {});
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    const retry = await app.request(`/api/v1/events?token=${user.token}`);
+    expect(retry.status).toBe(200);
+
+    await Promise.all(streams.slice(1).map((stream) => stream.body!.cancel().catch(() => {})));
+    await retry.body!.cancel().catch(() => {});
   });
 });
 

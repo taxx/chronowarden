@@ -29,6 +29,10 @@ eventRoutes.get('/events', async (c) => {
       void stream.write(payload);
     };
     addSubscriber(user.id, subscriber);
+    // Free the slot as soon as the client goes away (a page reload, a closed
+    // tab). Waiting for the keep-alive tick would let a reload momentarily
+    // overlap its predecessor and trip the per-user cap.
+    stream.onAbort(() => removeSubscriber(user.id, subscriber));
 
     // Confirm the stream is live, then keep it open (and the connection warm).
     await stream.writeSSE({ event: 'ready', data: user.id });

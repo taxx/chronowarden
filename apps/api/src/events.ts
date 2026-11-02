@@ -17,7 +17,7 @@ export interface RealtimeEvent {
 type Subscriber = (payload: string) => void;
 
 /** Bounds so a single client cannot pin unbounded server resources. */
-export const MAX_SUBSCRIBERS_PER_USER = 5;
+export const MAX_SUBSCRIBERS_PER_USER = 10;
 export const MAX_SUBSCRIBERS_TOTAL = 500;
 
 const subscribersByUser = new Map<string, Set<Subscriber>>();

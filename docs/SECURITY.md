@@ -59,7 +59,8 @@ metadata it cannot unwrap. See [`ENCRYPTION.md`](ENCRYPTION.md).
 - **Backup import** is capped at 5 000 rows per table and inserts in chunks.
 - **SL proxy** bounds its cache (500 entries, 30 s TTL), caps path length,
   rejects control characters and times out upstream calls after 10 s.
-- **SSE streams** are capped at 5 per user and 500 total.
+- **SSE streams** are capped at 10 per user and 500 total; a slot is freed as
+  soon as the client disconnects (page reload / closed tab).
 - **Expired sessions and stale invites** are pruned at startup and hourly.
 
 ## Client-side
