@@ -376,6 +376,7 @@ export function OverviewPage() {
         defaultDate={dialog?.date}
         defaultExpectedMinutes={configQuery.data?.defaultExpectedMinutes ?? 480}
         defaultLunchMinutes={prefsQuery.data?.defaultLunchMinutes ?? 0}
+        sliderStep={prefsQuery.data?.sliderStepMinutes ?? 5}
         onSubmit={submit}
       />
     </>

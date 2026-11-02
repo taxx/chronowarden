@@ -5,6 +5,7 @@ import { z } from 'zod';
 
 import { useT } from '../i18n';
 import type { TravelPreset } from '../lib/domain/travel-preset';
+import { MinutesSliderField } from './MinutesSliderField';
 import {
   Button,
   Form,
@@ -18,6 +19,7 @@ import {
   SelectField,
   Slider,
   Textarea,
+  TimePicker,
 } from './ui';
 
 const NUM_RE = /^\d+$/;
@@ -62,6 +64,7 @@ export function StartDayDialog({
   defaultLunch,
   showNonWork,
   busy,
+  sliderStep = 5,
   onSubmit,
 }: {
   open: boolean;
@@ -73,6 +76,7 @@ export function StartDayDialog({
   defaultLunch: number;
   showNonWork: boolean;
   busy?: boolean;
+  sliderStep?: number;
   onSubmit: (values: StartDayValues) => void;
 }) {
   const t = useT();
@@ -141,7 +145,7 @@ export function StartDayDialog({
               <FormItem>
                 <FormLabel>{t('Start time')}</FormLabel>
                 <FormControl>
-                  <Input type="time" {...field} />
+                  <TimePicker value={field.value} onChange={field.onChange} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -184,46 +188,25 @@ export function StartDayDialog({
               />
             </div>
           ) : null}
-          <FormField
+          <MinutesSliderField
             control={form.control}
             name="lunchMinutes"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>{t('Lunch minutes')}</FormLabel>
-                <FormControl>
-                  <Input type="number" inputMode="numeric" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
+            label={t('Lunch minutes')}
+            step={sliderStep}
           />
           {showNonWork ? (
-            <FormField
+            <MinutesSliderField
               control={form.control}
               name="nonWorkMinutes"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>{t('Non-work minutes')}</FormLabel>
-                  <FormControl>
-                    <Input type="number" inputMode="numeric" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
+              label={t('Non-work minutes')}
+              step={sliderStep}
             />
           ) : null}
-          <FormField
+          <MinutesSliderField
             control={form.control}
             name="flexMinutes"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>{t('Banked time to withdraw')}</FormLabel>
-                <FormControl>
-                  <Input type="number" inputMode="numeric" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
+            label={t('Banked time to withdraw')}
+            step={sliderStep}
           />
           <div className="sm:col-span-2">
             <FormField
@@ -274,6 +257,7 @@ export function StopDayDialog({
   note,
   showNonWork,
   busy,
+  sliderStep = 5,
   onSubmit,
 }: {
   open: boolean;
@@ -283,6 +267,7 @@ export function StopDayDialog({
   note: string;
   showNonWork: boolean;
   busy?: boolean;
+  sliderStep?: number;
   onSubmit: (values: StopDayValues) => void;
 }) {
   const t = useT();
@@ -342,38 +327,24 @@ export function StopDayDialog({
               <FormItem>
                 <FormLabel>{t('End time')}</FormLabel>
                 <FormControl>
-                  <Input type="time" {...field} />
+                  <TimePicker value={field.value} onChange={field.onChange} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
             )}
           />
-          <FormField
+          <MinutesSliderField
             control={form.control}
             name="lunchMinutes"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>{t('Lunch minutes')}</FormLabel>
-                <FormControl>
-                  <Input type="number" inputMode="numeric" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
+            label={t('Lunch minutes')}
+            step={sliderStep}
           />
           {showNonWork ? (
-            <FormField
+            <MinutesSliderField
               control={form.control}
               name="nonWorkMinutes"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>{t('Non-work minutes')}</FormLabel>
-                  <FormControl>
-                    <Input type="number" inputMode="numeric" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
+              label={t('Non-work minutes')}
+              step={sliderStep}
             />
           ) : null}
           <div className="sm:col-span-2">

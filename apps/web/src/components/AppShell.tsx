@@ -113,6 +113,18 @@ function AccountMenuItems() {
 
   return (
     <>
+      <DropdownMenuLabel>{t('Appearance')}</DropdownMenuLabel>
+      {themes.map((theme) => {
+        const Icon = theme.icon;
+        return (
+          <DropdownMenuItem key={theme.value} onClick={() => setPreference(theme.value)}>
+            <Icon />
+            {theme.label}
+            {preference === theme.value ? <Check className="ml-auto h-3.5 w-3.5" /> : null}
+          </DropdownMenuItem>
+        );
+      })}
+      <DropdownMenuSeparator />
       <DropdownMenuItem asChild>
         <Link to="/settings" className="flex items-center gap-2">
           <SettingsIcon />
@@ -127,18 +139,6 @@ function AccountMenuItems() {
           </Link>
         </DropdownMenuItem>
       ) : null}
-      <DropdownMenuSeparator />
-      <DropdownMenuLabel>{t('Appearance')}</DropdownMenuLabel>
-      {themes.map((theme) => {
-        const Icon = theme.icon;
-        return (
-          <DropdownMenuItem key={theme.value} onClick={() => setPreference(theme.value)}>
-            <Icon />
-            {theme.label}
-            {preference === theme.value ? <Check className="ml-auto h-3.5 w-3.5" /> : null}
-          </DropdownMenuItem>
-        );
-      })}
       <DropdownMenuSeparator />
       <DropdownMenuItem asChild>
         <Link to="/changelog" className="flex items-center gap-2">

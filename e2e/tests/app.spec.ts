@@ -63,6 +63,17 @@ test.describe.serial('ChronoWarden web', () => {
     await expect(page.getByRole('link', { name: 'My Day' })).toBeVisible();
   });
 
+  test('start day dialog offers sliders for lunch, non-work and banked time', async ({ page }) => {
+    await page.goto('/');
+    await signIn(page);
+
+    await page.getByRole('button', { name: 'Start Day' }).first().click();
+    await expect(page.getByLabel('Lunch minutes')).toBeVisible();
+    await expect(page.getByLabel('Non-work minutes')).toBeVisible();
+    await expect(page.getByLabel('Banked time to withdraw')).toBeVisible();
+    await page.getByRole('button', { name: 'Cancel' }).click();
+  });
+
   test('signs in and runs a day', async ({ page }) => {
     await page.goto('/');
     await signIn(page);
@@ -90,8 +101,19 @@ test.describe.serial('ChronoWarden web', () => {
     await page.getByLabel('Date').click();
     await page.getByRole('button', { name: '15', exact: true }).first().click();
 
-    await page.getByLabel('Start').fill('08:00');
-    await page.getByLabel('Stop').fill('16:30');
+    await page.getByLabel('Start').click();
+    await page.getByRole('button', { name: '08' }).click();
+    await page.getByRole('button', { name: '00' }).click();
+    await page.getByRole('button', { name: 'Done' }).click();
+    // Wait for the first picker to finish closing so the next one is unambiguous.
+    await expect(page.locator('[data-radix-popper-content-wrapper]')).toHaveCount(0);
+
+    await page.getByLabel('Stop').click();
+    await page.getByRole('button', { name: '16' }).click();
+    await page.getByRole('button', { name: '30' }).click();
+    await page.getByRole('button', { name: 'Done' }).click();
+    await expect(page.locator('[data-radix-popper-content-wrapper]')).toHaveCount(0);
+
     await page.getByLabel('Expected minutes').fill('480');
     await page.getByRole('button', { name: 'Save' }).click();
 

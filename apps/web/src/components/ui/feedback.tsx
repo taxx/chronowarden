@@ -1,4 +1,5 @@
 import { Loader2 } from 'lucide-react';
+import type { ComponentProps } from 'react';
 
 import { cn } from '@/lib/utils';
 
@@ -9,20 +10,18 @@ export function Slider({
   max = 100,
   step = 1,
   onChange,
-  id,
   className,
+  ...props
 }: {
   value: number;
   min?: number;
   max?: number;
   step?: number;
   onChange: (value: number) => void;
-  id?: string;
   className?: string;
-}) {
+} & Omit<ComponentProps<'input'>, 'value' | 'onChange' | 'min' | 'max' | 'step' | 'type'>) {
   return (
     <input
-      id={id}
       type="range"
       min={min}
       max={max}
@@ -30,6 +29,7 @@ export function Slider({
       value={value}
       onChange={(event) => onChange(Number(event.target.value))}
       className={className}
+      {...props}
     />
   );
 }

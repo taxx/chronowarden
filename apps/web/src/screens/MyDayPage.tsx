@@ -322,6 +322,7 @@ export function MyDayPage() {
         defaultFlex={prefs.defaultFlexMinutes}
         defaultLunch={prefs.defaultLunchMinutes}
         showNonWork={prefs.nonWorkEnabled}
+        sliderStep={prefs.sliderStepMinutes}
         busy={createLog.isPending}
         onSubmit={startDay}
       />
@@ -334,6 +335,7 @@ export function MyDayPage() {
           nonWorkMinutes={today.nonWorkMinutes}
           note={today.note ?? ''}
           showNonWork={prefs.nonWorkEnabled}
+          sliderStep={prefs.sliderStepMinutes}
           busy={updateLog.isPending}
           onSubmit={stopDay}
         />
@@ -573,7 +575,7 @@ function BreakRow({
   return (
     <div
       className={
-        'flex flex-wrap items-center justify-between gap-2 rounded-lg border px-3 py-2 ' +
+        'flex flex-col gap-2 rounded-lg border px-3 py-2 sm:flex-row sm:items-center sm:justify-between ' +
         (active ? 'border-primary/40 bg-primary/5' : 'border-border')
       }
     >
@@ -581,7 +583,7 @@ function BreakRow({
         <span className="text-muted-foreground">{icon}</span>
         <span className="font-medium">{label}</span>
       </div>
-      <div className="flex items-center gap-2">
+      <div className="flex items-center justify-between gap-2 sm:justify-end">
         {active ? (
           <span className="font-mono text-sm tabular-nums text-primary">{formatHms(elapsed)}</span>
         ) : (

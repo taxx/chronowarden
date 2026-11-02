@@ -23,6 +23,8 @@ const sv: Record<string, string> = {
   'Generated straight from the git history.': 'Genereras direkt från git-historiken.',
   Account: 'Konto',
   Menu: 'Meny',
+  Hours: 'Timmar',
+  Minutes: 'Minuter',
   'Choose a CSV file': 'Välj en CSV-fil',
   'Choose a backup file': 'Välj en backup-fil',
   'Default lunch minutes': 'Standardlunch (minuter)',

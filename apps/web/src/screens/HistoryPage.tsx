@@ -255,6 +255,7 @@ export function HistoryPage() {
         initial={editing}
         defaultExpectedMinutes={defaultExpected}
         defaultLunchMinutes={prefsQuery.data?.defaultLunchMinutes ?? 0}
+        sliderStep={prefsQuery.data?.sliderStepMinutes ?? 5}
         onSubmit={submit}
       />
 

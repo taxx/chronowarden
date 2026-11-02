@@ -18,6 +18,7 @@ export { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '.
 export { Popover, PopoverTrigger, PopoverContent } from './popover';
 export { Calendar } from './calendar';
 export { DatePicker } from './date-picker';
+export { TimePicker } from './time-picker';
 export {
   Form,
   FormField,
