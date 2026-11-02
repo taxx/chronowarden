@@ -2,15 +2,8 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { Briefcase, Coffee, NotebookPen, Pencil, Play, Route, Square, Trash2 } from 'lucide-react';
 
 import { DayDialog, type DayFormValues } from '../components/DayDialog';
-import {
-  CommuteDialog,
-  MinutesDialog,
-  NoteDialog,
-  StartDayDialog,
-  StopDayDialog,
-  type StartDayValues,
-  type StopDayValues,
-} from '../components/day-dialogs';
+import { CommuteDialog, MinutesDialog, NoteDialog, StartDayDialog, StopDayDialog, type StartDayValues, type StopDayValues } from '../components/day-dialogs';
+import { MyDayTransitCard } from '../components/MyDayTransitCard';
 import { Badge, Button, Card, CardContent, CardHeader, ConfirmDialog } from '../components/ui';
 import { useNow } from '../hooks/useNow';
 import { useT } from '../i18n';
@@ -25,8 +18,11 @@ import {
   type TimeLog,
 } from '../lib/domain/time-log';
 import { expectedMinutesForDate, type WorkConfig } from '../lib/domain/work-config';
+import { defaultTransitConfig } from '../lib/domain/transit-config';
 import { formatDurationMinutes, formatSignedMinutes, overtimeTextClass } from '../lib/format';
 import { usePreferences, useWorkConfig } from '../queries/settings';
+import { useTransitConfig } from '../queries/transit';
+import { getLastPresetId, setLastPresetId } from '../services/last-preset';
 import { defaultPreferences } from '../services/settings';
 import { CardSkeleton } from '../components/skeletons';
 import {
@@ -41,7 +37,6 @@ import { useNotificationsStore } from '../state/notifications';
 import { useToastStore } from '../state/toast';
 
 const DEFAULT_CONFIG: WorkConfig = { defaultExpectedMinutes: 480 };
-const LAST_PRESET_KEY = 'cw_last_preset';
 
 function minutesSince(iso: string, now: Date): number {
   return Math.max(0, Math.round((now.getTime() - new Date(iso).getTime()) / 60_000));
@@ -91,13 +86,12 @@ export function MyDayPage() {
   const updateLog = useUpdateTimeLog();
   const deleteLog = useDeleteTimeLog();
   const presetsQuery = useTravelPresets();
+  const transitConfigQuery = useTransitConfig();
   const checkNotifications = useNotificationsStore((state) => state.check);
   const pushToast = useToastStore((state) => state.push);
 
   const [dialog, setDialog] = useState<DialogKind>(null);
-  const [selectedPresetId, setSelectedPresetId] = useState(
-    () => localStorage.getItem(LAST_PRESET_KEY) ?? '',
-  );
+  const [selectedPresetId, setSelectedPresetId] = useState(() => getLastPresetId());
 
   const today = todayQuery.data ?? null;
   const logs = logsQuery.data ?? [];
@@ -105,6 +99,7 @@ export function MyDayPage() {
   const prefs = prefsQuery.data ?? defaultPreferences;
   const timeBank = logs.reduce((sum, log) => sum + log.overtimeMinutes, 0);
   const presets = presetsQuery.data ?? [];
+  const transitConfig = transitConfigQuery.data ?? defaultTransitConfig;
   const selectedPreset = presets.find((preset) => preset.id === selectedPresetId) ?? presets[0] ?? null;
 
   const lunchActive =
@@ -150,7 +145,7 @@ export function MyDayPage() {
 
   function startDay(values: StartDayValues) {
     const preset = presets.find((p) => p.id === values.presetId) ?? selectedPreset;
-    localStorage.setItem(LAST_PRESET_KEY, values.presetId);
+    setLastPresetId(values.presetId);
     setSelectedPresetId(values.presetId);
     void run(
       () =>
@@ -242,7 +237,7 @@ export function MyDayPage() {
   }
 
   function applyCommute(preset: TravelPreset) {
-    localStorage.setItem(LAST_PRESET_KEY, preset.id ?? '');
+    setLastPresetId(preset.id ?? '');
     setSelectedPresetId(preset.id ?? '');
     void run(
       () =>
@@ -303,6 +298,15 @@ export function MyDayPage() {
           onDelete={() => setDialog('delete')}
         />
       )}
+
+      <MyDayTransitCard
+        now={now}
+        log={today}
+        presets={presets}
+        config={transitConfig}
+        showWeekends={prefs.showWeekends}
+        lastPresetId={selectedPresetId}
+      />
 
       <Card>
         <CardHeader title={t('Time bank')} />

@@ -11,6 +11,13 @@ export function useSaveDay() {
   const updateLog = useUpdateTimeLog();
 
   async function saveDay(values: DayFormValues, existing: TimeLog | null): Promise<void> {
+    const commute = {
+      morningOverheadMinutes: values.morningOverheadMinutes,
+      morningProductiveCommuteMinutes: values.morningProductiveCommuteMinutes,
+      eveningOverheadMinutes: values.eveningOverheadMinutes,
+      eveningProductiveCommuteMinutes: values.eveningProductiveCommuteMinutes,
+    };
+
     if (existing?.id) {
       const endTime = values.endTime || null;
       const next = copyWithTimeLog(existing, {
@@ -20,6 +27,7 @@ export function useSaveDay() {
         lunchMinutes: values.lunchMinutes,
         nonWorkMinutes: values.nonWorkMinutes,
         note: values.note,
+        ...commute,
       });
       await updateLog.mutateAsync({
         id: existing.id,
@@ -30,6 +38,10 @@ export function useSaveDay() {
           lunch_minutes: values.lunchMinutes,
           non_work_minutes: values.nonWorkMinutes,
           note: values.note,
+          morning_overhead_minutes: values.morningOverheadMinutes,
+          morning_productive_commute_minutes: values.morningProductiveCommuteMinutes,
+          evening_overhead_minutes: values.eveningOverheadMinutes,
+          evening_productive_commute_minutes: values.eveningProductiveCommuteMinutes,
           overtime_minutes: calculateOvertimeMinutes(next),
         },
       });
@@ -44,10 +56,7 @@ export function useSaveDay() {
       lunchMinutes: values.lunchMinutes,
       nonWorkMinutes: values.nonWorkMinutes,
       flexMinutes: 0,
-      morningOverheadMinutes: 0,
-      morningProductiveCommuteMinutes: 0,
-      eveningOverheadMinutes: 0,
-      eveningProductiveCommuteMinutes: 0,
+      ...commute,
       overtimeMinutes: 0,
       note: values.note,
     };

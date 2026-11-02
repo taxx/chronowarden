@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
 
+import { JourneyRow, PinnedJourneyRow } from '../components/journey-row';
 import { StationPicker } from '../components/StationPicker';
 import { ListSkeleton, SkeletonRows } from '../components/skeletons';
 import {
-  Badge,
   Button,
   Card,
   CardContent,
@@ -11,12 +11,12 @@ import {
   EmptyState,
   Field,
   Input,
-  
   Switch,
 } from '../components/ui';
 import { useNow } from '../hooks/useNow';
 import { useT } from '../i18n';
-import { formatClock, toDateStr } from '../lib/date';
+import { toDateStr } from '../lib/date';
+import { isMorningCommute } from '../lib/domain/journey-status';
 import {
   journeyMatchesPin,
   pinBelongsToRoute,
@@ -25,14 +25,6 @@ import {
   type PinnedJourney,
 } from '../lib/domain/pinned-journey';
 import type { JourneyInfo, StationInfo } from '../lib/domain/transit';
-import {
-  departureDelayMinutes,
-  journeyDeparturePlatform,
-  journeyMainDestination,
-  journeyMainLine,
-  journeyOccupancy,
-  journeyTransferCount,
-} from '../lib/domain/transit';
 import {
   defaultTransitConfig,
   destStopId,
@@ -55,6 +47,7 @@ import {
   savePinnedJourney,
 } from '../services/pinned-journey-store';
 import { useJourneys, useSaveTransitConfig, useTransitConfig } from '../queries/transit';
+import { useTodayLog } from '../queries/time-logs';
 import { useToastStore } from '../state/toast';
 
 function asStation(id: string, name: string): StationInfo | null {
@@ -67,6 +60,7 @@ export function TransitPage() {
 
   const configQuery = useTransitConfig();
   const save = useSaveTransitConfig();
+  const today = useTodayLog().data ?? null;
   const pushToast = useToastStore((state) => state.push);
 
   const [draft, setDraft] = useState<TransitConfig>(defaultTransitConfig);
@@ -88,13 +82,15 @@ export function TransitPage() {
     }
   }, [pinned]);
 
-  const morning = now.getHours() < 11;
+  // An active day always heads home, regardless of the clock.
+  const morning = isMorningCommute(now, today);
   const canFetch = draft.enabled && hasHome(draft) && hasWork(draft);
+  const walkBuffer = walkMinutes(draft, morning);
 
   const journeysQuery = useJourneys({
     originId: originStopId(draft, morning),
     destId: destStopId(draft, morning),
-    walkOffsetMinutes: walkMinutes(draft, morning),
+    walkOffsetMinutes: walkBuffer,
     enabled: canFetch,
   });
 
@@ -250,13 +246,22 @@ export function TransitPage() {
             ) : (
               <ul className="divide-y divide-border">
                 {pinForRoute ? (
-                  <PinnedRow pin={pinForRoute} live={livePinned} now={now} onUnpin={unpin} />
+                  <PinnedJourneyRow
+                    pin={pinForRoute}
+                    live={livePinned}
+                    now={now}
+                    walkBuffer={walkBuffer}
+                    variant="transit"
+                    onUnpin={unpin}
+                  />
                 ) : null}
                 {journeys.map((journey) => (
                   <JourneyRow
                     key={journey.departureTime.toISOString()}
                     journey={journey}
                     now={now}
+                    walkBuffer={walkBuffer}
+                    variant="transit"
                     onPin={() => pin(journey)}
                   />
                 ))}
@@ -266,128 +271,5 @@ export function TransitPage() {
         </Card>
       ) : null}
     </div>
-  );
-}
-
-function occupancyLabel(t: ReturnType<typeof useT>, occupancy: string | null): string | null {
-  if (!occupancy) return null;
-  const value = occupancy.toLowerCase();
-  if (value.includes('standing') || value === 'high') return t('Standing room only');
-  if (value.includes('few') || value === 'medium') return t('Few seats available');
-  if (value.includes('many') || value === 'low') return t('Many seats available');
-  return t('Seats available');
-}
-
-function JourneyRow({
-  journey,
-  now,
-  onPin,
-  pinned = false,
-  onUnpin,
-}: {
-  journey: JourneyInfo;
-  now: Date;
-  onPin?: () => void;
-  pinned?: boolean;
-  onUnpin?: () => void;
-}) {
-  const t = useT();
-  const line = journeyMainLine(journey);
-  const platform = journeyDeparturePlatform(journey);
-  const delay = departureDelayMinutes(journey);
-  const occupancy = occupancyLabel(t, journeyOccupancy(journey));
-  const transfers = journeyTransferCount(journey);
-  const departsIn = Math.round((journey.departureEstimated.getTime() - now.getTime()) / 60_000);
-
-  return (
-    <li
-      className={
-        'flex flex-wrap items-start justify-between gap-3 py-3 first:pt-0 last:pb-0' +
-        (pinned ? ' rounded-lg bg-accent/50 px-3' : '')
-      }
-    >
-      <div className="min-w-0">
-        <p className="flex items-center gap-2 font-medium">
-          <span className="font-mono">{formatClock(journey.departureTime)}</span>
-          <span className="text-muted-foreground">→</span>
-          <span className="font-mono">{formatClock(journey.arrivalTime)}</span>
-          {pinned ? <Badge>{t('Pinned')}</Badge> : null}
-        </p>
-        <p className="mt-1 text-xs text-muted-foreground">
-          {line ? `${line} · ` : ''}
-          {journeyMainDestination(journey) ?? ''}
-          {platform ? ` · ${t('Platform')} ${platform}` : ''}
-        </p>
-        <div className="mt-2 flex flex-wrap gap-1.5">
-          {occupancy ? <Badge variant="secondary">{occupancy}</Badge> : null}
-          {transfers > 0 ? (
-            <Badge variant="outline">
-              {transfers === 1 ? t('1 change') : t('{count} changes', { count: transfers })}
-            </Badge>
-          ) : null}
-          {departsIn >= -2 ? (
-            <Badge variant="outline">{t('in {minutes} min', { minutes: Math.max(0, departsIn) })}</Badge>
-          ) : (
-            <Badge variant="warning">{t('Departed')}</Badge>
-          )}
-        </div>
-      </div>
-      <div className="flex items-center gap-3 text-sm">
-        <div className="text-right">
-          <p>{t('{minutes}min trip', { minutes: journey.durationMinutes })}</p>
-          <p className={delay > 0 ? 'text-xs text-warning' : 'text-xs text-success'}>
-            {delay > 0 ? `+${delay} min` : t('On time')}
-          </p>
-        </div>
-        {pinned ? (
-          <Button variant="ghost" size="sm" onClick={onUnpin}>
-            {t('Unpin')}
-          </Button>
-        ) : onPin ? (
-          <Button variant="outline" size="sm" onClick={onPin}>
-            {t('Pin')}
-          </Button>
-        ) : null}
-      </div>
-    </li>
-  );
-}
-
-/** The committed journey: live data when available, otherwise a synthetic card. */
-function PinnedRow({
-  pin,
-  live,
-  now,
-  onUnpin,
-}: {
-  pin: PinnedJourney;
-  live: JourneyInfo | null;
-  now: Date;
-  onUnpin: () => void;
-}) {
-  const t = useT();
-  if (live) return <JourneyRow journey={live} now={now} pinned onUnpin={onUnpin} />;
-
-  return (
-    <li className="flex flex-wrap items-center justify-between gap-3 rounded-lg bg-accent/50 px-3 py-3">
-      <div>
-        <p className="flex items-center gap-2 font-medium">
-          <span className="font-mono">{pin.timeOfDay}</span>
-          <Badge>{t('Pinned')}</Badge>
-        </p>
-        <p className="mt-1 text-xs text-muted-foreground">
-          {pin.line ? `${pin.line} · ` : ''}
-          {pin.destination ?? ''}
-        </p>
-      </div>
-      <div className="flex items-center gap-3 text-sm">
-        {pin.durationMinutes ? (
-          <span>{t('{minutes}min trip', { minutes: pin.durationMinutes })}</span>
-        ) : null}
-        <Button variant="outline" size="sm" onClick={onUnpin}>
-          {t('Unpin')}
-        </Button>
-      </div>
-    </li>
   );
 }

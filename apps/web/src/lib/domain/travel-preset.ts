@@ -47,6 +47,31 @@ export function findPresetForLog(presets: TravelPreset[], log: TimeLog): TravelP
   return presets.find((preset) => matchesLog(preset, log)) ?? null;
 }
 
+/**
+ * Whether the applicable commute for the current day uses transit.
+ *
+ * - No active day (planning): show whenever *any* preset uses transit, so a
+ *   stale work-from-home selection does not hide the card.
+ * - Active day: trust the day's own commute profile (matched to a preset); fall
+ *   back to the last-used preset, then to visible.
+ * - A finished day is handled by the caller (the card is hidden).
+ */
+export function commuteUsesTransit(
+  presets: TravelPreset[],
+  log: TimeLog | null,
+  lastPresetId: string | null,
+): boolean {
+  const active = log != null && log.endTime == null;
+  if (!active) {
+    if (presets.length === 0) return true; // presets still loading
+    return presets.some(usesTransit);
+  }
+  const match = findPresetForLog(presets, log!);
+  if (match) return usesTransit(match);
+  const last = presets.find((preset) => preset.id === lastPresetId);
+  return last ? usesTransit(last) : true;
+}
+
 function parseCommuteMode(value: unknown): CommuteMode {
   return value === 'transit' || value === 'car' || value === 'vespa' ? value : 'none';
 }

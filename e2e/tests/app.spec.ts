@@ -144,6 +144,14 @@ test.describe.serial('ChronoWarden web', () => {
     await expect.poll(() => page.locator('tbody tr').count()).toBeGreaterThan(rowsBefore);
   });
 
+  test('transit page renders its station settings', async ({ page }) => {
+    await page.goto('/');
+    await signIn(page);
+    await page.getByRole('link', { name: 'Transit' }).click();
+    await expect(page.getByText('Enable transit')).toBeVisible();
+    await expect(page.getByText('Both work and home stations must be set.')).toBeVisible();
+  });
+
   test('shows validation errors from the zod resolver', async ({ page }) => {
     await page.goto('/');
     await signIn(page);

@@ -13,6 +13,7 @@ import {
 } from '../queries/time-logs';
 import { usePreferences, useWorkConfig } from '../queries/settings';
 import { useTravelPresets } from '../queries/travel-presets';
+import { useJourneys, useTransitConfig } from '../queries/transit';
 
 vi.mock('../queries/time-logs', () => ({
   useTodayLog: vi.fn(),
@@ -27,6 +28,10 @@ vi.mock('../queries/settings', () => ({
 }));
 vi.mock('../queries/travel-presets', () => ({
   useTravelPresets: vi.fn(),
+}));
+vi.mock('../queries/transit', () => ({
+  useTransitConfig: vi.fn(),
+  useJourneys: vi.fn(),
 }));
 
 const mocked = {
@@ -68,6 +73,24 @@ beforeEach(() => {
     },
   } as never);
   vi.mocked(useTravelPresets).mockReturnValue({ data: [], isLoading: false } as never);
+  vi.mocked(useTransitConfig).mockReturnValue({
+    data: {
+      enabled: false,
+      workStopId: '',
+      workStopName: '',
+      homeStopId: '',
+      homeStopName: '',
+      workSiteId: 0,
+      homeSiteId: 0,
+      walkHomeMinutes: 5,
+      walkWorkMinutes: 5,
+    },
+  } as never);
+  vi.mocked(useJourneys).mockReturnValue({
+    data: [],
+    isLoading: false,
+    refetch: vi.fn(),
+  } as never);
   mocked.useCreateTimeLog.mockReturnValue({
     mutateAsync: vi.fn().mockResolvedValue({}),
     isPending: false,

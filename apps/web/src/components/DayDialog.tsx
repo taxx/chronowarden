@@ -1,11 +1,18 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 
 import { useT } from '../i18n';
 import { toDateStr } from '../lib/date';
 import type { TimeLog } from '../lib/domain/time-log';
+import {
+  defaultOverheadMinutes,
+  findPresetForLog,
+  type TravelPreset,
+} from '../lib/domain/travel-preset';
+import { formatDurationMinutes } from '../lib/format';
+import { CommuteSummary } from './CommuteSummary';
 import { MinutesSliderField } from './MinutesSliderField';
 import {
   Button,
@@ -18,6 +25,7 @@ import {
   FormMessage,
   Input,
   Modal,
+  SelectField,
   TimePicker,
 } from './ui';
 
@@ -29,6 +37,11 @@ export interface DayFormValues {
   lunchMinutes: number;
   nonWorkMinutes: number;
   note: string;
+  presetId: string;
+  morningOverheadMinutes: number;
+  morningProductiveCommuteMinutes: number;
+  eveningOverheadMinutes: number;
+  eveningProductiveCommuteMinutes: number;
 }
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
@@ -43,11 +56,23 @@ function makeSchema(t: (key: string) => string) {
     lunchMinutes: z.string().regex(NUM_RE, t('Enter a number')),
     nonWorkMinutes: z.string().regex(NUM_RE, t('Enter a number')),
     note: z.string(),
+    presetId: z.string(),
+    morningOverheadMinutes: z.string().regex(NUM_RE, t('Enter a number')),
+    morningProductiveCommuteMinutes: z.string().regex(NUM_RE, t('Enter a number')),
+    eveningOverheadMinutes: z.string().regex(NUM_RE, t('Enter a number')),
+    eveningProductiveCommuteMinutes: z.string().regex(NUM_RE, t('Enter a number')),
   });
 }
 
 type FormSchema = ReturnType<typeof makeSchema>;
 type FormInput = z.infer<FormSchema>;
+
+const COMMUTE_NAMES = [
+  'morningOverheadMinutes',
+  'morningProductiveCommuteMinutes',
+  'eveningOverheadMinutes',
+  'eveningProductiveCommuteMinutes',
+] as const;
 
 /** Add or edit a day — validated with Zod, wired through React Hook Form. */
 export function DayDialog({
@@ -57,6 +82,8 @@ export function DayDialog({
   defaultDate,
   defaultExpectedMinutes,
   defaultLunchMinutes = 0,
+  defaultPresetId = '',
+  presets = [],
   sliderStep = 5,
   onSubmit,
 }: {
@@ -66,6 +93,8 @@ export function DayDialog({
   defaultDate?: string;
   defaultExpectedMinutes: number;
   defaultLunchMinutes?: number;
+  defaultPresetId?: string;
+  presets?: TravelPreset[];
   sliderStep?: number;
   onSubmit: (values: DayFormValues) => void | Promise<void>;
 }) {
@@ -81,21 +110,72 @@ export function DayDialog({
       lunchMinutes: '0',
       nonWorkMinutes: '0',
       note: '',
+      presetId: '',
+      morningOverheadMinutes: '0',
+      morningProductiveCommuteMinutes: '0',
+      eveningOverheadMinutes: '0',
+      eveningProductiveCommuteMinutes: '0',
     },
   });
 
+  const wasOpen = useRef(false);
   useEffect(() => {
-    if (!open) return;
-    form.reset({
-      date: initial?.date ?? defaultDate ?? toDateStr(new Date()),
-      startTime: (initial?.startTime ?? '08:00:00').slice(0, 5),
-      endTime: (initial?.endTime ?? '').slice(0, 5),
-      expectedMinutes: String(initial?.expectedMinutes ?? defaultExpectedMinutes),
-      lunchMinutes: String(initial?.lunchMinutes ?? defaultLunchMinutes),
-      nonWorkMinutes: String(initial?.nonWorkMinutes ?? 0),
-      note: initial?.note ?? '',
-    });
-  }, [open, initial, defaultDate, defaultExpectedMinutes, defaultLunchMinutes, form]);
+    if (!open) {
+      wasOpen.current = false;
+      return;
+    }
+    if (!wasOpen.current) {
+      wasOpen.current = true;
+      const matched = initial ? findPresetForLog(presets, initial) : null;
+      const preset =
+        matched ??
+        presets.find((p) => p.id === defaultPresetId) ??
+        (initial ? null : presets[0]) ??
+        null;
+      form.reset({
+        date: initial?.date ?? defaultDate ?? toDateStr(new Date()),
+        startTime: (initial?.startTime ?? '08:00:00').slice(0, 5),
+        endTime: (initial?.endTime ?? '').slice(0, 5),
+        expectedMinutes: String(initial?.expectedMinutes ?? defaultExpectedMinutes),
+        lunchMinutes: String(initial?.lunchMinutes ?? defaultLunchMinutes),
+        nonWorkMinutes: String(initial?.nonWorkMinutes ?? 0),
+        note: initial?.note ?? '',
+        presetId: preset?.id ?? '',
+        morningOverheadMinutes: String(initial?.morningOverheadMinutes ?? preset?.morningOverheadMinutes ?? 0),
+        morningProductiveCommuteMinutes: String(
+          initial?.morningProductiveCommuteMinutes ?? preset?.morningProductiveCommuteMinutes ?? 0,
+        ),
+        eveningOverheadMinutes: String(initial?.eveningOverheadMinutes ?? preset?.eveningOverheadMinutes ?? 0),
+        eveningProductiveCommuteMinutes: String(
+          initial?.eveningProductiveCommuteMinutes ?? preset?.eveningProductiveCommuteMinutes ?? 0,
+        ),
+      });
+      return;
+    }
+    const current = form.getValues('presetId');
+    if (presets.length > 0 && !presets.some((preset) => preset.id === current)) {
+      form.setValue('presetId', defaultPresetId || presets[0]!.id || '');
+    }
+  }, [open, initial, presets, defaultDate, defaultExpectedMinutes, defaultLunchMinutes, defaultPresetId, form]);
+
+  const watchedPresetId = form.watch('presetId');
+  const commute = {
+    morningOverhead: Number(form.watch('morningOverheadMinutes')) || 0,
+    morningProductive: Number(form.watch('morningProductiveCommuteMinutes')) || 0,
+    eveningOverhead: Number(form.watch('eveningOverheadMinutes')) || 0,
+    eveningProductive: Number(form.watch('eveningProductiveCommuteMinutes')) || 0,
+  };
+
+  function applyPreset(presetId: string) {
+    form.setValue('presetId', presetId);
+    const preset = presets.find((candidate) => candidate.id === presetId);
+    if (!preset) return;
+    for (const name of COMMUTE_NAMES) form.setValue(name, '0');
+    form.setValue('morningOverheadMinutes', String(preset.morningOverheadMinutes));
+    form.setValue('morningProductiveCommuteMinutes', String(preset.morningProductiveCommuteMinutes));
+    form.setValue('eveningOverheadMinutes', String(preset.eveningOverheadMinutes));
+    form.setValue('eveningProductiveCommuteMinutes', String(preset.eveningProductiveCommuteMinutes));
+  }
 
   const submit = form.handleSubmit((values) =>
     onSubmit({
@@ -106,6 +186,11 @@ export function DayDialog({
       lunchMinutes: Number(values.lunchMinutes) || 0,
       nonWorkMinutes: Number(values.nonWorkMinutes) || 0,
       note: values.note,
+      presetId: values.presetId,
+      morningOverheadMinutes: Number(values.morningOverheadMinutes) || 0,
+      morningProductiveCommuteMinutes: Number(values.morningProductiveCommuteMinutes) || 0,
+      eveningOverheadMinutes: Number(values.eveningOverheadMinutes) || 0,
+      eveningProductiveCommuteMinutes: Number(values.eveningProductiveCommuteMinutes) || 0,
     }),
   );
 
@@ -126,11 +211,7 @@ export function DayDialog({
       }
     >
       <Form {...form}>
-        <form
-          id="day-form"
-          onSubmit={submit}
-          className="grid gap-4 sm:grid-cols-2"
-        >
+        <form id="day-form" onSubmit={submit} className="grid gap-4 sm:grid-cols-2">
           <FormField
             control={form.control}
             name="date"
@@ -183,6 +264,28 @@ export function DayDialog({
               </FormItem>
             )}
           />
+          {presets.length > 0 ? (
+            <>
+              <div className="sm:col-span-2">
+                <label htmlFor="day-preset" className="text-sm font-medium">
+                  {t('Travel preset')}
+                </label>
+                <SelectField
+                  id="day-preset"
+                  className="mt-1.5"
+                  value={watchedPresetId}
+                  onValueChange={applyPreset}
+                  options={presets.map((preset) => ({
+                    value: preset.id ?? '',
+                    label: `${preset.name} (+${formatDurationMinutes(defaultOverheadMinutes(preset))})`,
+                  }))}
+                />
+              </div>
+              <div className="sm:col-span-2">
+                <CommuteSummary {...commute} />
+              </div>
+            </>
+          ) : null}
           <MinutesSliderField
             control={form.control}
             name="lunchMinutes"

@@ -116,3 +116,12 @@ export function journeyTransferCount(journey: JourneyInfo): number {
 export function isMorning(date: Date): boolean {
   return date.getHours() < 11;
 }
+
+/**
+ * Whether the pre-start My Day transit card should appear: weekdays always,
+ * weekends only when the user has opted to work them.
+ */
+export function shouldShowTransitPlanning(now: Date, showWeekends: boolean): boolean {
+  const day = now.getDay();
+  return (day !== 0 && day !== 6) || showWeekends;
+}

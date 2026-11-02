@@ -24,6 +24,8 @@ import { isoWeekNumber } from '../lib/domain/work-config';
 import { formatDurationMinutes, overtimeTextClass } from '../lib/format';
 import { usePreferences, useWorkConfig } from '../queries/settings';
 import { useTimeLogs } from '../queries/time-logs';
+import { useTravelPresets } from '../queries/travel-presets';
+import { getLastPresetId } from '../services/last-preset';
 import { useToastStore } from '../state/toast';
 
 type Period = ChartPeriod;
@@ -53,6 +55,7 @@ export function OverviewPage() {
   const logsQuery = useTimeLogs();
   const configQuery = useWorkConfig();
   const prefsQuery = usePreferences();
+  const presetsQuery = useTravelPresets();
   const { saveDay } = useSaveDay();
   const pushToast = useToastStore((state) => state.push);
 
@@ -376,6 +379,8 @@ export function OverviewPage() {
         defaultDate={dialog?.date}
         defaultExpectedMinutes={configQuery.data?.defaultExpectedMinutes ?? 480}
         defaultLunchMinutes={prefsQuery.data?.defaultLunchMinutes ?? 0}
+        defaultPresetId={getLastPresetId()}
+        presets={presetsQuery.data ?? []}
         sliderStep={prefsQuery.data?.sliderStepMinutes ?? 5}
         onSubmit={submit}
       />

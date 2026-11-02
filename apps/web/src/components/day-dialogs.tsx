@@ -1,10 +1,11 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 
 import { useT } from '../i18n';
 import type { TravelPreset } from '../lib/domain/travel-preset';
+import { CommuteSummary } from './CommuteSummary';
 import { MinutesSliderField } from './MinutesSliderField';
 import {
   Button,
@@ -93,19 +94,36 @@ export function StartDayDialog({
     },
   });
 
+  // Reset only when the dialog opens, so presets arriving mid-dialog cannot
+  // wipe a selection the user has already made (the last-used preset bug).
+  const wasOpen = useRef(false);
   useEffect(() => {
-    if (!open) return;
-    const now = new Date();
-    form.reset({
-      startTime: `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`,
-      expectedMinutes: String(expectedMinutes),
-      presetId: defaultPresetId,
-      lunchMinutes: String(defaultLunch ?? 0),
-      nonWorkMinutes: '0',
-      flexMinutes: String(defaultFlex ?? 0),
-      note: '',
-    });
-  }, [open, expectedMinutes, defaultLunch, defaultFlex, defaultPresetId, form]);
+    if (!open) {
+      wasOpen.current = false;
+      return;
+    }
+    if (!wasOpen.current) {
+      wasOpen.current = true;
+      const now = new Date();
+      form.reset({
+        startTime: `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`,
+        expectedMinutes: String(expectedMinutes),
+        presetId: defaultPresetId,
+        lunchMinutes: String(defaultLunch ?? 0),
+        nonWorkMinutes: '0',
+        flexMinutes: String(defaultFlex ?? 0),
+        note: '',
+      });
+      return;
+    }
+    const current = form.getValues('presetId');
+    if (presets.length > 0 && !presets.some((preset) => preset.id === current)) {
+      form.setValue('presetId', defaultPresetId || presets[0]!.id || '');
+    }
+  }, [open, presets, defaultPresetId, expectedMinutes, defaultLunch, defaultFlex, form]);
+
+  const watchedPresetId = form.watch('presetId');
+  const selectedPreset = presets.find((preset) => preset.id === watchedPresetId) ?? presets[0] ?? null;
 
   const submit = form.handleSubmit((values) =>
     onSubmit({
@@ -188,6 +206,14 @@ export function StartDayDialog({
               />
             </div>
           ) : null}
+          <div className="sm:col-span-2">
+            <CommuteSummary
+              morningOverhead={selectedPreset?.morningOverheadMinutes ?? 0}
+              morningProductive={selectedPreset?.morningProductiveCommuteMinutes ?? 0}
+              eveningOverhead={selectedPreset?.eveningOverheadMinutes ?? 0}
+              eveningProductive={selectedPreset?.eveningProductiveCommuteMinutes ?? 0}
+            />
+          </div>
           <MinutesSliderField
             control={form.control}
             name="lunchMinutes"

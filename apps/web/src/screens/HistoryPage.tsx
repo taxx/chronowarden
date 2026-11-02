@@ -33,6 +33,8 @@ import { downloadText } from '../lib/download';
 import { formatDurationMinutes, formatSignedMinutes, overtimeBadgeVariant } from '../lib/format';
 import { useCreateTimeLog, useDeleteTimeLog, useTimeLogs } from '../queries/time-logs';
 import { usePreferences, useWorkConfig } from '../queries/settings';
+import { useTravelPresets } from '../queries/travel-presets';
+import { getLastPresetId } from '../services/last-preset';
 import { useToastStore } from '../state/toast';
 
 type SortKey = 'date' | 'startTime' | 'lunchMinutes' | 'nonWorkMinutes' | 'overtimeMinutes';
@@ -48,6 +50,7 @@ export function HistoryPage() {
   const logsQuery = useTimeLogs();
   const configQuery = useWorkConfig();
   const prefsQuery = usePreferences();
+  const presetsQuery = useTravelPresets();
   const createLog = useCreateTimeLog();
   const deleteLog = useDeleteTimeLog();
   const pushToast = useToastStore((state) => state.push);
@@ -255,6 +258,8 @@ export function HistoryPage() {
         initial={editing}
         defaultExpectedMinutes={defaultExpected}
         defaultLunchMinutes={prefsQuery.data?.defaultLunchMinutes ?? 0}
+        defaultPresetId={getLastPresetId()}
+        presets={presetsQuery.data ?? []}
         sliderStep={prefsQuery.data?.sliderStepMinutes ?? 5}
         onSubmit={submit}
       />
