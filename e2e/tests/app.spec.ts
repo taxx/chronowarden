@@ -38,6 +38,11 @@ test.describe.serial('ChronoWarden web', () => {
     const response = await page.goto('/');
     expect(response?.headers()['content-security-policy'] ?? '').toContain("default-src 'self'");
     await expect(page.getByRole('heading', { name: 'First-time setup' })).toBeVisible();
+    // The app must never rely on inline scripts (the CSP forbids them).
+    const inlineScripts = await page.evaluate(
+      () => document.querySelectorAll('script:not([src])').length,
+    );
+    expect(inlineScripts).toBe(0);
     // Let the app settle so any deferred CSP errors surface.
     await page.waitForTimeout(500);
     expect(violations).toEqual([]);
@@ -153,6 +158,13 @@ test.describe.serial('ChronoWarden web', () => {
   });
 
   test('shows validation errors from the zod resolver', async ({ page }) => {
+    const violations: string[] = [];
+    page.on('console', (message) => {
+      if (message.type() === 'error' && /Content Security Policy/i.test(message.text())) {
+        violations.push(message.text());
+      }
+    });
+
     await page.goto('/');
     await signIn(page);
 
@@ -164,6 +176,8 @@ test.describe.serial('ChronoWarden web', () => {
 
     // The `.refine(..., { path: ['confirm'] })` error must map to the field.
     await expect(page.getByText('Passphrases do not match')).toBeVisible();
+    // Parsing a schema must not trip Zod's `new Function` probe under the CSP.
+    expect(violations).toEqual([]);
   });
 
   test('downloads a backup from Settings', async ({ page }) => {
