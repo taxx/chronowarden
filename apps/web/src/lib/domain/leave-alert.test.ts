@@ -6,7 +6,8 @@ const base = {
   thresholdMinutes: 30,
   dismissed: false,
   snoozed: false,
-  alreadyAlerted: false,
+  wrapUpAlreadyAlerted: false,
+  overtimeAlreadyAlerted: false,
 };
 
 describe('evaluateLeaveAlert', () => {
@@ -40,10 +41,27 @@ describe('evaluateLeaveAlert', () => {
     expect(evaluateLeaveAlert({ ...base, remainingMinutes: -61 })).toBeNull();
   });
 
-  test('suppresses alerts when dismissed, snoozed or already alerted', () => {
+  test('suppresses alerts when dismissed or snoozed', () => {
     expect(evaluateLeaveAlert({ ...base, remainingMinutes: 10, dismissed: true })).toBeNull();
     expect(evaluateLeaveAlert({ ...base, remainingMinutes: 10, snoozed: true })).toBeNull();
-    expect(evaluateLeaveAlert({ ...base, remainingMinutes: 10, alreadyAlerted: true })).toBeNull();
+  });
+
+  test('tracks the two phases independently', () => {
+    // Wrap-up already fired, but overtime must still be allowed.
+    expect(
+      evaluateLeaveAlert({ ...base, remainingMinutes: 10, wrapUpAlreadyAlerted: true }),
+    ).toBeNull();
+    expect(
+      evaluateLeaveAlert({ ...base, remainingMinutes: -5, wrapUpAlreadyAlerted: true }),
+    ).toEqual({ kind: 'overtime', remainingMinutes: -5 });
+
+    // Overtime already fired, but a new wrap-up is still allowed.
+    expect(
+      evaluateLeaveAlert({ ...base, remainingMinutes: -5, overtimeAlreadyAlerted: true }),
+    ).toBeNull();
+    expect(
+      evaluateLeaveAlert({ ...base, remainingMinutes: 10, overtimeAlreadyAlerted: true }),
+    ).toEqual({ kind: 'wrapUp', remainingMinutes: 10 });
   });
 
   test('honours a custom threshold', () => {

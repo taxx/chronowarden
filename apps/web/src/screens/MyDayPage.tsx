@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { Briefcase, Coffee, NotebookPen, Pencil, Play, Route, Square, Trash2 } from 'lucide-react';
 
 import { DayDialog, type DayFormValues } from '../components/DayDialog';
@@ -33,7 +33,6 @@ import {
   useUpdateTimeLog,
 } from '../queries/time-logs';
 import { useTravelPresets } from '../queries/travel-presets';
-import { useNotificationsStore } from '../state/notifications';
 import { useToastStore } from '../state/toast';
 
 const DEFAULT_CONFIG: WorkConfig = { defaultExpectedMinutes: 480 };
@@ -87,7 +86,6 @@ export function MyDayPage() {
   const deleteLog = useDeleteTimeLog();
   const presetsQuery = useTravelPresets();
   const transitConfigQuery = useTransitConfig();
-  const checkNotifications = useNotificationsStore((state) => state.check);
   const pushToast = useToastStore((state) => state.push);
 
   const [dialog, setDialog] = useState<DialogKind>(null);
@@ -114,13 +112,6 @@ export function MyDayPage() {
   const leave = today
     ? leaveTimeWithBreaks(today, { lunchMinutes: lunchActive, nonWorkMinutes: nonWorkActive })
     : null;
-
-  // Feed the leave-time alert evaluator once a second while the day is active.
-  // (Must run before any early return so the hook order stays stable.)
-  useEffect(() => {
-    if (!today || today.endTime != null || !leave) return;
-    checkNotifications((leave.getTime() - now.getTime()) / 60_000, now);
-  }, [now, today, leave, checkNotifications]);
 
   if (todayQuery.isLoading) {
     return (

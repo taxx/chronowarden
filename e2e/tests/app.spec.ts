@@ -8,6 +8,9 @@ import { test, expect, type Page } from '@playwright/test';
  * Playwright drives it with ordinary role/label selectors.
  */
 test.describe.serial('ChronoWarden web', () => {
+  // The notification test buttons exercise the OS-notification path.
+  test.use({ permissions: ['notifications'] });
+
   const EMAIL = 'e2e@example.com';
   const PASSWORD = 'supersecret1';
   const PASSPHRASE = 'e2e-encryption-passphrase';
@@ -232,6 +235,25 @@ test.describe.serial('ChronoWarden web', () => {
 
     await expect(page.getByText('Copy this token and share it with the user:')).toBeVisible();
     await expect(page.getByText('invitee@example.com')).toBeVisible();
+  });
+
+  test('notification test buttons drive the real alert path', async ({ page }) => {
+    await page.goto('/');
+    await signIn(page);
+
+    await openAccountMenu(page);
+    await page.getByRole('menuitem', { name: 'Settings' }).click();
+
+    await page.getByRole('switch', { name: 'Enable notifications' }).click();
+
+    // The button must fire through the store (banner + audio + OS notification).
+    await page.getByRole('button', { name: 'Test overtime' }).click();
+    const banner = page.getByRole('alert');
+    await expect(banner).toContainText('Finish up and stop the day');
+    await expect(page.getByText('Test alert fired — check for sound & vibration')).toBeVisible();
+
+    await banner.getByRole('button', { name: 'Dismiss' }).click();
+    await expect(page.getByRole('alert')).toHaveCount(0);
   });
 
   // Runs last: it sets a new passphrase, so earlier tests need the original one.

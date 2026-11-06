@@ -18,10 +18,10 @@ export function notificationPermission(): string {
   }
 }
 
-export function showOsNotification(title: string, body: string): void {
+export function showOsNotification(title: string, body: string, tag = 'chronowarden-leave'): void {
   try {
     if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
-      new Notification(title, { body, tag: 'chronowarden-leave' });
+      new Notification(title, { body, tag });
     }
   } catch {
     // ignore
@@ -29,6 +29,26 @@ export function showOsNotification(title: string, body: string): void {
 }
 
 let audioContext: AudioContext | null = null;
+let primerInstalled = false;
+
+/**
+ * Resume the shared audio context on the first user interaction.
+ *
+ * Browsers block audio until a gesture, so priming only from the settings
+ * toggle left the beep silent for the rest of the session. Install this once at
+ * startup so any tap/keypress before the alert unlocks sound.
+ */
+export function installAudioPrimer(): void {
+  if (primerInstalled || typeof window === 'undefined') return;
+  primerInstalled = true;
+  const prime = () => {
+    primeAudio();
+    window.removeEventListener('pointerdown', prime);
+    window.removeEventListener('keydown', prime);
+  };
+  window.addEventListener('pointerdown', prime, { once: true });
+  window.addEventListener('keydown', prime, { once: true });
+}
 
 /** Create/resume the shared audio context. Call from a user gesture. */
 export function primeAudio(): void {

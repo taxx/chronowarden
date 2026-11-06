@@ -95,11 +95,12 @@ const sv: Record<string, string> = {
   Recovery: 'Återställning',
   'Reset password': 'Återställ lösenord',
   'Self-hosting guide': 'Guide för egen drift',
-  'Send test': 'Skicka test',
   'Share this temporary password with the user. Their sessions were signed out.':
       'Dela det här tillfälliga lösenordet med användaren. Deras sessioner loggades ut.',
   'Temporary password': 'Tillfälligt lösenord',
   'Test alert fired — check for sound & vibration': 'Testavisering skickad — kontrollera ljud och vibration',
+  'Test wrap-up': 'Testa nedvarvning',
+  'Test overtime': 'Testa övertid',
   'The Master Key unwraps your random Data Encryption Key. Only the wrapped DEK is stored on the server.':
       'Huvudnyckeln låser upp din slumpade datanyckel. Endast den inkapslade DEK:n lagras på servern.',
   'Totals are computed on import; existing dates are skipped to avoid duplicates.':

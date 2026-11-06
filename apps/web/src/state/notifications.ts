@@ -2,8 +2,15 @@ import { create } from 'zustand';
 
 import { translate, useLocaleStore } from '../i18n';
 import { toDateStr } from '../lib/date';
-import { evaluateLeaveAlert, type LeaveAlert } from '../lib/domain/leave-alert';
-import { beep, primeAudio, requestNotificationPermission, showOsNotification, vibrate } from '../lib/notify';
+import { evaluateLeaveAlert, type LeaveAlert, type LeaveAlertKind } from '../lib/domain/leave-alert';
+import {
+  beep,
+  installAudioPrimer,
+  primeAudio,
+  requestNotificationPermission,
+  showOsNotification,
+  vibrate,
+} from '../lib/notify';
 
 const KEYS = {
   enabled: 'notifications_enabled',
@@ -11,7 +18,8 @@ const KEYS = {
   snooze: 'notification_snooze_minutes',
   sound: 'notification_sound_enabled',
   vibrate: 'notification_vibrate_enabled',
-  alertedDate: 'notified_date',
+  wrapUpAlertedDate: 'notified_wrapup_date',
+  overtimeAlertedDate: 'notified_overtime_date',
   dismissedDate: 'notified_dismissed_date',
   snoozedUntil: 'notified_snoozed_until',
 } as const;
@@ -27,16 +35,53 @@ function readInt(key: string, fallback: number): number {
   return Number.isFinite(parsed) ? parsed : fallback;
 }
 
+/**
+ * Deliver one alert through every channel (OS notification, beep, vibration).
+ * Shared by `check` and `sendTestAlert` so the test exercises the real path.
+ */
+function deliver(
+  alert: LeaveAlert,
+  remainingMinutes: number,
+  soundEnabled: boolean,
+  vibrateEnabled: boolean,
+): void {
+  const t = (key: string, params?: Record<string, string | number>) =>
+    translate(useLocaleStore.getState().locale, key, params);
+  const minutes = Math.max(0, Math.round(Math.abs(remainingMinutes)));
+
+  if (alert.kind === 'wrapUp') {
+    showOsNotification(
+      t('Wrap up and head out'),
+      t('You have {minutes} min left before your planned leave time.', { minutes }),
+      'chronowarden-wrapup',
+    );
+  } else {
+    showOsNotification(
+      t('Finish up and stop the day'),
+      t('You are {minutes} min past your planned leave time.', { minutes }),
+      'chronowarden-overtime',
+    );
+  }
+
+  if (soundEnabled) beep(2);
+  if (vibrateEnabled) vibrate(alert.kind === 'wrapUp' ? 400 : 600);
+}
+
 interface NotificationsState {
   enabled: boolean;
   thresholdMinutes: number;
   snoozeMinutes: number;
   soundEnabled: boolean;
   vibrateEnabled: boolean;
-  alertedDate: string | null;
+  /** Date ("YYYY-MM-DD") the wrap-up alert fired, or null. */
+  wrapUpAlertedDate: string | null;
+  /** Date the overtime alert fired, or null. */
+  overtimeAlertedDate: string | null;
   dismissedDate: string | null;
   snoozedUntil: number | null;
   currentAlert: LeaveAlert | null;
+  /** True while the banner shows a manually fired test alert. */
+  isTestAlert: boolean;
 
   init: () => void;
   setEnabled: (value: boolean) => void;
@@ -46,6 +91,8 @@ interface NotificationsState {
   setVibrateEnabled: (value: boolean) => void;
   /** Re-evaluate and deliver an alert when one is due. */
   check: (remainingMinutes: number, now?: Date) => void;
+  /** Fire an alert through the real delivery path without affecting the day. */
+  sendTestAlert: (kind?: LeaveAlertKind) => void;
   snooze: (now?: Date) => void;
   dismiss: (now?: Date) => void;
   resetForToday: () => void;
@@ -57,10 +104,12 @@ export const useNotificationsStore = create<NotificationsState>((set, get) => ({
   snoozeMinutes: 10,
   soundEnabled: true,
   vibrateEnabled: true,
-  alertedDate: null,
+  wrapUpAlertedDate: null,
+  overtimeAlertedDate: null,
   dismissedDate: null,
   snoozedUntil: null,
   currentAlert: null,
+  isTestAlert: false,
 
   init: () => {
     const snoozeIso = localStorage.getItem(KEYS.snoozedUntil);
@@ -70,11 +119,13 @@ export const useNotificationsStore = create<NotificationsState>((set, get) => ({
       snoozeMinutes: readInt(KEYS.snooze, 10),
       soundEnabled: readBool(KEYS.sound, true),
       vibrateEnabled: readBool(KEYS.vibrate, true),
-      alertedDate: localStorage.getItem(KEYS.alertedDate),
+      wrapUpAlertedDate: localStorage.getItem(KEYS.wrapUpAlertedDate),
+      overtimeAlertedDate: localStorage.getItem(KEYS.overtimeAlertedDate),
       dismissedDate: localStorage.getItem(KEYS.dismissedDate),
       snoozedUntil: snoozeIso ? Number.parseInt(snoozeIso, 10) : null,
     });
     primeAudio();
+    installAudioPrimer();
   },
 
   setEnabled: (value) => {
@@ -125,51 +176,75 @@ export const useNotificationsStore = create<NotificationsState>((set, get) => ({
       thresholdMinutes: state.thresholdMinutes,
       dismissed: state.dismissedDate === today,
       snoozed,
-      alreadyAlerted: state.alertedDate === today,
+      wrapUpAlreadyAlerted: state.wrapUpAlertedDate === today,
+      overtimeAlreadyAlerted: state.overtimeAlertedDate === today,
     });
     if (!alert) return;
 
-    localStorage.setItem(KEYS.alertedDate, today);
-    set({ currentAlert: alert, alertedDate: today });
+    const firedKey = alert.kind === 'wrapUp' ? KEYS.wrapUpAlertedDate : KEYS.overtimeAlertedDate;
+    localStorage.setItem(firedKey, today);
+    set({
+      currentAlert: alert,
+      isTestAlert: false,
+      ...(alert.kind === 'wrapUp' ? { wrapUpAlertedDate: today } : { overtimeAlertedDate: today }),
+    });
 
+    // The permission prompt needs a user gesture, so it is requested from the
+    // settings toggle only. Here we just deliver if permission is already granted.
+    deliver(alert, remainingMinutes, state.soundEnabled, state.vibrateEnabled);
+  },
+
+  sendTestAlert: (kind = 'wrapUp') => {
+    const state = get();
     requestNotificationPermission();
-    if (state.soundEnabled) beep(2);
-    if (state.vibrateEnabled) vibrate(400);
-
-    const t = (key: string, params?: Record<string, string | number>) =>
-      translate(useLocaleStore.getState().locale, key, params);
-    const minutes = Math.round(Math.abs(remainingMinutes));
-    if (alert.kind === 'wrapUp') {
-      showOsNotification(
-        t('Wrap up and head out'),
-        t('You have {minutes} min left before your planned leave time.', { minutes }),
-      );
-    } else {
-      showOsNotification(
-        t('Finish up and stop the day'),
-        t('You are {minutes} min past your planned leave time.', { minutes }),
-      );
-    }
+    const remainingMinutes = kind === 'wrapUp' ? state.thresholdMinutes : -1;
+    const alert: LeaveAlert = { kind, remainingMinutes };
+    set({ currentAlert: alert, isTestAlert: true });
+    deliver(alert, remainingMinutes, state.soundEnabled, state.vibrateEnabled);
   },
 
   snooze: (now = new Date()) => {
+    // A test banner is not tied to the day, so just hide it.
+    if (get().isTestAlert) {
+      set({ currentAlert: null, isTestAlert: false });
+      return;
+    }
     const until = now.getTime() + get().snoozeMinutes * 60_000;
     localStorage.setItem(KEYS.snoozedUntil, String(until));
-    // Clearing the delivered date re-arms the alert once the snooze expires.
-    localStorage.removeItem(KEYS.alertedDate);
-    set({ snoozedUntil: until, alertedDate: null, currentAlert: null });
+    // Clearing both fired flags re-arms whichever phase follows the snooze.
+    localStorage.removeItem(KEYS.wrapUpAlertedDate);
+    localStorage.removeItem(KEYS.overtimeAlertedDate);
+    set({
+      snoozedUntil: until,
+      wrapUpAlertedDate: null,
+      overtimeAlertedDate: null,
+      currentAlert: null,
+    });
   },
 
   dismiss: (now = new Date()) => {
+    // A test banner is not tied to the day, so just hide it.
+    if (get().isTestAlert) {
+      set({ currentAlert: null, isTestAlert: false });
+      return;
+    }
     const today = toDateStr(now);
     localStorage.setItem(KEYS.dismissedDate, today);
     set({ dismissedDate: today, currentAlert: null });
   },
 
   resetForToday: () => {
-    localStorage.removeItem(KEYS.alertedDate);
+    localStorage.removeItem(KEYS.wrapUpAlertedDate);
+    localStorage.removeItem(KEYS.overtimeAlertedDate);
     localStorage.removeItem(KEYS.dismissedDate);
     localStorage.removeItem(KEYS.snoozedUntil);
-    set({ alertedDate: null, dismissedDate: null, snoozedUntil: null, currentAlert: null });
+    set({
+      wrapUpAlertedDate: null,
+      overtimeAlertedDate: null,
+      dismissedDate: null,
+      snoozedUntil: null,
+      currentAlert: null,
+      isTestAlert: false,
+    });
   },
 }));

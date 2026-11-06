@@ -26,6 +26,7 @@ import { useT } from '../i18n';
 import { useAuthStore } from '../state/auth';
 import { useThemeStore, type ThemePreference } from '../state/theme';
 import { AlertBanner } from './AlertBanner';
+import { NotificationWatcher } from './NotificationWatcher';
 import { RealtimeBridge } from './RealtimeBridge';
 import { UpdateBanner } from './UpdateBanner';
 import {
@@ -316,6 +317,7 @@ export function AppShell() {
           <div className="mx-auto max-w-4xl px-4 py-6 pb-24 lg:pb-10">
             <RealtimeBridge />
             <UpdateBanner />
+            <NotificationWatcher />
             <AlertBanner />
             <div key={pathname} className="animate-fade-in">
               <Outlet />

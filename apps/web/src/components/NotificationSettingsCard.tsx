@@ -4,12 +4,8 @@ import { Button, Card, CardContent, CardHeader, Field, Input, Switch } from './u
 import { useT } from '../i18n';
 import {
   audioState,
-  beep,
   notificationPermission,
-  primeAudio,
   requestNotificationPermission,
-  showOsNotification,
-  vibrate,
   vibrationSupported,
 } from '../lib/notify';
 import { useNotificationsStore } from '../state/notifications';
@@ -28,15 +24,14 @@ export function NotificationSettingsCard() {
   const setSnooze = useNotificationsStore((state) => state.setSnooze);
   const setSound = useNotificationsStore((state) => state.setSoundEnabled);
   const setVibrate = useNotificationsStore((state) => state.setVibrateEnabled);
+  const sendTestAlert = useNotificationsStore((state) => state.sendTestAlert);
   const pushToast = useToastStore((state) => state.push);
 
   const permission = notificationPermission();
 
-  function sendTest() {
-    primeAudio();
-    if (sound) beep(2);
-    if (vibrateEnabled) vibrate(300);
-    showOsNotification(t('ChronoWarden'), t('Test alert fired — check for sound & vibration'));
+  function sendTest(kind: 'wrapUp' | 'overtime') {
+    // Goes through the same store delivery path as a real leave-time alert.
+    sendTestAlert(kind);
     pushToast(t('Test alert fired — check for sound & vibration'), 'success');
   }
 
@@ -96,9 +91,13 @@ export function NotificationSettingsCard() {
               {t('Allow notifications')}
             </Button>
           ) : null}
-          <Button variant="secondary" size="sm" onClick={sendTest}>
+          <Button variant="secondary" size="sm" onClick={() => sendTest('wrapUp')}>
             <BellRing className="h-3.5 w-3.5" />
-            {t('Send test')}
+            {t('Test wrap-up')}
+          </Button>
+          <Button variant="secondary" size="sm" onClick={() => sendTest('overtime')}>
+            <BellRing className="h-3.5 w-3.5" />
+            {t('Test overtime')}
           </Button>
         </div>
       </CardContent>
