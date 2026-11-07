@@ -100,6 +100,11 @@ export function TimePicker({
   const handAngle = mode === 'hour' ? (hour % 12) * 30 : minute * 6;
   // Stop short of the number badges so the hand never covers the selection.
   const handLength = (mode === 'hour' && hour < 12 ? INNER_RADIUS : OUTER_RADIUS) - 18;
+  // A dragged minute between the five-minute marks has no badge of its own, so
+  // we render a marker for it at the exact angle (keeping it visible/clickable
+  // like a normal selected mark).
+  const minuteOffMark = minute % 5 !== 0;
+  const minutePoint = pointAt(OUTER_RADIUS, minute * 6);
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -179,6 +184,21 @@ export function TimePicker({
               }}
             />
             <div className="pointer-events-none absolute left-1/2 top-1/2 z-10 h-2 w-2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-primary" />
+
+            {mode === 'minute' && minuteOffMark ? (
+              <button
+                type="button"
+                onClick={() => setMinute(minute)}
+                aria-label={pad(minute)}
+                className="absolute z-20 flex h-7 w-7 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-primary text-xs font-semibold text-primary-foreground transition"
+                style={{
+                  left: `calc(50% ${offsetPx(minutePoint.x)})`,
+                  top: `calc(50% ${offsetPx(minutePoint.y)})`,
+                }}
+              >
+                {pad(minute)}
+              </button>
+            ) : null}
 
             {mode === 'hour'
               ? HOURS.map((h) => {

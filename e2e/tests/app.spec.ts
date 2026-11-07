@@ -82,7 +82,7 @@ test.describe.serial('ChronoWarden web', () => {
     await page.getByRole('button', { name: 'Cancel' }).click();
   });
 
-  test('dial time picker supports dragging to select the hour', async ({ page }) => {
+  test('dial time picker supports dragging to select the hour and an exact minute', async ({ page }) => {
     await page.goto('/');
     await signIn(page);
 
@@ -100,9 +100,18 @@ test.describe.serial('ChronoWarden web', () => {
     await page.mouse.up();
 
     await expect(page.getByRole('button', { name: 'Hours' })).toHaveText('18');
+
+    // The hour drag advanced to the minute step; drag to the exact minute 01.
+    await page.mouse.move(cx + 9.6, cy - 91.5);
+    await page.mouse.down();
+    await page.mouse.up();
+    await expect(page.getByRole('button', { name: 'Minutes' })).toHaveText('01');
+    // 01 is not a five-minute mark, so it must still render a selected badge.
+    await expect(page.getByTestId('time-picker-face').getByText('01')).toBeVisible();
+
     await page.getByRole('button', { name: 'Done' }).click();
     await expect(page.locator('[data-radix-popper-content-wrapper]')).toHaveCount(0);
-    await expect(page.getByLabel('Start time')).toContainText('18:');
+    await expect(page.getByLabel('Start time')).toContainText('18:01');
     await page.getByRole('button', { name: 'Cancel' }).click();
   });
 
