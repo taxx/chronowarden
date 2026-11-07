@@ -92,10 +92,12 @@ apps/
         domain/        pure domain logic (work config, time log, CSV, transit…)
       queries/         TanStack Query hooks
       services/        encrypted data services (time logs, settings, transit…)
+      hooks/           shared React hooks (useNow, …)
       screens/         route screens
       components/      UI kit + feature components
       state/           Zustand stores (auth, notifications)
       i18n/            t() + English keys + Swedish catalog + guard test
+      test/            Vitest setup (jsdom localStorage shim)
       router.tsx       TanStack Router with auth guards
       main.tsx         entry point
     public/            icons, generated version.json + CHANGELOG.md
@@ -121,7 +123,7 @@ apps/
       helpers/         ephemeral Postgres helper (postgres.ts)
     Dockerfile
 e2e/                   Playwright browser tests (real DOM)
-  tests/app.spec.ts    setup + recovery, sign-in, My Day, History, backup, invites
+  tests/app.spec.ts    setup + recovery, sign-in, My Day, History, backup, invites, notifications, dial
   server.ts            API + apps/web/dist on one origin (throwaway stack)
   global-setup.ts      builds the client, boots the stack
   README.md            how the harness works / selectors
@@ -130,6 +132,7 @@ tool/check.sh          one-command feedback loop (api | web | e2e)
 docker/
   proxy/nginx.conf     front door (web + /api)
   backup/              pg_dump cron container
+docs/                  AUTH.md, ENCRYPTION.md, SECURITY.md, design records
 docker-compose.yaml
 .env.example           compose configuration template
 .github/workflows/     CI: api, web, e2e jobs
@@ -152,6 +155,7 @@ User-data routes are implicitly scoped to the authenticated user.
 | `PATCH /me/password` | change own password (current required) |
 | `POST /invites/validate` | validate an invite token (public) |
 | `GET/PATCH/DELETE /admin/users/:id`, `GET /admin/users` | admin user management |
+| `POST /admin/users/:id/reset-password` | admin issues a temporary password |
 | `GET/POST/DELETE /admin/invites[/:id]` | admin invite management |
 | `GET/POST/PATCH/DELETE /time-logs[/:id]` (`?date=`) | encrypted time-log CRUD |
 | `GET/POST/PATCH/DELETE /travel-presets[/:id]` | encrypted preset CRUD |
@@ -201,11 +205,13 @@ See [`docs/AUTH.md`](docs/AUTH.md) for the full reference.
 - Passwords are hashed with **argon2id** (`Bun.password`, 19 MiB / 2
   iterations). Minimum length 10 characters.
 - Sessions are opaque 256-bit tokens. Only their SHA-256 hash is stored, in
-  `sessions`. The TTL is sliding (`SESSION_TTL_DAYS`, default 30).
+  `sessions`. The TTL is sliding (`SESSION_TTL_DAYS`, default 30) with a hard
+  absolute cap (`SESSION_ABSOLUTE_TTL_DAYS`, default 90).
 - **Transport:** the React client uses an httpOnly `cw_session` cookie
-  (SameSite=Lax, Secure in production). The legacy bearer token is still
-  returned in the login response and accepted by `requireAuth`, so CLI/API
-  tooling works. `GET /events` accepts the cookie or `?token=`.
+  (SameSite=Lax, `Secure` in production; override with `COOKIE_SECURE`). The
+  legacy bearer token is still returned in the login response and accepted by
+  `requireAuth`, so CLI/API tooling works. `GET /events` accepts the cookie or
+  `?token=`.
 
 ### Password resets (no email)
 
@@ -286,11 +292,14 @@ Template: `.env.example`.
 |-----|---------|
 | `POSTGRES_USER` / `POSTGRES_PASSWORD` / `POSTGRES_DB` | database credentials |
 | `DATA_DIR` | host dir for the Postgres volume (default `./data`) |
-| `SESSION_TTL_DAYS` | session lifetime in days (default 30) |
+| `SESSION_TTL_DAYS` | sliding session lifetime in days (default 30) |
+| `SESSION_ABSOLUTE_TTL_DAYS` | hard upper bound on session age (default 90) |
+| `MAX_BODY_BYTES` | max accepted request body size (default 8 MiB) |
+| `COOKIE_SECURE` | mark the session cookie `Secure` (default: true when `NODE_ENV=production`) |
 | `SL_API_KEY` | optional Journey Planner API key |
 | `WEB_PORT` | host port for the front door (default 8981) |
 | `CRON_SCHEDULE` / `RETENTION_DAYS` / `BACKUP_VOLUME` | backup tuning |
-| `CORS_ORIGIN` | optional; only needed for local `npm run dev` on a different origin |
+| `CORS_ORIGIN` | optional concrete origin; only needed when the client is served from a different origin |
 
 The client needs no secrets: it calls `/api/v1` on the same origin. The Vite dev
 server proxies `/api` to the API.
@@ -570,9 +579,12 @@ when close to leaving, then again if overrunning.
 - **Wrap-up** — once `remaining <= threshold` (default 30 min).
 - **Overtime** — up to 60 min past leave.
 
+Each phase fires once per day and is tracked independently, so the overtime
+alert still fires after wrap-up has been delivered.
+
 ### Snooze & dismiss
 
-- Snooze (default 10 min, 1–60) re-arms the alert.
+- Snooze (default 10 min, 1–60) re-arms the alert for the phase that follows.
 - Dismiss suppresses alerts for the rest of the day.
 - State and settings persist to `localStorage`.
 
@@ -587,11 +599,17 @@ when close to leaving, then again if overrunning.
 - Timing decisions live in the pure `evaluateLeaveAlert()`
   (`apps/web/src/lib/domain/leave-alert.ts`, unit-tested).
 - The projected leave time accounts for a break that is still running.
+- `NotificationWatcher` lives in the app shell, so alerts fire on any screen;
+  it slows the tick when hidden and re-checks on `visibilitychange`.
+- Notification permission is requested only from a user gesture (the settings
+  toggle); the settings "Test wrap-up / Test overtime" buttons go through the
+  same store delivery path as a real alert.
 
 Key files: `apps/web/src/state/notifications.ts`,
+`apps/web/src/components/NotificationWatcher.tsx`,
 `apps/web/src/components/AlertBanner.tsx`,
 `apps/web/src/components/NotificationSettingsCard.tsx`,
-`apps/web/src/lib/notify.ts`, `apps/web/src/screens/MyDayPage.tsx`.
+`apps/web/src/lib/notify.ts`.
 
 ---
 

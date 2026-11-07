@@ -86,7 +86,9 @@ words) and can be dismissed.
 - Sessions are opaque 256-bit random tokens. Only the SHA-256 hash is stored, in
   `sessions(token_hash PK, user_id, created_at, expires_at, last_seen_at)`.
 - The TTL is sliding: every authenticated request refreshes `expires_at` to
-  `now + SESSION_TTL_DAYS` (default 30 days).
+  `now + SESSION_TTL_DAYS` (default 30 days). A hard absolute cap
+  (`SESSION_ABSOLUTE_TTL_DAYS`, default 90 days) bounds a session's total age
+  regardless of activity.
 - Sessions cascade-delete with the user.
 - **Transport:** the React client uses an httpOnly `cw_session` cookie
   (SameSite=Lax, Secure in production). `requireAuth` also accepts

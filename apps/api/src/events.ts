@@ -3,7 +3,7 @@
  *
  * All writes go through this API, so instead of tailing Postgres replication we
  * publish an event to the owning user's open streams whenever a row changes.
- * The Flutter client reacts by re-fetching the affected data.
+ * The React client reacts by re-fetching the affected data.
  *
  * This is per-isolate/best-effort — with a single API container that is all we
  * need. A reconnect handler on the client covers missed events.

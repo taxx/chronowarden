@@ -6,7 +6,8 @@
 #                          with the commit baked into its bundle
 #   public/CHANGELOG.md  — rendered by the "What's New" screen
 #
-# Run before committing (part of the release routine). Generated, not hand-written.
+# Generated from the git history at deploy/build time (the output is gitignored,
+# so it always reflects the deployed revision). Never hand-written.
 set -euo pipefail
 
 cd "$(dirname "$0")/.."

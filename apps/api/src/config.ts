@@ -16,7 +16,7 @@ export interface AppConfig {
   slApiKey?: string;
   /**
    * Optional allowed origin for cross-origin requests. Production runs behind
-   * the same-origin proxy and needs none; local `flutter run -d chrome` does.
+   * the same-origin proxy and needs none; bypassing the Vite proxy does.
    */
   corsOrigin?: string;
   /**

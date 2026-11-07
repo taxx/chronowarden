@@ -40,8 +40,8 @@ function bearerToken(header: string | undefined): string | null {
 }
 
 /**
- * Resolves the session token from either `Authorization: Bearer` (the Flutter
- * client and API tooling) or the httpOnly session cookie (the React client).
+ * Resolves the session token from either `Authorization: Bearer` (CLI/API
+ * tooling) or the httpOnly session cookie (the React client).
  */
 export function tokenFromRequest(c: Context): string | null {
   return bearerToken(c.req.header('authorization')) ?? getCookie(c, SESSION_COOKIE) ?? null;

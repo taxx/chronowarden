@@ -7,7 +7,7 @@
 #
 # Stack:
 #   proxy  nginx front door: /api/* -> api, everything else -> web
-#   web    Flutter web client (static nginx build)
+#   web    React web client (static nginx build)
 #   api    Bun + Hono API (auth, encrypted CRUD, SSE sync, SL proxy)
 #   db     PostgreSQL 18 (only reachable inside the compose network)
 #   backup daily pg_dump + retention
@@ -45,6 +45,8 @@ services:
       SESSION_TTL_DAYS: ${SESSION_TTL_DAYS:-30}
       SESSION_ABSOLUTE_TTL_DAYS: ${SESSION_ABSOLUTE_TTL_DAYS:-90}
       MAX_BODY_BYTES: ${MAX_BODY_BYTES:-8388608}
+      CORS_ORIGIN: ${CORS_ORIGIN:-}
+      COOKIE_SECURE: ${COOKIE_SECURE:-}
       SL_API_KEY: ${SL_API_KEY:-}
 
   web:
@@ -54,7 +56,7 @@ services:
     depends_on:
       - api
 
-  # Front door. Same-origin /api means the Flutter client needs no CORS and no
+  # Front door. Same-origin /api means the React client needs no CORS and no
   # baked-in API URL. Point the host reverse proxy (HAProxy) at this port.
   proxy:
     image: nginx:alpine

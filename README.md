@@ -140,12 +140,20 @@ See [`docs/AUTH.md`](docs/AUTH.md) for the full reference.
 # 1. Configure secrets
 cp .env.example .env          # set a strong POSTGRES_PASSWORD
 
-# 2. Build and start
+# 2. Generate build metadata (version + in-app changelog) from the git history
+apps/web/tool/generate_metadata.sh
+
+# 3. Build and start
 docker compose up --build -d
 
-# 3. Check
+# 4. Check
 docker compose ps
 ```
+
+> `generate_metadata.sh` reads the git history (the Docker build excludes
+> `.git`), so run it from a clone before building. The generated
+> `public/version.json` / `public/CHANGELOG.md` are gitignored and copied into
+> the image.
 
 The app is then available at `http://localhost:8981`. Point your host reverse
 proxy (or HAProxy) at that port for TLS and a public hostname.
@@ -187,7 +195,9 @@ npm run dev            # http://localhost:5173
 | `apps/web/public/CHANGELOG.md` | `apps/web/tool/generate_metadata.sh` | in-app "What's New" |
 | `apps/web/public/version.json` | `apps/web/tool/generate_metadata.sh` | update prompt (`/version.json`) |
 
-Run the generator before committing.
+Both files are **gitignored** and generated from the git history at deploy/build
+time, so they always reflect the deployed revision. Never commit or hand-edit
+them.
 
 ---
 
@@ -248,10 +258,12 @@ apps/
 │   │   ├── lib/             crypto, format, date, download, notify + domain/
 │   │   ├── queries/         TanStack Query hooks
 │   │   ├── services/        encrypted data services
+│   │   ├── hooks/           shared React hooks (useNow, …)
 │   │   ├── screens/         route screens
 │   │   ├── components/      UI kit + feature components
 │   │   ├── state/           Zustand stores
 │   │   ├── i18n/            t() + Swedish catalog + guard test
+│   │   ├── test/            Vitest setup (jsdom localStorage shim)
 │   │   ├── router.tsx       TanStack Router with auth guards
 │   │   └── main.tsx         entry point
 │   ├── public/              icons, generated version.json + CHANGELOG.md
@@ -285,10 +297,9 @@ Contributions are welcome — bug reports, feature ideas, docs, and pull request
 - **UI text is localized:** wrap new strings in `t('…')` and add the Swedish
   entry to `apps/web/src/i18n/index.ts` in the same commit —
   `src/i18n/i18n.test.ts` fails otherwise.
-- **Regenerate metadata before committing:**
-  ```bash
-  apps/web/tool/generate_metadata.sh
-  ```
+- **Generated metadata is gitignored and produced at deploy/build time**
+  (`apps/web/tool/generate_metadata.sh`); never commit `version.json` or
+  `CHANGELOG.md`.
 
 ## License
 

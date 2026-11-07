@@ -29,7 +29,12 @@ Set `E2E_FORCE_BUILD=1` to rebuild the client, or `E2E_PORT` to change the port.
 
 - First-run admin setup through the UI, including the recovery phrase (24 words).
 - Sign-in with the encryption passphrase, start/stop a day.
+- Start-day dialog sliders (lunch, non-work, banked time).
+- Clock-dial time picker: drag the hour and an exact minute, check the selected badge.
 - Add a day in History.
+- Transit page station settings; Overview week/month fit the mobile width.
+- Zod validation errors and CSP (no inline scripts, no `new Function` probe).
 - Download and validate a full backup from Settings.
+- Notification "Test wrap-up / Test overtime" buttons (banner + toast).
 - Admin creates an invite and sees the one-time token.
 - Recover access with the recovery phrase and a new passphrase.

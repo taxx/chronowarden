@@ -38,7 +38,7 @@ app.use(
 );
 
 // Production is same-origin behind the proxy, so CORS is only enabled when an
-// explicit origin is configured (local Flutter web development).
+// explicit origin is configured (bypassing the Vite proxy in local dev).
 if (config.corsOrigin) {
   app.use(
     '/api/*',
