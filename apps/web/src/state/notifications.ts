@@ -91,6 +91,8 @@ interface NotificationsState {
   setVibrateEnabled: (value: boolean) => void;
   /** Re-evaluate and deliver an alert when one is due. */
   check: (remainingMinutes: number, now?: Date) => void;
+  /** Hide a real alert (e.g. the day ended or was deleted elsewhere). */
+  clearAlert: () => void;
   /** Fire an alert through the real delivery path without affecting the day. */
   sendTestAlert: (kind?: LeaveAlertKind) => void;
   snooze: (now?: Date) => void;
@@ -192,6 +194,13 @@ export const useNotificationsStore = create<NotificationsState>((set, get) => ({
     // The permission prompt needs a user gesture, so it is requested from the
     // settings toggle only. Here we just deliver if permission is already granted.
     deliver(alert, remainingMinutes, state.soundEnabled, state.vibrateEnabled);
+  },
+
+  clearAlert: () => {
+    const { currentAlert, isTestAlert } = get();
+    // Manually fired test banners stay until the user dismisses them.
+    if (currentAlert === null || isTestAlert) return;
+    set({ currentAlert: null });
   },
 
   sendTestAlert: (kind = 'wrapUp') => {

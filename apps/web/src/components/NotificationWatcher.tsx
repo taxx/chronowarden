@@ -23,6 +23,7 @@ function tickIntervalMs(): number {
 export function NotificationWatcher() {
   const today = useTodayLog().data ?? null;
   const check = useNotificationsStore((state) => state.check);
+  const clearAlert = useNotificationsStore((state) => state.clearAlert);
   const [now, setNow] = useState(() => new Date());
 
   useEffect(() => {
@@ -43,7 +44,12 @@ export function NotificationWatcher() {
   }, []);
 
   useEffect(() => {
-    if (!today || today.endTime != null) return;
+    if (!today || today.endTime != null) {
+      // The day ended (possibly on another device) or was deleted — a lingering
+      // banner must not survive it. Test banners are kept by the store.
+      clearAlert();
+      return;
+    }
 
     const lunchActive =
       today.lunchStartedAt != null
@@ -59,7 +65,7 @@ export function NotificationWatcher() {
       nonWorkMinutes: nonWorkActive,
     });
     check((leave.getTime() - now.getTime()) / 60_000, now);
-  }, [now, today, check]);
+  }, [now, today, check, clearAlert]);
 
   return null;
 }

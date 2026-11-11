@@ -133,4 +133,18 @@ describe('notifications store', () => {
     expect(useNotificationsStore.getState().currentAlert?.kind).toBe('overtime');
     expect(showOsNotification).toHaveBeenCalledTimes(2);
   });
+
+  test('clearAlert hides a real alert but keeps a test banner', () => {
+    useNotificationsStore.getState().setEnabled(true);
+    useNotificationsStore.getState().check(30, NOW);
+    expect(useNotificationsStore.getState().currentAlert?.kind).toBe('wrapUp');
+
+    useNotificationsStore.getState().clearAlert();
+    expect(useNotificationsStore.getState().currentAlert).toBeNull();
+
+    useNotificationsStore.getState().sendTestAlert('overtime');
+    expect(useNotificationsStore.getState().isTestAlert).toBe(true);
+    useNotificationsStore.getState().clearAlert();
+    expect(useNotificationsStore.getState().currentAlert?.kind).toBe('overtime');
+  });
 });

@@ -601,6 +601,8 @@ alert still fires after wrap-up has been delivered.
 - The projected leave time accounts for a break that is still running.
 - `NotificationWatcher` lives in the app shell, so alerts fire on any screen;
   it slows the tick when hidden and re-checks on `visibilitychange`.
+- A shown alert clears automatically when the day ends or is deleted — including
+  from another device, once the realtime refetch delivers the completed log.
 - Notification permission is requested only from a user gesture (the settings
   toggle); the settings "Test wrap-up / Test overtime" buttons go through the
   same store delivery path as a real alert.
