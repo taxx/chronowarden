@@ -59,12 +59,12 @@ services:
   # Front door. Same-origin /api means the React client needs no CORS and no
   # baked-in API URL. Point the host reverse proxy (HAProxy) at this port.
   proxy:
-    image: nginx:alpine
+    image: nginx/nginx-unprivileged:1.31.9-alpine
     restart: unless-stopped
     volumes:
       - ./src/docker/proxy/nginx.conf:/etc/nginx/conf.d/default.conf:ro
     ports:
-      - '${WEB_PORT:-8981}:80'
+      - '${WEB_PORT:-8981}:8080'
     depends_on:
       - web
       - api

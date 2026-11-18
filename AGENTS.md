@@ -50,7 +50,7 @@ API** backed by **PostgreSQL 18**, all run with Docker Compose.
                         https://chronowarden.slumpen.com  (host reverse proxy, TLS)
                                         │
                               ┌─────────▼──────────┐
-                              │  proxy (nginx)     │   8981:80
+                              │  proxy (nginx)     │   8981:8080
                               │  /api/* → api      │
                               │  /*     → web      │
                               └───┬────────────┬───┘
@@ -328,9 +328,18 @@ runs:
   volume `${DATA_DIR:-./data}/postgres`, healthcheck via `pg_isready`.
 - `api` — builds `./src/apps/api`; `DATABASE_URL` points at `db`; runs
   migrations on startup; port 8080 (internal).
-- `web` — builds `./src/apps/web` (Node 26 → nginx static build).
-- `proxy` — `nginx:alpine` front door on `${WEB_PORT:-8981}:80`; routes
-  `/api/` → `api:8080` (SSE-safe: buffering off) and `/` → `web:80`.
+- `web` — builds `./src/apps/web` (Node 26 → `nginx/nginx-unprivileged:1.31.9-alpine`
+  static build, listens on 8080).
+- `proxy` — `nginx/nginx-unprivileged:1.31.9-alpine` front door on
+  `${WEB_PORT:-8981}:8080` (non-root nginx, uid 101); routes `/api/` →
+  `api:8080` (SSE-safe: buffering off) and `/` → `web:8080`.
+
+> **nginx base image (security):** both nginx services run the patched,
+> unprivileged image `nginx/nginx-unprivileged:1.31.9-alpine`, which fixes the
+> nginx2root RCEs (CVE-2026-123007/-123634/-123633/-121810/-113425) and runs as
+> uid 101 instead of root, so a worker compromise cannot reach host root as
+> directly. It listens on 8080, not 80 — keep the container port mapping and
+> `proxy_pass` destinations in sync if you bump the tag.
 - `backup` — builds `./src/docker/backup`; daily `pg_dump`.
 
 Run:

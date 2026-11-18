@@ -57,7 +57,7 @@ only replaced the backend. (The UI was rewritten later, on a separate branch.)
                     https://chronowarden.slumpen.com  (host reverse proxy, TLS)
                                         │
                               ┌─────────▼──────────┐
-                              │  proxy (nginx)     │   8981:80
+                              │  proxy (nginx)     │   8981:8080
                               │  /api/* → api      │
                               │  /*     → web      │
                               └───┬────────────┬───┘
@@ -315,9 +315,9 @@ Leave the old Supabase project **read-only** for 30 days, take a final
 ```yaml
 services:
   proxy:                     # front door, keeps host TLS proxy untouched
-    image: nginx:alpine
+    image: nginx/nginx-unprivileged:1.31.9-alpine
     volumes: [ ./src/deploy/proxy.conf:/etc/nginx/conf.d/default.conf:ro ]
-    ports: [ "8981:80" ]
+    ports: [ "8981:8080" ]
     depends_on: [ web, api ]
 
   web:                       # Flutter build (no Supabase build args anymore)
