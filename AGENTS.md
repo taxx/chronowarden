@@ -648,9 +648,18 @@ UpdateBanner polls /version.json → offers "Reload" when the commits differ
 - Polls every 5 minutes and when the tab becomes visible.
 - Prompts only when both commits are known (not `dev`) and differ.
 - **Dismiss** records the server commit; reappears for the next deploy.
+- **Service worker must be `registerType: 'prompt'` with `clientsClaim: true`.**
+  Registration is manual (`injectRegister: false`) so the banner drives it via
+  `reloadToUpdate()` → `messageSkipWaiting()`. `registerType: 'autoUpdate'`
+  combined with `injectRegister: false` makes the plugin skip its automatic
+  `skipWaiting`/`clientsClaim`, so the waiting worker never activates, the reload
+  button does nothing, and the old cached shell keeps being served. `clientsClaim`
+  is required for Workbox's `controlling` event (the reload trigger). Do not
+  revert either.
 
 Key files: `apps/web/src/components/UpdateBanner.tsx`,
-`apps/web/src/lib/download.ts`, `apps/web/tool/generate_metadata.sh`.
+`apps/web/src/lib/pwa.ts`, `apps/web/vite.config.ts`,
+`apps/web/tool/generate_metadata.sh`.
 
 ---
 

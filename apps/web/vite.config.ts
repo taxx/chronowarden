@@ -30,7 +30,12 @@ export default defineConfig({
   plugins: [
     react(),
     VitePWA({
-      registerType: 'autoUpdate',
+      // 'prompt' (not 'autoUpdate'): we register manually below and let the
+      // in-app UpdateBanner drive activation via `messageSkipWaiting()`. With
+      // 'autoUpdate' + `injectRegister: false`, the plugin skips its automatic
+      // `skipWaiting`/`clientsClaim`, so the waiting worker never activates and
+      // a plain reload keeps serving the old cached shell.
+      registerType: 'prompt',
       // Registration happens in `src/lib/pwa.ts` (so the update banner can drive it).
       injectRegister: false,
       includeAssets: ['icons/*.png'],
@@ -60,6 +65,9 @@ export default defineConfig({
         ],
       },
       workbox: {
+        // The new worker must claim the existing client, otherwise Workbox's
+        // `controlling` event never fires and the reload-to-update never lands.
+        clientsClaim: true,
         navigateFallback: '/index.html',
         // Never serve the app shell for API navigations.
         navigateFallbackDenylist: [/^\/api\//],
